@@ -155,7 +155,7 @@ def setup_gui(app):
         tag="main_window", label="Color Tracking Algo for Single Player Games in Development", width=380, height=520
     ):
         # Header section - Always visible
-        dpg.add_text("SAI COLOR TRACKER V3", color=(201, 0, 141))
+        dpg.add_text("COLOR TRACKER V3", color=(201, 0, 141))
 
         with dpg.group(horizontal=True):
             app.status_text = dpg.add_text("Status: Idle")
@@ -391,6 +391,8 @@ def setup_gui(app):
                         callback=on_fov_x_changed,
                         width=-1,
                     )
+                    with dpg.tooltip(app.fov_x_slider):
+                        dpg.add_text("Horizontal scan range (pixels). Smaller is faster but requires better aim.")
 
                 with dpg.group(horizontal=True):
                     dpg.add_text("Height:")
@@ -402,10 +404,14 @@ def setup_gui(app):
                         callback=on_fov_y_changed,
                         width=-1,
                     )
+                    with dpg.tooltip(app.fov_y_slider):
+                        dpg.add_text("Vertical scan range (pixels). Keep tight to avoid distractions.")
 
                 app.fov_overlay_checkbox = dpg.add_checkbox(
                     label="Show Visual Search Box (Overlay)", default_value=False, callback=on_fov_overlay_toggled
                 )
+                with dpg.tooltip(app.fov_overlay_checkbox):
+                    dpg.add_text("Draws a green box showing exactly where the bot is looking.")
 
             # --- SYSTEM TAB ---
             with dpg.tab(label="System"):
@@ -456,6 +462,25 @@ def setup_gui(app):
                     )
                 with dpg.tooltip(app.prediction_slider):
                     dpg.add_text("Strength: Higher = aims further in front of the runner.")
+
+                dpg.add_spacer(height=20)
+                dpg.add_separator()
+                dpg.add_spacer(height=10)
+
+                reset_btn = dpg.add_button(
+                    label="RESET ALL SETTINGS",
+                    callback=lambda: dpg.show_item("reset_confirmation_modal"),
+                    width=-1,
+                    height=30,
+                )
+                with dpg.theme() as reset_theme:
+                    with dpg.theme_component(dpg.mvButton):
+                        dpg.add_theme_color(dpg.mvThemeCol_Button, (110, 40, 40), category=dpg.mvThemeCat_Core)
+                        dpg.add_theme_color(dpg.mvThemeCol_ButtonHovered, (150, 50, 50), category=dpg.mvThemeCat_Core)
+                        dpg.add_theme_color(dpg.mvThemeCol_ButtonActive, (180, 60, 60), category=dpg.mvThemeCat_Core)
+                dpg.bind_item_theme(reset_btn, reset_theme)
+                with dpg.tooltip(reset_btn):
+                    dpg.add_text("Warning: This will revert EVERY setting back to its factory default value.")
 
             # --- DEBUG TAB (Conditional) ---
             if hasattr(app, "logger") and app.logger.debug_console_enabled:
@@ -524,3 +549,60 @@ def setup_gui(app):
             return min(960, max(120, snapped))
 
         app._snap_fps_value = _snap_fps_value
+
+        def reset_all_settings():
+            """Reset all settings to defaults and refresh the UI"""
+            app.config.reset_to_defaults()
+
+            # Refresh all UI components with new config values
+            ui_elements = [
+                (app.smoothing_slider, app.config.smoothing),
+                (app.filter_combo, app.config.filter_method),
+                (app.head_offset_slider, app.config.head_offset),
+                (app.leg_offset_slider, app.config.leg_offset),
+                (app.tolerance_slider, app.config.color_tolerance),
+                (app.fov_x_slider, app.config.fov_x),
+                (app.fov_y_slider, app.config.fov_y),
+                (app.fps_slider, app.config.target_fps),
+                (app.prediction_checkbox, app.config.prediction_enabled),
+                (app.prediction_slider, app.config.prediction_multiplier),
+                (app.enabled_checkbox, app.config.enabled),
+            ]
+
+            for item, value in ui_elements:
+                if dpg.does_item_exist(item):
+                    dpg.set_value(item, value)
+
+            if dpg.does_item_exist(app.aim_point_radio):
+                dpg.set_value(app.aim_point_radio, {0: "Head", 1: "Body", 2: "Legs"}.get(app.config.aim_point, "Body"))
+
+            if dpg.does_item_exist(app.color_picker):
+                c = app.config.target_color
+                dpg.set_value(app.color_picker, [(c >> 16 & 0xFF) / 255.0, (c >> 8 & 0xFF) / 255.0, (c & 0xFF) / 255.0])
+
+            app.update_tolerance_preview()
+            dpg.hide_item("reset_confirmation_modal")
+            if hasattr(app, "logger"):
+                app.logger.info("Application settings reset to defaults.")
+
+        app.reset_all_settings = reset_all_settings
+
+    # --- MODALS ---
+    with dpg.window(
+        label="Confirm Reset",
+        modal=True,
+        show=False,
+        tag="reset_confirmation_modal",
+        no_title_bar=True,
+        width=260,
+        height=100,
+        pos=[60, 200],
+    ):
+        dpg.add_spacer(height=5)
+        dpg.add_text("Reset all settings to factory defaults?\nThis cannot be undone.", wrap=240)
+        dpg.add_spacer(height=10)
+        with dpg.group(horizontal=True):
+            dpg.add_button(label="YES, RESET", callback=app.reset_all_settings, width=120, height=25)
+            dpg.add_button(
+                label="CANCEL", callback=lambda: dpg.hide_item("reset_confirmation_modal"), width=120, height=25
+            )
