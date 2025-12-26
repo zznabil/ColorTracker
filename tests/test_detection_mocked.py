@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import numpy as np
 import pytest
@@ -20,6 +20,12 @@ def mock_detection():
     return DetectionSystem(config)
 
 
+class MockScreenShot:
+    def __init__(self, img_array):
+        self.bgra = img_array.tobytes()
+        self.raw = self.bgra
+
+
 def test_find_target_success(mock_detection):
     """Test target finding logic using mocked MSS screen capture"""
 
@@ -31,7 +37,7 @@ def test_find_target_success(mock_detection):
     img[10:15, 10:15] = [255, 0, 255, 255]  # Magenta
 
     with patch("mss.mss") as mock_mss:
-        mock_mss.return_value.grab.return_value = img
+        mock_mss.return_value.grab.return_value = MockScreenShot(img)
 
         found, x, y = mock_detection.find_target()
 
@@ -42,11 +48,9 @@ def test_find_target_success(mock_detection):
 
 def test_find_target_no_color(mock_detection):
     """Ensure find_target returns False when target color is missing"""
-    mock_grab = MagicMock()
     img = np.zeros((200, 200, 4), dtype=np.uint8)  # Black screen
-    mock_grab.bgra = img
 
     with patch("mss.mss") as mock_mss:
-        mock_mss.return_value.grab.return_value = img
+        mock_mss.return_value.grab.return_value = MockScreenShot(img)
         found, x, y = mock_detection.find_target()
         assert found is False

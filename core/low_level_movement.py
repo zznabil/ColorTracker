@@ -116,16 +116,36 @@ class LowLevelMovementSystem:
         self.screen_height = 1080
 
         # Try to get actual metrics, respecting mocks
+        # Try to get actual metrics, respecting mocks
         try:
             user32 = self._get_user32()
             if user32:
-                self.screen_width = user32.GetSystemMetrics(0)  # type: ignore
-                self.screen_height = user32.GetSystemMetrics(1)  # type: ignore
+                # OPTIMIZATION: Define argtypes/restype to avoid auto-detection overhead
+                user32.GetSystemMetrics.argtypes = [ctypes.c_int]
+                user32.GetSystemMetrics.restype = ctypes.c_int
+
+                user32.GetCursorPos.argtypes = [ctypes.POINTER(POINT)]
+                user32.GetCursorPos.restype = ctypes.c_int
+
+                user32.SendInput.argtypes = [ctypes.c_uint, ctypes.POINTER(INPUT), ctypes.c_int]
+                user32.SendInput.restype = ctypes.c_uint
+
+                self.screen_width = user32.GetSystemMetrics(0)
+                self.screen_height = user32.GetSystemMetrics(1)
         except Exception:
             pass
 
         # Aim offset based on aim point
         self.aim_offset_y = 0
+
+        # OPTIMIZATION: Pre-calculate scaling factors for absolute movement
+        # 65535 is the max value for MOUSEEVENTF_ABSOLUTE
+        self._input_max = 65535.0
+        self.scale_x = self._input_max / self.screen_width
+        self.scale_y = self._input_max / self.screen_height
+
+        # Cache INPUT structure size
+        self.input_size = ctypes.sizeof(INPUT)
 
     def _get_user32(self):
         """Helper to get the correct user32 instance (real or mocked)"""
@@ -171,7 +191,7 @@ class LowLevelMovementSystem:
 
         # Send the input using Windows API with safety check
         try:
-            result = user32.SendInput(1, ctypes.byref(input_struct), ctypes.sizeof(INPUT))  # type: ignore
+            result = user32.SendInput(1, ctypes.byref(input_struct), self.input_size)
             return result == 1
         except Exception:
             return False
@@ -184,8 +204,13 @@ class LowLevelMovementSystem:
         if not user32:
             return True
 
-        normalized_x = max(0, min(65535, int((x * 65535) / self.screen_width)))
-        normalized_y = max(0, min(65535, int((y * 65535) / self.screen_height)))
+        # OPTIMIZATION: Use pre-calculated scaling factors
+        normalized_x = int(x * self.scale_x)
+        normalized_y = int(y * self.scale_y)
+
+        # Clamp values
+        normalized_x = max(0, min(65535, normalized_x))
+        normalized_y = max(0, min(65535, normalized_y))
 
         mouse_input = MOUSEINPUT(
             dx=normalized_x,
@@ -200,7 +225,7 @@ class LowLevelMovementSystem:
 
         # Send the input using Windows API with safety check
         try:
-            result = user32.SendInput(1, ctypes.byref(input_struct), ctypes.sizeof(INPUT))
+            result = user32.SendInput(1, ctypes.byref(input_struct), self.input_size)
             return result == 1
         except Exception:
             return False

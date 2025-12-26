@@ -58,20 +58,23 @@ def setup_gui(app):
         app._fov_use_viewport_drawlist = True
     except Exception:
         # Fallback: window-based overlay (may block inputs in some DPG versions)
-        with dpg.window(
-            label="FOV Overlay",
-            width=screen_w,
-            height=screen_h,
-            no_title_bar=True,
-            no_move=True,
-            no_resize=True,
-            no_collapse=True,
-            no_background=True,
-            no_bring_to_front_on_focus=True,
-            no_inputs=True,
-            show=False,
-            tag="fov_overlay",
-        ), dpg.drawlist(width=screen_w, height=screen_h, tag="fov_drawlist"):
+        with (
+            dpg.window(
+                label="FOV Overlay",
+                width=screen_w,
+                height=screen_h,
+                no_title_bar=True,
+                no_move=True,
+                no_resize=True,
+                no_collapse=True,
+                no_background=True,
+                no_bring_to_front_on_focus=True,
+                no_inputs=True,
+                show=False,
+                tag="fov_overlay",
+            ),
+            dpg.drawlist(width=screen_w, height=screen_h, tag="fov_drawlist"),
+        ):
             dpg.draw_rectangle(
                 [0, 0],
                 [100, 100],
@@ -155,9 +158,7 @@ def setup_gui(app):
         app.config.update("enabled", app_data)
         if dpg.does_item_exist("main_toggle_btn"):
             dpg.configure_item("main_toggle_btn", enabled=app_data)
-            dpg.configure_item(
-                "main_toggle_btn", label="TOGGLE TRACKING" if app_data else "DISABLED (Master Off)"
-            )
+            dpg.configure_item("main_toggle_btn", label="TOGGLE TRACKING" if app_data else "DISABLED (Master Off)")
 
     # Create main window with optimized layout
     with dpg.window(
@@ -436,17 +437,19 @@ def setup_gui(app):
 
                 dpg.add_text("PROFILES", color=(201, 0, 141))
 
+                """
                 def refresh_profile_combo():
-                    profiles = app.config.list_profiles()
-                    dpg.configure_item("profile_combo", items=profiles, default_value=app.config.current_profile_name)
+                    # Disabled
+                    pass
+
+                def update_metadata_fields():
+                    # Disabled
+                    pass
 
                 def on_profile_selected(sender, app_data):
-                    if app.config.load_profile(app_data):
-                        # Use reset_all_settings logic to refresh UI but without resetting values to default
-                        # We just want to refresh UI with loaded values
-                        refresh_ui_from_config()
-                        if hasattr(app, "logger"):
-                            app.logger.info(f"Loaded profile: {app_data}")
+                    # Disabled
+                    pass
+                """
 
                 def refresh_ui_from_config():
                     """Update all UI elements to match current config"""
@@ -481,6 +484,7 @@ def setup_gui(app):
 
                     app.update_tolerance_preview()
 
+                """
                 dpg.add_combo(
                     items=app.config.list_profiles(),
                     default_value=app.config.current_profile_name,
@@ -489,17 +493,47 @@ def setup_gui(app):
                     width=-1,
                 )
 
+                dpg.add_spacer(height=5)
+                dpg.add_text("Metadata:")
+                try:
+                    dpg.add_input_text(label="Description", tag="meta_description")
+                    dpg.set_value("meta_description", str(getattr(app.config, "description", "")))
+                    dpg.set_item_callback("meta_description", lambda s, a: app.config.update("description", a))
+                except Exception as e:
+                    print(f"Warning: Failed to init description input: {e}")
+
+                try:
+                    dpg.add_input_text(label="Hotkey", tag="meta_hotkey", width=100)
+                    dpg.set_value("meta_hotkey", str(getattr(app.config, "hotkey", "")))
+                    dpg.set_item_callback("meta_hotkey", lambda s, a: app.config.update("hotkey", a))
+                except Exception as e:
+                    print(f"Warning: Failed to init hotkey input: {e}")
+                with dpg.tooltip("meta_hotkey"):
+                    dpg.add_text("Example: F1, Ctrl+P. (Visual reference only currently)")
+
+                dpg.add_spacer(height=5)
                 with dpg.group(horizontal=True):
                     dpg.add_button(
-                        label="New / Save As...",
+                        label="Save As...",
                         callback=lambda: dpg.show_item("save_profile_modal"),
-                        width=120,
+                        width=80,
+                    )
+                    dpg.add_button(
+                        label="Rename",
+                        callback=lambda: dpg.show_item("rename_profile_modal"),
+                        width=80,
+                    )
+                    dpg.add_button(
+                        label="Duplicate",
+                        callback=lambda: dpg.show_item("duplicate_profile_modal"),
+                        width=80,
                     )
                     dpg.add_button(
                         label="Delete",
                         callback=lambda: dpg.show_item("delete_profile_modal"),
-                        width=120,
+                        width=80,
                     )
+                """
 
                 dpg.add_spacer(height=10)
                 dpg.add_separator()
@@ -668,62 +702,11 @@ def setup_gui(app):
                 label="CANCEL", callback=lambda: dpg.hide_item("reset_confirmation_modal"), width=120, height=25
             )
 
+    """
     # Save Profile Modal
     def save_new_profile(sender, app_data):
-        name = dpg.get_value("new_profile_name")
-        if app.config.save_profile(name):
-            refresh_profile_combo()
-            dpg.set_value("profile_combo", name)
-            dpg.hide_item("save_profile_modal")
-            dpg.set_value("new_profile_name", "")  # clear
-        else:
-            # Maybe show error
-            pass
+        # Disabled
+        pass
 
-    with dpg.window(
-        label="Save New Profile",
-        modal=True,
-        show=False,
-        tag="save_profile_modal",
-        no_title_bar=True,
-        width=260,
-        height=130,
-        pos=[60, 200],
-    ):
-        dpg.add_spacer(height=5)
-        dpg.add_text("Enter profile name:")
-        dpg.add_input_text(tag="new_profile_name")
-        dpg.add_spacer(height=10)
-        with dpg.group(horizontal=True):
-            dpg.add_button(label="SAVE", callback=save_new_profile, width=120, height=25)
-            dpg.add_button(
-                label="CANCEL", callback=lambda: dpg.hide_item("save_profile_modal"), width=120, height=25
-            )
-
-    # Delete Profile Modal
-    def confirm_delete_profile():
-        current = app.config.current_profile_name
-        if app.config.delete_profile(current):
-            refresh_profile_combo()
-            dpg.set_value("profile_combo", app.config.current_profile_name)
-            refresh_ui_from_config()
-            dpg.hide_item("delete_profile_modal")
-
-    with dpg.window(
-        label="Confirm Delete",
-        modal=True,
-        show=False,
-        tag="delete_profile_modal",
-        no_title_bar=True,
-        width=260,
-        height=100,
-        pos=[60, 200],
-    ):
-        dpg.add_spacer(height=5)
-        dpg.add_text("Delete current profile?\nThis cannot be undone.", wrap=240)
-        dpg.add_spacer(height=10)
-        with dpg.group(horizontal=True):
-            dpg.add_button(label="DELETE", callback=confirm_delete_profile, width=120, height=25)
-            dpg.add_button(
-                label="CANCEL", callback=lambda: dpg.hide_item("delete_profile_modal"), width=120, height=25
-            )
+    # ... Modal windows commented out ...
+    """

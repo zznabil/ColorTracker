@@ -87,9 +87,15 @@ def test_detection_area_clipping_logic():
 
     ds = DetectionSystem(config)
 
+    class MockScreenShot:
+        def __init__(self, img_array):
+            self.bgra = img_array.tobytes()
+            self.raw = self.bgra
+
     with patch.object(ds, "_get_sct") as mock_sct:
         grab_mock = MagicMock()
-        grab_mock.return_value = np.zeros((1, 1, 4), dtype=np.uint8)
+        img = np.zeros((1000, 1000, 4), dtype=np.uint8)
+        grab_mock.return_value = MockScreenShot(img)
         mock_sct.return_value.grab = grab_mock
 
         # 1. Target far outside FOV but within search area

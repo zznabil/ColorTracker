@@ -20,6 +20,7 @@ def test_prediction_methods_switch(pred_sys):
 
     for method in methods:
         pred_sys.config.filter_method = method
+        pred_sys.update_config()  # Refresh cache
         pred_sys.filter_x = None  # Force reset
 
         # First call initializes
@@ -41,6 +42,7 @@ def test_prediction_disabled(pred_sys):
     """When prediction is disabled, output should closely follow input (after filtering)"""
     pred_sys.config.prediction_enabled = False
     pred_sys.config.smoothing = 0.0  # Instant tracking
+    pred_sys.update_config()  # Refresh cache
 
     # Initialize
     pred_sys.predict(100, 100)

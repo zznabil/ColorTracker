@@ -12,14 +12,20 @@ import pytest
 from core.detection import DetectionSystem
 
 
+class MockScreenShot:
+    def __init__(self, img_array):
+        self.bgra = img_array.tobytes()
+        self.raw = self.bgra
+
+
 class TestDetectionNoiseResilience:
     @pytest.fixture
     def base_config(self):
         config = MagicMock()
         config.screen_width = 1920
         config.screen_height = 1080
-        config.fov_x = 100
-        config.fov_y = 100
+        config.fov_x = 50
+        config.fov_y = 50
         config.search_area = 50
         config.target_color = 0xFF0000  # Red
         config.color_tolerance = 10
@@ -40,7 +46,7 @@ class TestDetectionNoiseResilience:
             mask = np.random.random((100, 100)) < 0.1
             img[mask] = noise[mask]
 
-            mock_sct.return_value.grab.return_value = img
+            mock_sct.return_value.grab.return_value = MockScreenShot(img)
 
             found, x, y = ds.find_target()
             # Should still find target if cluster is big enough or noise doesn't overwhelm
@@ -57,7 +63,7 @@ class TestDetectionNoiseResilience:
             img[20, 20] = [0, 0, 255, 255]
             img[80, 80] = [0, 0, 255, 255]
 
-            mock_sct.return_value.grab.return_value = img
+            mock_sct.return_value.grab.return_value = MockScreenShot(img)
 
             found, x, y = ds.find_target()
             assert found is True
@@ -73,7 +79,7 @@ class TestDetectionNoiseResilience:
             # Target at very bottom right edge
             img[99, 99] = [0, 0, 255, 255]
 
-            mock_sct.return_value.grab.return_value = img
+            mock_sct.return_value.grab.return_value = MockScreenShot(img)
 
             found, x, y = ds.find_target()
             assert found is True
@@ -84,7 +90,7 @@ class TestDetectionNoiseResilience:
 
         with patch.object(ds, "_get_sct") as mock_sct:
             img = np.zeros((100, 100, 4), dtype=np.uint8)  # No red
-            mock_sct.return_value.grab.return_value = img
+            mock_sct.return_value.grab.return_value = MockScreenShot(img)
 
             found, x, y = ds.find_target()
             assert found is False

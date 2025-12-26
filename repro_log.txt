@@ -1,0 +1,9 @@
+Starting DPG Context
+Creating Window
+Creating Description Input
+Value: '' Type: <class 'str'>
+Created Description input
+Creating Hotkey Input
+Created Hotkey input
+DPG Setup Complete
+Success

@@ -6,10 +6,8 @@ Configuration Utility
 Handles loading and saving configuration settings, including profile management.
 """
 
-import glob
 import json
 import os
-import shutil
 import threading
 import time
 from typing import Any
@@ -66,10 +64,12 @@ class Config:
         "target_fps": {"type": int, "default": 240, "min": 30, "max": 1000},
         "enabled": {"type": bool, "default": False},
         "debug_mode": {"type": bool, "default": False},
+        "description": {"type": str, "default": ""},
+        "hotkey": {"type": str, "default": ""},
     }
 
-    PROFILES_DIR = "profiles"
-    DEFAULT_PROFILE_NAME = "default"
+    # PROFILES_DIR = "profiles"
+    # DEFAULT_PROFILE_NAME = "default"
 
     def __init__(self):
         """
@@ -81,12 +81,14 @@ class Config:
 
         # Internal state
         self.config_file = "config.json"
-        self.current_profile_name = self.DEFAULT_PROFILE_NAME
+        # self.current_profile_name = self.DEFAULT_PROFILE_NAME
         self._last_save_time = 0
         self._save_debounce_ms = 500
         self._save_timer = None
         self._lock = threading.Lock()
 
+        # Profiles disabled - using single config.json only
+        """
         # Ensure profiles directory exists
         if not os.path.exists(self.PROFILES_DIR):
             os.makedirs(self.PROFILES_DIR)
@@ -98,6 +100,7 @@ class Config:
                 shutil.copy("config.json", default_profile_path)
             except Exception as e:
                 print(f"Config: Failed to migrate config.json to default profile: {e}")
+        """
 
         # Load and validate saved configuration
         self.load()
@@ -147,41 +150,15 @@ class Config:
 
         return value
 
-    def load(self, profile_name: str | None = None):
+    def load(self, file_path: str | None = None):
         """
         Load configuration from file if it exists with robust validation and repair
         """
-        # Determine the file path
-        file_to_load = self.config_file
-
-        if profile_name:
-            # If explicit profile name provided, switch to it
-            self.current_profile_name = profile_name
-            file_to_load = os.path.join(self.PROFILES_DIR, f"{profile_name}.json")
-            self.config_file = file_to_load
-        else:
-            # No profile name provided.
-            # If config_file was manually set (e.g. by a test), use it.
-            # But if config_file is currently pointing to a profile that isn't the one requested (none requested),
-            # we should stick to self.config_file unless it's the initial load.
-
-            # If self.config_file is just "config.json" (initial state), try to resolve to a profile
-            if self.config_file == "config.json":
-                default_profile_path = os.path.join(self.PROFILES_DIR, f"{self.DEFAULT_PROFILE_NAME}.json")
-                if os.path.exists(default_profile_path):
-                    file_to_load = default_profile_path
-                    self.config_file = file_to_load
-                else:
-                     file_to_load = "config.json"
-            else:
-                # Use whatever is currently set
-                file_to_load = self.config_file
+        # Use provided path or internal state
+        file_to_load = file_path or self.config_file
 
         if not os.path.exists(file_to_load):
             print(f"Config: {file_to_load} not found. Using defaults.")
-            # If loading a specific profile that doesn't exist, we might want to save defaults there
-            if profile_name:
-                self.save()
             return
 
         try:
@@ -210,11 +187,9 @@ class Config:
                     setattr(self, key, validated_value)
                 else:
                     # Self-healing: Key missing in file, use default
-                    # Only print if we are actually loading a real file, not during tests usually
-                    # print(f"Config Repair: Missing key '{key}' in {file_to_load}. Using default.")
                     setattr(self, key, self.DEFAULT_CONFIG[key]["default"])
 
-            print(f"Configuration successfully loaded from {file_to_load}.")
+            # print(f"Configuration successfully loaded from {file_to_load}.")
         except Exception as e:
             print(f"Critical Error loading {file_to_load}: {e}. Falling back to safe defaults.")
             # Self-healing: Reset to defaults on critical failure
@@ -326,11 +301,11 @@ class Config:
             json_content += "\n"
 
             json_content += "    // === CONTROL SETTINGS ===\n"
-            json_content += "    // Hotkeys for color tracking algo for single player games in development control\n"
+            json_content += "    // Hotkeys for color tracking algo control\n"
             json_content += "    // Available keys: F1-F12, page_up, page_down, insert, delete, home, end\n"
             json_content += "    // ctrl+key, alt+key, shift+key combinations also supported\n"
-            json_content += f'    "start_key": "{config_data.get("start_key", "page_up")}",   // Key to activate color tracking algo for single player games in development\n'
-            json_content += f'    "stop_key": "{config_data.get("stop_key", "page_down")}",  // Key to deactivate color tracking algo for single player games in development\n'
+            json_content += f'    "start_key": "{config_data.get("start_key", "page_up")}",\n'
+            json_content += f'    "stop_key": "{config_data.get("stop_key", "page_down")}",\n'
             json_content += "\n"
 
             json_content += "    // === PERFORMANCE SETTINGS ===\n"
@@ -344,14 +319,18 @@ class Config:
             json_content += "    // Master enable/disable switch\n"
             json_content += "    // true: Color Tracking Algo can be activated with start_key\n"
             json_content += "    // false: Color Tracking Algo completely disabled\n"
-            json_content += f'    "enabled": {str(config_data.get("enabled", True)).lower()}\n'
+            json_content += f'    "enabled": {str(config_data.get("enabled", True)).lower()},\n'
+            json_content += "\n"
+            json_content += "    // === METADATA ===\n"
+            json_content += f'    "description": "{config_data.get("description", "")}",\n'
+            json_content += f'    "hotkey": "{config_data.get("hotkey", "")}"\n'
             json_content += "}\n"
 
             # Write all content at once to avoid file handle issues
             with open(self.config_file, "w", encoding="utf-8") as f:
                 f.write(json_content)
 
-            print(f"Configuration saved to {self.config_file}")
+            # print(f"Configuration saved to {self.config_file}")
         except Exception as e:
             print(f"Error saving configuration: {e}")
 
@@ -360,7 +339,7 @@ class Config:
         Update a configuration setting with validation and immediately save to config.json
         """
         if not hasattr(self, key):
-            print(f"Unknown configuration key: {key}")
+            # print(f"Unknown configuration key: {key}")
             return
 
         # Use centralized validation logic
@@ -372,7 +351,7 @@ class Config:
             return
 
         setattr(self, key, validated_value)
-        print(f"Updated {key} to {validated_value}")
+        # print(f"Updated {key} to {validated_value}")
 
         # Debounce save operations
         current_time = time.time() * 1000
@@ -402,8 +381,8 @@ class Config:
         """
         config_dict = {}
         for key, value in self.__dict__.items():
-            # Skip the config_file attribute
-            if key != "config_file":
+            # Skip internal attributes and those not in schema
+            if key in self.DEFAULT_CONFIG:
                 config_dict[key] = value
 
         return config_dict
@@ -417,90 +396,29 @@ class Config:
             setattr(self, key, schema["default"])
         self.save()
 
-    # === Profile Management ===
-
+    # === Profile Management (Disabled) ===
+    """
     def list_profiles(self) -> list[str]:
-        """
-        List all available profiles.
-
-        Returns:
-            List of profile names (without .json extension)
-        """
-        profiles = []
-        if os.path.exists(self.PROFILES_DIR):
-            for f in glob.glob(os.path.join(self.PROFILES_DIR, "*.json")):
-                profiles.append(os.path.splitext(os.path.basename(f))[0])
-        return sorted(profiles)
+        # Implementation hidden...
+        return []
 
     def load_profile(self, profile_name: str) -> bool:
-        """
-        Switch to a different profile.
+        # Implementation hidden...
+        return False
 
-        Args:
-            profile_name: Name of the profile to load
+    def save_profile(self, profile_name: str, overwrite: bool = True) -> bool:
+        # Implementation hidden...
+        return False
 
-        Returns:
-            True if successful, False otherwise
-        """
-        if not profile_name:
-            return False
+    def rename_profile(self, old_name: str, new_name: str) -> bool:
+        # Implementation hidden...
+        return False
 
-        path = os.path.join(self.PROFILES_DIR, f"{profile_name}.json")
-        if not os.path.exists(path):
-            print(f"Config: Profile '{profile_name}' does not exist.")
-            return False
-
-        # Force save current before switching? Maybe not, update() already saves.
-        self.load(profile_name)
-        return True
-
-    def save_profile(self, profile_name: str) -> bool:
-        """
-        Save current settings as a new profile.
-
-        Args:
-            profile_name: Name for the new profile
-
-        Returns:
-            True if successful, False otherwise
-        """
-        if not profile_name:
-            return False
-
-        # Clean profile name (alphanumeric only recommended)
-        clean_name = "".join(c for c in profile_name if c.isalnum() or c in ("-", "_"))
-        if not clean_name:
-            print("Config: Invalid profile name.")
-            return False
-
-        self.current_profile_name = clean_name
-        self.config_file = os.path.join(self.PROFILES_DIR, f"{clean_name}.json")
-        self.save()
-        return True
+    def duplicate_profile(self, src_name: str, new_name: str) -> bool:
+        # Implementation hidden...
+        return False
 
     def delete_profile(self, profile_name: str) -> bool:
-        """
-        Delete a profile.
-
-        Args:
-            profile_name: Name of the profile to delete
-
-        Returns:
-            True if successful, False otherwise
-        """
-        if profile_name == self.DEFAULT_PROFILE_NAME:
-            print("Config: Cannot delete default profile.")
-            return False
-
-        path = os.path.join(self.PROFILES_DIR, f"{profile_name}.json")
-        if os.path.exists(path):
-            try:
-                os.remove(path)
-                # If we deleted the current profile, switch to default
-                if self.current_profile_name == profile_name:
-                    self.load(self.DEFAULT_PROFILE_NAME)
-                return True
-            except Exception as e:
-                print(f"Config: Error deleting profile: {e}")
-                return False
+        # Implementation hidden...
         return False
+    """

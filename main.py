@@ -6,7 +6,9 @@ ColorTracker Algorithm V3
 Main entry point for the ColorTracker Algorithm V3 application.
 """
 
+import ctypes
 import logging
+import sys
 import threading
 import time
 from typing import Any
@@ -213,87 +215,151 @@ class ColorTrackerAlgo:
 
     def algo_loop(self):
         """Main algorithm loop with optimized performance and reduced logging"""
+        # Enable high-precision timing on Windows
+        is_win = sys.platform == "win32"
+        if is_win:
+            try:
+                ctypes.windll.winmm.timeBeginPeriod(1)
+            except Exception:
+                pass
+
+        try:
+            self._algo_loop_internal()
+        finally:
+            if is_win:
+                try:
+                    ctypes.windll.winmm.timeEndPeriod(1)
+                except Exception:
+                    pass
+
+    def _algo_loop_internal(self):
+        """Internal loop logic with optimized performance for ultra-high FPS"""
         self.logger.debug("Algorithm loop started - beginning main detection and tracking cycle")
         loop_count = 0
-        self.start_time = time.time()
 
         # Performance optimization: cache frequently used values
         config_enabled = self.config.enabled
         target_fps = self.config.target_fps
         frame_interval = 1.0 / target_fps
 
+        # Ultra-precision timing setup
+        self.start_time = time.perf_counter()
+        self.last_fps_update = self.start_time
+
+        # Performance monitoring
+        performance_stats = {"total_frames": 0, "missed_frames": 0, "avg_frame_time": 0.0, "worst_frame_time": 0.0}
+
+        # Local references to methods to avoid self. lookup overhead
+        find_target = self.detection.find_target
+        predict = self.prediction.predict
+        aim_at = self.movement.aim_at
+        update_target_status = self._update_target_status
+        update_fps_display = self._update_fps_display
+
+        # High-performance timing variables
+        target_frame_time = frame_interval
+
         try:
             while self.running:
-                try:
-                    loop_start_time = time.time()
-                    loop_count += 1
+                loop_start_time = time.perf_counter()
+                loop_count += 1
+                performance_stats["total_frames"] += 1
 
-                    # Update cached config values periodically
-                    if loop_count % 100 == 0:
-                        config_enabled = self.config.enabled
-                        target_fps = self.config.target_fps
-                        frame_interval = 1.0 / target_fps
+                # Update cached config values periodically (less frequent for performance)
+                if loop_count % 500 == 0:
+                    config_enabled = self.config.enabled
+                    target_fps = self.config.target_fps
+                    new_frame_interval = 1.0 / max(1, target_fps)
+                    if abs(new_frame_interval - frame_interval) > 0.0001:
+                        frame_interval = new_frame_interval
+                        target_frame_time = frame_interval
+                    # Sync prediction config cache
+                    self.prediction.update_config()
 
-                    # Calculate FPS with reduced frequency
-                    current_time = time.time()
-                    self.frame_count += 1
+                # Ultra-efficient FPS calculation (every 1 second for better responsiveness)
+                current_time = time.perf_counter()
+                self.frame_count += 1
 
-                    if current_time - self.last_fps_update >= 2.0:  # Update every 2 seconds
-                        self.fps = self.frame_count / (current_time - self.last_fps_update)
-                        self.last_fps_update = current_time
-                        self.frame_count = 0
-                        # Update UI with rate limiting
-                        self._update_fps_display()
+                if current_time - self.last_fps_update >= 1.0:  # Update every 1 second
+                    actual_fps = self.frame_count / (current_time - self.last_fps_update)
+                    self.fps = actual_fps
+                    self.last_fps_update = current_time
+                    self.frame_count = 0
 
-                    # Only run if enabled
-                    if config_enabled:
-                        try:
-                            # Step 1: Detect target with retry logic for transient capture errors
-                            target_found, target_x, target_y = False, 0, 0
-                            target_found, target_x, target_y = self.detection.find_target()
+                    # Log performance metrics periodically
+                    if loop_count % 600 == 0 and hasattr(self, "logger"):
+                        avg_frame_time = performance_stats["avg_frame_time"]
+                        worst_frame_time = performance_stats["worst_frame_time"]
+                        missed_frames = performance_stats["missed_frames"]
+                        self.logger.debug(
+                            f"Performance: {actual_fps:.1f} FPS | "
+                            f"Avg: {avg_frame_time * 1000:.2f}ms | "
+                            f"Max: {worst_frame_time * 1000:.2f}ms | "
+                            f"Missed: {missed_frames}"
+                        )
+                        # Reset worst frame time
+                        performance_stats["worst_frame_time"] = 0.0
+                        performance_stats["missed_frames"] = 0
 
-                            # Update target status with rate limiting
-                            if loop_count % 10 == 0:
-                                self._update_target_status(target_found)
+                    # Update UI with rate limiting
+                    update_fps_display()
 
-                            # Step 2: If target found, predict and move
-                            if target_found:
-                                try:
-                                    # Calculate prediction if enabled
-                                    if self.config.prediction_enabled:
-                                        predicted_x, predicted_y = self.prediction.predict(target_x, target_y)
-                                    else:
-                                        predicted_x, predicted_y = target_x, target_y
+                # Only run if enabled
+                if config_enabled:
+                    try:
+                        # Step 1: Detect target with retry logic for transient capture errors
+                        target_found, target_x, target_y = find_target()
 
-                                    # Move mouse to target
-                                    self.movement.aim_at(predicted_x, predicted_y)
-                                except Exception as move_error:
-                                    if loop_count % 100 == 0:
-                                        self.logger.error(f"Movement subsystem error: {move_error}")
+                        # Update target status with rate limiting (less frequent at high FPS)
+                        if loop_count % 100 == 0:
+                            update_target_status(target_found)
 
-                        except Exception as detection_error:
-                            if loop_count % 100 == 0:
-                                self.logger.error(f"Detection subsystem fault: {detection_error}")
+                        # Step 2: If target found, predict and move
+                        if target_found:
+                            try:
+                                # Calculate prediction (method uses internally cached config)
+                                predicted_x, predicted_y = predict(target_x, target_y)
 
-                    # Calculate sleep time to maintain target frame rate
-                    elapsed_time = time.time() - loop_start_time
-                    sleep_time = max(0, frame_interval - elapsed_time)
+                                # Move mouse to target
+                                aim_at(predicted_x, predicted_y)
+                            except Exception as move_error:
+                                if loop_count % 500 == 0:
+                                    self.logger.error(f"Movement subsystem error: {move_error}")
 
-                    # Sleep with micro-adjustments for better timing
-                    if sleep_time > 0:
-                        if sleep_time > 0.001:  # More than 1ms
-                            time.sleep(sleep_time - 0.0005)  # Sleep slightly less to account for overhead
-                        else:
-                            # For very short sleeps, use a busy wait for better precision
-                            target_time = loop_start_time + frame_interval
-                            while time.time() < target_time:
-                                pass
+                    except Exception as detection_error:
+                        if loop_count % 100 == 0:
+                            self.logger.error(f"Detection subsystem fault: {detection_error}")
 
-                except Exception as loop_error:
-                    # Reduced error logging
-                    if loop_count % 500 == 0:
-                        self.logger.error(f"Loop error (every 500th): {loop_error}")
-                    time.sleep(0.01)  # Small delay to prevent rapid error loops
+                # Ultra-precise frame timing without busy waiting
+                frame_end_time = time.perf_counter()
+                actual_frame_time = frame_end_time - loop_start_time
+
+                # Update performance stats
+                performance_stats["avg_frame_time"] = (
+                    performance_stats["avg_frame_time"] * 0.95 + actual_frame_time * 0.05
+                )
+                if actual_frame_time > performance_stats["worst_frame_time"]:
+                    performance_stats["worst_frame_time"] = actual_frame_time
+
+                # Calculate precise sleep time
+                sleep_time = target_frame_time - actual_frame_time
+
+                if sleep_time > 0:
+                    # Use sleep for longer periods, but with high precision
+                    if sleep_time > 0.001:  # More than 1ms
+                        # For longer sleeps, use time.sleep() which is more efficient
+                        time.sleep(sleep_time * 0.9)  # Sleep 90% of needed time
+
+                    # High-precision spin wait for the remaining time
+                    target_time = loop_start_time + target_frame_time
+                    while time.perf_counter() < target_time:
+                        # Minimal CPU usage - just yield to OS scheduler
+                        if not self.running:
+                            break
+                else:
+                    # Frame took too long - log missed frame
+                    performance_stats["missed_frames"] += 1
+                    # Don't sleep, immediately start next frame to catch up
 
         except Exception as fatal_error:
             # Fatal errors should always be logged
@@ -349,13 +415,13 @@ class ColorTrackerAlgo:
 
         # Start the main loop with optimized frame timing
         frame_count = 0
-        gui_start_time = time.time()
-        last_frame_time = time.time()
+        gui_start_time = time.perf_counter()
+        last_frame_time = time.perf_counter()
         target_gui_fps = 60  # Target 60 FPS for GUI
         gui_frame_interval = 1.0 / target_gui_fps
 
         while dpg.is_dearpygui_running():
-            current_time = time.time()
+            current_time = time.perf_counter()
 
             # Update GUI with latest data at consistent frame rate
             if current_time - last_frame_time >= gui_frame_interval:

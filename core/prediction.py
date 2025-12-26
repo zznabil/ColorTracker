@@ -23,6 +23,10 @@ class PredictionSystem:
     # Explicitly declare dynamic attributes for static analysis
     filter_x: Any
     filter_y: Any
+    _filter_method: str
+    _smoothing: float
+    _prediction_enabled: bool
+    _prediction_multiplier: float
 
     def __init__(self, config):
         """
@@ -37,18 +41,35 @@ class PredictionSystem:
         self.filter_x = None
         self.filter_y = None
 
+        # Initialize cached config values
+        self.update_config()
+
+    def update_config(self):
+        """Update cached configuration values to avoid getattr overhead in hot loop"""
+        cfg = self.config
+        self._filter_method = getattr(cfg, "filter_method", "EMA")
+        self._smoothing = getattr(cfg, "smoothing", 2.0)
+        self._prediction_enabled = getattr(cfg, "prediction_enabled", True)
+        self._prediction_multiplier = getattr(cfg, "prediction_multiplier", 0.5)
+
     def predict(self, target_x: int, target_y: int) -> tuple[int, int]:
         """
         Predict the future position of the target using EMA filtering.
+        Optimized for ultra-high FPS performance.
         """
-        current_time = time.time()
-        filter_method = getattr(self.config, "filter_method", "EMA")
-        smoothing = getattr(self.config, "smoothing", 2.0)
+        current_time = time.perf_counter()
+
+        # Use cached config values
+        filter_method = self._filter_method
+        smoothing = self._smoothing
+        prediction_enabled = self._prediction_enabled
+        multiplier = self._prediction_multiplier
 
         # 1. Select and initialize filters if needed
         smooth_x: float = float(target_x)
         smooth_y: float = float(target_y)
 
+        # Optimized filter selection with reduced overhead
         if filter_method == "EMA":
             if not isinstance(self.filter_x, SimpleEMA):
                 alpha = 1.0 / (max(0.0, smoothing) + 1.0)
@@ -75,7 +96,6 @@ class PredictionSystem:
                 self.prev_y = float(target_y)
 
             alpha = 1.0 / (max(0.0, smoothing) + 1.0)
-            # Access tuple elements safely for static analysis
             mf_x, ema_x = self.filter_x
             mf_y, ema_y = self.filter_y
 
@@ -156,7 +176,7 @@ class PredictionSystem:
                 smooth_x = float(self.filter_x(target_x))
                 smooth_y = float(self.filter_y(target_y))
 
-        # 2. Calculate dt
+        # 2. Calculate dt (optimized)
         dt = current_time - self.last_time
         if dt <= 0:
             dt = 0.001
@@ -167,9 +187,7 @@ class PredictionSystem:
         self.velocity_y = (smooth_y - self.prev_y) / dt
 
         # 4. Apply Prediction
-        multiplier = getattr(self.config, "prediction_multiplier", 0.5)
-
-        if getattr(self.config, "prediction_enabled", True):
+        if prediction_enabled:
             pred_x = smooth_x + self.velocity_x * (dt * multiplier)
             pred_y = smooth_y + self.velocity_y * (dt * multiplier)
         else:
