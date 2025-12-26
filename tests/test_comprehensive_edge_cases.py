@@ -349,27 +349,31 @@ class TestMovementSystemEdgeCases:
         """Test movement with coordinates outside screen"""
         config = MagicMock()
 
-        with patch("ctypes.windll.user32.GetSystemMetrics", side_effect=[1920, 1080]):
+        with patch("core.low_level_movement.windll") as mock_windll:
+            mock_windll.user32.GetSystemMetrics.side_effect = lambda idx: 1920 if idx == 0 else 1080
+            mock_windll.user32.SendInput.return_value = 1
+
             ms = LowLevelMovementSystem(config)
 
-            with patch("ctypes.windll.user32.SendInput", return_value=1) as mock_send:
-                # Far beyond screen
-                ms.move_mouse_absolute(-1000, -1000)
-                assert mock_send.called
+            # Far beyond screen
+            ms.move_mouse_absolute(-1000, -1000)
+            assert mock_windll.user32.SendInput.called
 
-                ms.move_mouse_absolute(10000, 10000)
-                assert mock_send.called
+            ms.move_mouse_absolute(10000, 10000)
+            assert mock_windll.user32.SendInput.called
 
     def test_movement_with_zero_coordinates(self):
         """Test movement to exact (0, 0)"""
         config = MagicMock()
 
-        with patch("ctypes.windll.user32.GetSystemMetrics", side_effect=[1920, 1080]):
+        with patch("core.low_level_movement.windll") as mock_windll:
+            mock_windll.user32.GetSystemMetrics.side_effect = lambda idx: 1920 if idx == 0 else 1080
+            mock_windll.user32.SendInput.return_value = 1
+
             ms = LowLevelMovementSystem(config)
 
-            with patch("ctypes.windll.user32.SendInput", return_value=1) as mock_send:
-                ms.move_mouse_absolute(0, 0)
-                assert mock_send.called
+            ms.move_mouse_absolute(0, 0)
+            assert mock_windll.user32.SendInput.called
 
 
 class TestFilterEdgeCases:

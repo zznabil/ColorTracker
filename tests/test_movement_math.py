@@ -11,9 +11,20 @@ def move_sys():
     config = Config()
     config.screen_width = 1920
     config.screen_height = 1080
-    # Mocking windll.user32.SendInput at the class level or module level
-    with patch("ctypes.windll.user32.SendInput") as mock_send:
+
+    # We need to patch the exact windll object being used in the module
+    # or the method that calls it.
+
+    # Since we use `windll.user32.SendInput` inside the class, and `windll` is imported
+    # from `core.low_level_movement` (or is a global in that module), we should patch it there.
+
+    with patch("core.low_level_movement.windll") as mock_windll:
+        mock_send = mock_windll.user32.SendInput
         mock_send.return_value = 1
+
+        # We also need to mock GetSystemMetrics because __init__ uses it
+        mock_windll.user32.GetSystemMetrics.side_effect = lambda x: 1920 if x == 0 else 1080
+
         yield LowLevelMovementSystem(config), mock_send
 
 

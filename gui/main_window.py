@@ -391,6 +391,8 @@ def setup_gui(app):
                         callback=on_fov_x_changed,
                         width=-1,
                     )
+                    with dpg.tooltip(app.fov_x_slider):
+                        dpg.add_text("Horizontal scan range (pixels). Lower = faster performance & less distraction.")
 
                 with dpg.group(horizontal=True):
                     dpg.add_text("Height:")
@@ -402,10 +404,14 @@ def setup_gui(app):
                         callback=on_fov_y_changed,
                         width=-1,
                     )
+                    with dpg.tooltip(app.fov_y_slider):
+                        dpg.add_text("Vertical scan range (pixels). Keep tight to head/body level to avoid floor/ceiling noise.")
 
                 app.fov_overlay_checkbox = dpg.add_checkbox(
                     label="Show Visual Search Box (Overlay)", default_value=False, callback=on_fov_overlay_toggled
                 )
+                with dpg.tooltip(app.fov_overlay_checkbox):
+                    dpg.add_text("Visualizes the active search area with a green box. Useful for setup.")
 
             # --- SYSTEM TAB ---
             with dpg.tab(label="System"):

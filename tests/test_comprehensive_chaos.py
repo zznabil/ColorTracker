@@ -35,7 +35,8 @@ class TestComprehensiveChaos:
         # System mocks
         ds = DetectionSystem(config)
         ps = PredictionSystem(config)
-        with patch("ctypes.windll.user32.GetSystemMetrics", return_value=1920):  # Mock for init
+        with patch("core.low_level_movement.windll") as mock_windll:
+            mock_windll.user32.GetSystemMetrics.return_value = 1920
             ms = LowLevelMovementSystem(config)
 
         stop_event = threading.Event()
@@ -85,7 +86,8 @@ class TestComprehensiveChaos:
                                 px, py = ps.predict(dx, dy)
 
                                 # Move mouse (mocked)
-                                with patch("ctypes.windll.user32.SendInput", return_value=1):
+                                with patch("core.low_level_movement.windll") as mock_windll:
+                                    mock_windll.user32.SendInput.return_value = 1
                                     ms.move_to_target(px, py)
 
             except Exception as e:
@@ -121,7 +123,11 @@ class TestComprehensiveChaos:
         all_metrics = [[1920, 1080], [3840, 2160], [7680, 4320]]  # FHD, 4K, 8K
 
         for w, h in all_metrics:
-            with patch("ctypes.windll.user32.GetSystemMetrics", side_effect=[w, h]):
+            # Mock GetSystemMetrics via the module-level windll
+            with patch("core.low_level_movement.windll") as mock_windll:
+                mock_windll.user32.GetSystemMetrics.side_effect = lambda idx, w=w, h=h: w if idx == 0 else h
+                mock_windll.user32.SendInput.return_value = 1
+
                 ms = LowLevelMovementSystem(config)
 
                 # Far edges
@@ -134,11 +140,10 @@ class TestComprehensiveChaos:
                 ]
 
                 for x, y in test_points:
-                    with patch("ctypes.windll.user32.SendInput", return_value=1) as mock_send:
-                        ms.move_mouse_absolute(x, y)
-                        assert mock_send.called
-                        # Verify the structure of SendInput call if possible,
-                        # but at minimum ensure no overflow exception in Python
+                    ms.move_mouse_absolute(x, y)
+                    assert mock_windll.user32.SendInput.called
+                    # Verify the structure of SendInput call if possible,
+                    # but at minimum ensure no overflow exception in Python
 
 
 if __name__ == "__main__":

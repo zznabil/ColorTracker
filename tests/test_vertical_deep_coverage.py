@@ -288,9 +288,11 @@ class TestDetectionDeepImageProcessing:
 
         def capture_sct():
             try:
-                sct = ds._get_sct()
-                # Verify we got a valid SCT instance
-                sct_results.append(sct is not None)
+                # Mock mss.mss to avoid display requirement
+                with patch("mss.mss", return_value=MagicMock()):
+                    sct = ds._get_sct()
+                    # Verify we got a valid SCT instance
+                    sct_results.append(sct is not None)
             except Exception as e:
                 errors.append(e)
 
@@ -314,14 +316,16 @@ class TestMovementDeepPrecision:
         """Test movement with sub-pixel precision"""
         config = MagicMock()
 
-        with patch("ctypes.windll.user32.GetSystemMetrics", side_effect=[1920, 1080]):
+        with patch("core.low_level_movement.windll") as mock_windll:
+            mock_windll.user32.GetSystemMetrics.side_effect = lambda idx: 1920 if idx == 0 else 1080
+            mock_windll.user32.SendInput.return_value = 1
+
             ms = LowLevelMovementSystem(config)
 
-            with patch("ctypes.windll.user32.SendInput", return_value=1) as mock_send:
-                # Sub-pixel coordinate (should be rounded)
-                ms.move_mouse_absolute(960, 540)
+            # Sub-pixel coordinate (should be rounded)
+            ms.move_mouse_absolute(960, 540)
 
-                assert mock_send.called
+            assert mock_windll.user32.SendInput.called
 
     def test_movement_at_screen_edges_wraparound(self):
         """Test movement near screen edges doesn't wraparound"""

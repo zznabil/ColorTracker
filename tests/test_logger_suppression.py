@@ -23,6 +23,10 @@ def clean_logger():
     logger_inst = Logger(log_level=logging.INFO, enable_debug_console=False)
     # Clear existing handlers to avoid double-logging from previous tests
     logger_inst.logger.handlers = []
+    # Clear internal state
+    logger_inst.last_message_time.clear()
+    logger_inst.message_counts.clear()
+    logger_inst.suppressed_messages.clear()
     return logger_inst
 
 

@@ -9,8 +9,37 @@ than high-level libraries like pyautogui or pynput.
 """
 
 import ctypes
+import sys
 import time
-from ctypes import windll, wintypes
+
+# Conditionally import Windows-specific libraries
+if sys.platform == "win32":
+    from ctypes import windll, wintypes
+else:
+    # Mock classes/modules for non-Windows environments (e.g., Linux CI/CD)
+    class MockWindll:
+        class User32:
+            def GetSystemMetrics(self, index):
+                return 1920 if index == 0 else 1080
+
+            def GetCursorPos(self, point_ref):
+                point_ref.contents.x = 960
+                point_ref.contents.y = 540
+                return 1
+
+            def SendInput(self, nInputs, pInputs, cbSize):
+                return 1
+
+        user32 = User32()
+
+    windll = MockWindll()
+
+    class MockWintypes:
+        LONG = ctypes.c_long
+        DWORD = ctypes.c_ulong
+        ULONG = ctypes.c_ulong
+
+    wintypes = MockWintypes()
 
 # Windows API constants for mouse input
 HC_ACTION = 0
@@ -68,6 +97,11 @@ class LowLevelMovementSystem:
         # Ultra-responsive mode settings
         self.ultra_responsive_mode = getattr(config, "ultra_responsive_mode", False)
         self.zero_latency_mode = getattr(config, "zero_latency_mode", False)
+
+        # Use module-level windll (which is mocked on Linux) or the passed windll
+        # Ideally, tests should mock the module-level windll, but if they patch it,
+        # we need to ensure we use that one.
+        # But here we just use the global `windll` which is imported/mocked above.
 
         # Get screen dimensions for absolute positioning
         self.screen_width = windll.user32.GetSystemMetrics(0)
