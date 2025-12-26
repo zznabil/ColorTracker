@@ -112,19 +112,32 @@ class LowLevelMovementSystem:
         self.zero_latency_mode = getattr(config, "zero_latency_mode", False)
 
         # Get screen dimensions for absolute positioning
-        if is_windows_or_mocked():
-            try:
-                self.screen_width = windll.user32.GetSystemMetrics(0)  # type: ignore
-                self.screen_height = windll.user32.GetSystemMetrics(1)  # type: ignore
-            except Exception:
-                self.screen_width = 1920
-                self.screen_height = 1080
-        else:
-            self.screen_width = 1920
-            self.screen_height = 1080
+        self.screen_width = 1920
+        self.screen_height = 1080
+
+        # Try to get actual metrics, respecting mocks
+        try:
+            user32 = self._get_user32()
+            if user32:
+                self.screen_width = user32.GetSystemMetrics(0)  # type: ignore
+                self.screen_height = user32.GetSystemMetrics(1)  # type: ignore
+        except Exception:
+            pass
 
         # Aim offset based on aim point
         self.aim_offset_y = 0
+
+    def _get_user32(self):
+        """Helper to get the correct user32 instance (real or mocked)"""
+        # First check if ctypes.windll exists and has user32 (this catches the test mocks)
+        if hasattr(ctypes, "windll") and hasattr(ctypes.windll, "user32"):
+            return ctypes.windll.user32
+
+        # Fallback to the local module level windll (for non-Windows execution without patching)
+        if windll is not None and hasattr(windll, "user32"):
+            return windll.user32
+
+        return None
 
     def get_cursor_position(self) -> tuple[int, int]:
         """
@@ -133,12 +146,13 @@ class LowLevelMovementSystem:
         Returns:
             Tuple of (x, y) coordinates
         """
-        if not is_windows_or_mocked():
+        user32 = self._get_user32()
+        if not user32:
             return 0, 0
 
         point = POINT()
         try:
-            windll.user32.GetCursorPos(ctypes.byref(point))  # type: ignore
+            user32.GetCursorPos(ctypes.byref(point))  # type: ignore
         except Exception:
             pass
         return point.x, point.y
@@ -147,7 +161,8 @@ class LowLevelMovementSystem:
         """
         Move mouse by relative offset using SendInput (low-level)
         """
-        if not is_windows_or_mocked():
+        user32 = self._get_user32()
+        if not user32:
             return True
 
         mouse_input = MOUSEINPUT(dx=dx, dy=dy, mouseData=0, dwFlags=MOUSEEVENTF_MOVE, time=0, dwExtraInfo=None)
@@ -156,7 +171,7 @@ class LowLevelMovementSystem:
 
         # Send the input using Windows API with safety check
         try:
-            result = windll.user32.SendInput(1, ctypes.byref(input_struct), ctypes.sizeof(INPUT))  # type: ignore
+            result = user32.SendInput(1, ctypes.byref(input_struct), ctypes.sizeof(INPUT))  # type: ignore
             return result == 1
         except Exception:
             return False
@@ -165,7 +180,8 @@ class LowLevelMovementSystem:
         """
         Move mouse to absolute position using SendInput (low-level)
         """
-        if not is_windows_or_mocked():
+        user32 = self._get_user32()
+        if not user32:
             return True
 
         normalized_x = max(0, min(65535, int((x * 65535) / self.screen_width)))
@@ -184,7 +200,7 @@ class LowLevelMovementSystem:
 
         # Send the input using Windows API with safety check
         try:
-            result = windll.user32.SendInput(1, ctypes.byref(input_struct), ctypes.sizeof(INPUT))  # type: ignore
+            result = user32.SendInput(1, ctypes.byref(input_struct), ctypes.sizeof(INPUT))
             return result == 1
         except Exception:
             return False

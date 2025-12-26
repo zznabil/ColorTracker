@@ -77,13 +77,18 @@ class DetectionSystem:
         ):
             target_bgr = self._hex_to_bgr(current_color)
 
+            # Convert to 4-channel BGRA bounds (B, G, R, A)
+            # Alpha is set to 0-255 to match any alpha value
             if current_tolerance == 0:
-                self._lower_bound = np.array(target_bgr, dtype=np.uint8)
-                self._upper_bound = np.array(target_bgr, dtype=np.uint8)
+                self._lower_bound = np.array([*target_bgr, 0], dtype=np.uint8)
+                self._upper_bound = np.array([*target_bgr, 255], dtype=np.uint8)
             else:
                 brightness_factor = current_tolerance * 2.5
-                self._lower_bound = np.array([max(0, c - brightness_factor) for c in target_bgr], dtype=np.uint8)
-                self._upper_bound = np.array([min(255, c + brightness_factor) for c in target_bgr], dtype=np.uint8)
+                lower_bgr = [max(0, c - brightness_factor) for c in target_bgr]
+                upper_bgr = [min(255, c + brightness_factor) for c in target_bgr]
+
+                self._lower_bound = np.array([*lower_bgr, 0], dtype=np.uint8)
+                self._upper_bound = np.array([*upper_bgr, 255], dtype=np.uint8)
 
             self._last_target_color = current_color
             self._last_color_tolerance = current_tolerance
@@ -161,13 +166,15 @@ class DetectionSystem:
         except Exception:
             return False, 0, 0
 
-        img = cv2.cvtColor(img_bgra, cv2.COLOR_BGRA2BGR)
+        # OPTIMIZATION: Removed cv2.cvtColor(img_bgra, cv2.COLOR_BGRA2BGR)
+        # We now perform color matching directly on BGRA data.
+        # This saves O(N) allocation and CPU cycles per frame.
 
         # Use cached bounds
         if self._lower_bound is None or self._upper_bound is None:
             self._update_color_bounds()
 
-        mask = cv2.inRange(img, self._lower_bound, self._upper_bound)  # type: ignore
+        mask = cv2.inRange(img_bgra, self._lower_bound, self._upper_bound)  # type: ignore
 
         # OPTIMIZATION: Use minMaxLoc instead of findNonZero
         # findNonZero allocates memory for ALL matching points (O(N))
@@ -246,15 +253,15 @@ class DetectionSystem:
             # Handle screen capture errors gracefully
             return False, 0, 0
 
-        # Convert RGB to BGR (OpenCV format)
-        img = cv2.cvtColor(img_bgra, cv2.COLOR_BGRA2BGR)
+        # OPTIMIZATION: Removed cv2.cvtColor(img_bgra, cv2.COLOR_BGRA2BGR)
+        # We now perform color matching directly on BGRA data.
 
         # Use cached bounds
         if self._lower_bound is None or self._upper_bound is None:
             self._update_color_bounds()
 
         # Create mask of pixels within color range
-        mask = cv2.inRange(img, self._lower_bound, self._upper_bound)  # type: ignore
+        mask = cv2.inRange(img_bgra, self._lower_bound, self._upper_bound)  # type: ignore
 
         # OPTIMIZATION: Use minMaxLoc instead of findNonZero
         _, max_val, _, max_loc = cv2.minMaxLoc(mask)

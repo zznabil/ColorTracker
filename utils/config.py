@@ -3,18 +3,20 @@
 """
 Configuration Utility
 
-Handles loading and saving configuration settings.
+Handles loading and saving configuration settings, including profile management.
 """
 
+import glob
 import json
 import os
+import shutil
 import threading
 import time
 from typing import Any
 
 
 class Config:
-    """Handles loading and saving configuration settings with self-healing capabilities"""
+    """Handles loading and saving configuration settings with self-healing capabilities and profile support"""
 
     # Type Hints for attributes
     screen_width: int
@@ -37,6 +39,8 @@ class Config:
     enabled: bool
     debug_mode: bool
     config_file: str
+    current_profile_name: str
+
     # Default configuration schema for validation and self-healing
     DEFAULT_CONFIG = {
         "screen_width": {"type": int, "default": 1920, "min": 640, "max": 7680},
@@ -64,6 +68,9 @@ class Config:
         "debug_mode": {"type": bool, "default": False},
     }
 
+    PROFILES_DIR = "profiles"
+    DEFAULT_PROFILE_NAME = "default"
+
     def __init__(self):
         """
         Initialize configuration with default values
@@ -74,10 +81,23 @@ class Config:
 
         # Internal state
         self.config_file = "config.json"
+        self.current_profile_name = self.DEFAULT_PROFILE_NAME
         self._last_save_time = 0
         self._save_debounce_ms = 500
         self._save_timer = None
         self._lock = threading.Lock()
+
+        # Ensure profiles directory exists
+        if not os.path.exists(self.PROFILES_DIR):
+            os.makedirs(self.PROFILES_DIR)
+
+        # Initialize default profile if it doesn't exist but config.json does
+        default_profile_path = os.path.join(self.PROFILES_DIR, f"{self.DEFAULT_PROFILE_NAME}.json")
+        if not os.path.exists(default_profile_path) and os.path.exists("config.json"):
+            try:
+                shutil.copy("config.json", default_profile_path)
+            except Exception as e:
+                print(f"Config: Failed to migrate config.json to default profile: {e}")
 
         # Load and validate saved configuration
         self.load()
@@ -127,16 +147,45 @@ class Config:
 
         return value
 
-    def load(self):
+    def load(self, profile_name: str | None = None):
         """
         Load configuration from file if it exists with robust validation and repair
         """
-        if not os.path.exists(self.config_file):
-            print(f"Config: {self.config_file} not found. Using defaults.")
+        # Determine the file path
+        file_to_load = self.config_file
+
+        if profile_name:
+            # If explicit profile name provided, switch to it
+            self.current_profile_name = profile_name
+            file_to_load = os.path.join(self.PROFILES_DIR, f"{profile_name}.json")
+            self.config_file = file_to_load
+        else:
+            # No profile name provided.
+            # If config_file was manually set (e.g. by a test), use it.
+            # But if config_file is currently pointing to a profile that isn't the one requested (none requested),
+            # we should stick to self.config_file unless it's the initial load.
+
+            # If self.config_file is just "config.json" (initial state), try to resolve to a profile
+            if self.config_file == "config.json":
+                default_profile_path = os.path.join(self.PROFILES_DIR, f"{self.DEFAULT_PROFILE_NAME}.json")
+                if os.path.exists(default_profile_path):
+                    file_to_load = default_profile_path
+                    self.config_file = file_to_load
+                else:
+                     file_to_load = "config.json"
+            else:
+                # Use whatever is currently set
+                file_to_load = self.config_file
+
+        if not os.path.exists(file_to_load):
+            print(f"Config: {file_to_load} not found. Using defaults.")
+            # If loading a specific profile that doesn't exist, we might want to save defaults there
+            if profile_name:
+                self.save()
             return
 
         try:
-            with open(self.config_file, encoding="utf-8") as f:
+            with open(file_to_load, encoding="utf-8") as f:
                 content = f.read()
 
             # Strip comments
@@ -161,12 +210,13 @@ class Config:
                     setattr(self, key, validated_value)
                 else:
                     # Self-healing: Key missing in file, use default
-                    print(f"Config Repair: Missing key '{key}' in {self.config_file}. Using default.")
+                    # Only print if we are actually loading a real file, not during tests usually
+                    # print(f"Config Repair: Missing key '{key}' in {file_to_load}. Using default.")
                     setattr(self, key, self.DEFAULT_CONFIG[key]["default"])
 
-            print("Configuration successfully loaded and validated.")
+            print(f"Configuration successfully loaded from {file_to_load}.")
         except Exception as e:
-            print(f"Critical Error loading {self.config_file}: {e}. Falling back to safe defaults.")
+            print(f"Critical Error loading {file_to_load}: {e}. Falling back to safe defaults.")
             # Self-healing: Reset to defaults on critical failure
             for key, schema in self.DEFAULT_CONFIG.items():
                 setattr(self, key, schema["default"])
@@ -185,8 +235,18 @@ class Config:
                 # Create a dictionary of all configuration attributes
                 config_data = {}
                 for key, value in self.__dict__.items():
-                    # Skip the config_file attribute and internal attributes
-                    if key not in ["config_file", "_last_save_time", "_save_debounce_ms", "_save_timer", "_lock"]:
+                    # Skip internal attributes
+                    if key not in [
+                        "config_file",
+                        "current_profile_name",
+                        "_last_save_time",
+                        "_save_debounce_ms",
+                        "_save_timer",
+                        "_lock",
+                        "PROFILES_DIR",
+                        "DEFAULT_PROFILE_NAME",
+                        "DEFAULT_CONFIG",
+                    ]:
                         config_data[key] = value
 
                 # Build the complete JSON content as a single string to avoid file handle issues
@@ -356,3 +416,91 @@ class Config:
         for key, schema in self.DEFAULT_CONFIG.items():
             setattr(self, key, schema["default"])
         self.save()
+
+    # === Profile Management ===
+
+    def list_profiles(self) -> list[str]:
+        """
+        List all available profiles.
+
+        Returns:
+            List of profile names (without .json extension)
+        """
+        profiles = []
+        if os.path.exists(self.PROFILES_DIR):
+            for f in glob.glob(os.path.join(self.PROFILES_DIR, "*.json")):
+                profiles.append(os.path.splitext(os.path.basename(f))[0])
+        return sorted(profiles)
+
+    def load_profile(self, profile_name: str) -> bool:
+        """
+        Switch to a different profile.
+
+        Args:
+            profile_name: Name of the profile to load
+
+        Returns:
+            True if successful, False otherwise
+        """
+        if not profile_name:
+            return False
+
+        path = os.path.join(self.PROFILES_DIR, f"{profile_name}.json")
+        if not os.path.exists(path):
+            print(f"Config: Profile '{profile_name}' does not exist.")
+            return False
+
+        # Force save current before switching? Maybe not, update() already saves.
+        self.load(profile_name)
+        return True
+
+    def save_profile(self, profile_name: str) -> bool:
+        """
+        Save current settings as a new profile.
+
+        Args:
+            profile_name: Name for the new profile
+
+        Returns:
+            True if successful, False otherwise
+        """
+        if not profile_name:
+            return False
+
+        # Clean profile name (alphanumeric only recommended)
+        clean_name = "".join(c for c in profile_name if c.isalnum() or c in ("-", "_"))
+        if not clean_name:
+            print("Config: Invalid profile name.")
+            return False
+
+        self.current_profile_name = clean_name
+        self.config_file = os.path.join(self.PROFILES_DIR, f"{clean_name}.json")
+        self.save()
+        return True
+
+    def delete_profile(self, profile_name: str) -> bool:
+        """
+        Delete a profile.
+
+        Args:
+            profile_name: Name of the profile to delete
+
+        Returns:
+            True if successful, False otherwise
+        """
+        if profile_name == self.DEFAULT_PROFILE_NAME:
+            print("Config: Cannot delete default profile.")
+            return False
+
+        path = os.path.join(self.PROFILES_DIR, f"{profile_name}.json")
+        if os.path.exists(path):
+            try:
+                os.remove(path)
+                # If we deleted the current profile, switch to default
+                if self.current_profile_name == profile_name:
+                    self.load(self.DEFAULT_PROFILE_NAME)
+                return True
+            except Exception as e:
+                print(f"Config: Error deleting profile: {e}")
+                return False
+        return False
