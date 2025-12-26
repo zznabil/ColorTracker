@@ -227,8 +227,29 @@ def setup_gui(app):
 
                 dpg.add_spacer(height=20)
                 dpg.add_text("HOTKEYS:", color=(150, 150, 150))
-                dpg.add_text(f"  {app.config.start_key.upper()}: Start Tracking")
-                dpg.add_text(f"  {app.config.stop_key.upper()}: Stop Tracking")
+
+                with dpg.group(horizontal=True):
+                    dpg.add_text("Start:")
+                    dpg.add_button(
+                        label=app.config.start_key.upper(),
+                        tag="btn_bind_start",
+                        callback=lambda: app.start_key_binding("start_key"),
+                        width=100
+                    )
+                    with dpg.tooltip("btn_bind_start"):
+                        dpg.add_text("Click to rebind. Press any key to set.")
+
+                with dpg.group(horizontal=True):
+                    dpg.add_text("Stop: ")
+                    dpg.add_button(
+                        label=app.config.stop_key.upper(),
+                        tag="btn_bind_stop",
+                        callback=lambda: app.start_key_binding("stop_key"),
+                        width=100
+                    )
+                    with dpg.tooltip("btn_bind_stop"):
+                        dpg.add_text("Click to rebind. Press any key to set.")
+
                 if hasattr(app.config, "debug_mode") and app.config.debug_mode:
                     dpg.add_text("  F12: Toggle Console")
 
@@ -478,6 +499,12 @@ def setup_gui(app):
                         dpg.set_value(
                             app.color_picker, [(c >> 16 & 0xFF) / 255.0, (c >> 8 & 0xFF) / 255.0, (c & 0xFF) / 255.0]
                         )
+
+                    if dpg.does_item_exist("btn_bind_start"):
+                        dpg.configure_item("btn_bind_start", label=app.config.start_key.upper())
+
+                    if dpg.does_item_exist("btn_bind_stop"):
+                        dpg.configure_item("btn_bind_stop", label=app.config.stop_key.upper())
 
                     app.update_tolerance_preview()
 

@@ -104,6 +104,59 @@ class ColorTrackerAlgo:
         # Cache frequently accessed GUI items
         self._gui_cache = {}
 
+    def start_key_binding(self, action_name):
+        """
+        Start the key binding process for a specific action.
+
+        Args:
+            action_name: The name of the action to bind (e.g., "start_key", "stop_key")
+        """
+
+        def on_key_bound(key_name):
+            # Run this in a safe context to update config and UI
+            self.logger.info(f"Rebinding {action_name} to {key_name}")
+
+            # 1. Remove old callback
+            old_key = getattr(self.config, action_name)
+            if action_name == "start_key":
+                self.keyboard.remove_callback(old_key)
+            elif action_name == "stop_key":
+                self.keyboard.remove_callback(old_key)
+
+            # 2. Update Config
+            self.config.update(action_name, key_name)
+
+            # 3. Register new callback
+            if action_name == "start_key":
+                self.keyboard.register_callback(key_name, self.start_algo_key)
+            elif action_name == "stop_key":
+                self.keyboard.register_callback(key_name, self.stop_algo_key)
+
+            # 4. Update UI (Need to ensure this happens on main thread if possible,
+            # or DPG handles it gracefully. DPG is generally thread-safe for setting values)
+            # We'll rely on the main loop to refresh the UI via _update_ui_state or specific widget updates.
+            # But the button label needs immediate update.
+            # We can trigger a UI refresh.
+
+            # Since on_key_bound runs in the listener thread, we should be careful.
+            # DPG commands are thread-safe.
+            if action_name == "start_key":
+                if dpg.does_item_exist("btn_bind_start"):
+                    dpg.configure_item("btn_bind_start", label=key_name.upper())
+            elif action_name == "stop_key":
+                if dpg.does_item_exist("btn_bind_stop"):
+                    dpg.configure_item("btn_bind_stop", label=key_name.upper())
+
+        # Update button text to indicate listening
+        if action_name == "start_key":
+             if dpg.does_item_exist("btn_bind_start"):
+                dpg.configure_item("btn_bind_start", label="Press any key...")
+        elif action_name == "stop_key":
+             if dpg.does_item_exist("btn_bind_stop"):
+                dpg.configure_item("btn_bind_stop", label="Press any key...")
+
+        self.keyboard.listen_for_single_key(on_key_bound)
+
     def start_algo_key(self, sender=None, app_data=None):
         """Start algorithm when PageUp key is pressed with optimized response"""
         if not self.config.enabled:
