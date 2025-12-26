@@ -355,20 +355,32 @@ def setup_gui(app):
 
                     app.update_tolerance_preview = update_tolerance_preview
 
-                    app.color_picker = dpg.add_color_edit(
-                        label="",
-                        default_value=[r, g, b],
-                        callback=lambda s, a: [
-                            app.config.update(
-                                "target_color", (int(a[0] * 255) << 16) | (int(a[1] * 255) << 8) | int(a[2] * 255)
-                            ),
-                            app.update_tolerance_preview(),
-                        ][-1],
-                        no_alpha=True,
-                        width=100,
-                    )
-                    with dpg.tooltip(app.color_picker):
-                        dpg.add_text("Pick the color you want to track.")
+                    def update_color_and_hex(s, a):
+                        # Convert float color (0-1) to int (0-255)
+                        r_val, g_val, b_val = int(a[0] * 255), int(a[1] * 255), int(a[2] * 255)
+                        # Pack into hex integer
+                        hex_int = (r_val << 16) | (g_val << 8) | b_val
+
+                        app.config.update("target_color", hex_int)
+                        app.update_tolerance_preview()
+
+                        # Update hex text label
+                        if dpg.does_item_exist("target_color_hex"):
+                            dpg.set_value("target_color_hex", f"#{hex_int:06X}")
+
+                    with dpg.group(horizontal=True):
+                        app.color_picker = dpg.add_color_edit(
+                            label="",
+                            default_value=[r, g, b],
+                            callback=update_color_and_hex,
+                            no_alpha=True,
+                            width=100,
+                        )
+                        with dpg.tooltip(app.color_picker):
+                            dpg.add_text("Pick the color you want to track.")
+
+                        # Add hex code label next to picker
+                        dpg.add_text(f"#{app.config.target_color:06X}", tag="target_color_hex", color=(180, 180, 180))
 
                 dpg.add_spacer(height=5)
                 dpg.add_text("Color Tolerance (Strictness):")
@@ -596,6 +608,8 @@ def setup_gui(app):
             if dpg.does_item_exist(app.color_picker):
                 c = app.config.target_color
                 dpg.set_value(app.color_picker, [(c >> 16 & 0xFF) / 255.0, (c >> 8 & 0xFF) / 255.0, (c & 0xFF) / 255.0])
+                if dpg.does_item_exist("target_color_hex"):
+                    dpg.set_value("target_color_hex", f"#{c:06X}")
 
             # Reset toggle button state since defaults enable everything
             if dpg.does_item_exist("main_toggle_btn"):
