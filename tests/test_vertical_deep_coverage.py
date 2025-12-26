@@ -266,9 +266,11 @@ class TestDetectionDeepImageProcessing:
 
             mock_sct.return_value.grab.return_value = img
 
-            found, x, y = ds.find_target()
-            # Should interpret correctly
-            assert isinstance(found, bool)
+            # Use minMaxLoc patch
+            with patch("cv2.minMaxLoc", return_value=(0, 255, (0, 0), (50, 50))):
+                found, x, y = ds.find_target()
+                # Should interpret correctly
+                assert isinstance(found, bool)
 
     def test_detection_thread_local_sct_isolation(self):
         """Test that thread-local SCT instances work correctly"""
@@ -288,9 +290,11 @@ class TestDetectionDeepImageProcessing:
 
         def capture_sct():
             try:
-                sct = ds._get_sct()
-                # Verify we got a valid SCT instance
-                sct_results.append(sct is not None)
+                # Mock mss.mss to avoid display errors
+                with patch("mss.mss", return_value=MagicMock()):
+                    sct = ds._get_sct()
+                    # Verify we got a valid SCT instance
+                    sct_results.append(sct is not None)
             except Exception as e:
                 errors.append(e)
 
@@ -314,46 +318,64 @@ class TestMovementDeepPrecision:
         """Test movement with sub-pixel precision"""
         config = MagicMock()
 
-        with patch("ctypes.windll.user32.GetSystemMetrics", side_effect=[1920, 1080]):
-            ms = LowLevelMovementSystem(config)
+        # Ensure mocking windll in case conftest didn't catch it
+        with patch("core.low_level_movement.is_windows_or_mocked", return_value=True):
+            with patch("ctypes.windll", create=True) as mock_windll:
+                mock_windll.user32.GetSystemMetrics.side_effect = [1920, 1080]
 
-            with patch("ctypes.windll.user32.SendInput", return_value=1) as mock_send:
-                # Sub-pixel coordinate (should be rounded)
-                ms.move_mouse_absolute(960, 540)
+                # We need to ensure windll is injected into the module's scope if using global
+                with patch("core.low_level_movement.windll", mock_windll):
+                    ms = LowLevelMovementSystem(config)
 
-                assert mock_send.called
+                    with patch("ctypes.windll.user32.SendInput", return_value=1):
+                         # Sub-pixel coordinate (should be rounded)
+                        ms.move_mouse_absolute(960, 540)
+
+                        # In my updated code, I check is_windows_or_mocked().
+                        # If that passes, I use windll from global scope.
+                        # I need to mock core.low_level_movement.windll.user32.SendInput
+
+                        # Wait, the method calls `windll.user32.SendInput`.
+                        # If I patched `core.low_level_movement.windll`, I should assert on that.
+
+                        assert mock_windll.user32.SendInput.called
 
     def test_movement_at_screen_edges_wraparound(self):
         """Test movement near screen edges doesn't wraparound"""
         config = MagicMock()
 
-        with patch("ctypes.windll.user32.GetSystemMetrics", side_effect=[1920, 1080]):
-            _ms = LowLevelMovementSystem(config)  # Initialize to validate construction
+        with patch("core.low_level_movement.is_windows_or_mocked", return_value=True):
+            with patch("ctypes.windll", create=True) as mock_windll:
+                mock_windll.user32.GetSystemMetrics.side_effect = [1920, 1080]
+                with patch("core.low_level_movement.windll", mock_windll):
+                    _ms = LowLevelMovementSystem(config)  # Initialize to validate construction
 
-            # Verify clamping in move_mouse_absolute
-            # At x=-100, normalized should clamp to 0
-            normalized_x = max(0, min(65535, int((-100 * 65535) / 1920)))
-            assert normalized_x == 0
+                    # Verify clamping in move_mouse_absolute
+                    # At x=-100, normalized should clamp to 0
+                    normalized_x = max(0, min(65535, int((-100 * 65535) / 1920)))
+                    assert normalized_x == 0
 
-            # At x=2000, normalized should clamp to 65535
-            normalized_x = max(0, min(65535, int((2000 * 65535) / 1920)))
-            assert normalized_x == 65535
+                    # At x=2000, normalized should clamp to 65535
+                    normalized_x = max(0, min(65535, int((2000 * 65535) / 1920)))
+                    assert normalized_x == 65535
 
     def test_movement_relative_accumulation(self):
         """Test accumulated relative movements"""
         config = MagicMock()
 
-        with patch("ctypes.windll.user32.GetSystemMetrics", side_effect=[1920, 1080]):
-            with patch("ctypes.windll.user32.GetCursorPos"):
-                ms = LowLevelMovementSystem(config)
+        with patch("core.low_level_movement.is_windows_or_mocked", return_value=True):
+             with patch("ctypes.windll", create=True) as mock_windll:
+                mock_windll.user32.GetSystemMetrics.side_effect = [1920, 1080]
+                mock_windll.user32.SendInput.return_value = 1
 
-                with patch("ctypes.windll.user32.SendInput", return_value=1):
+                with patch("core.low_level_movement.windll", mock_windll):
+                    ms = LowLevelMovementSystem(config)
+
                     # 100 small movements
                     for _ in range(100):
                         ms.move_mouse_relative(1, 1)
 
-                # Should have called SendInput 100 times
-                # Movements should accumulate correctly
+                    assert mock_windll.user32.SendInput.call_count == 100
 
 
 class TestConfigDeepValidation:

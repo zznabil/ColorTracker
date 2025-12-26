@@ -4,19 +4,28 @@
 Detection System Module
 
 Handles pixel search for target detection based on color.
+Optimization: Uses cv2.minMaxLoc instead of cv2.findNonZero for O(1) memory allocation.
 """
 
 import threading
+from typing import Any
 
 import cv2
 import mss
 import numpy as np
+from numpy.typing import NDArray
 
 
 class DetectionSystem:
     """Handles pixel search for target detection based on color"""
 
-    def __init__(self, config):
+    # Type hints for cached values
+    _lower_bound: NDArray[np.uint8] | None
+    _upper_bound: NDArray[np.uint8] | None
+    _last_target_color: int | None
+    _last_color_tolerance: int | None
+
+    def __init__(self, config: Any) -> None:
         """
         Initialize the detection system
 
@@ -34,10 +43,13 @@ class DetectionSystem:
         self.target_y = 0
         self.target_found_last_frame = False
 
-        # Search area optimization
-        # self.search_area is accessed directly from config for real-time updates
+        # Caching for color bounds to avoid re-calculation per frame
+        self._lower_bound = None
+        self._upper_bound = None
+        self._last_target_color = None
+        self._last_color_tolerance = None
 
-    def _get_sct(self):
+    def _get_sct(self) -> Any:
         """
         Get thread-local MSS instance
         Creates a new MSS instance for each thread to prevent threading conflicts
@@ -47,8 +59,38 @@ class DetectionSystem:
         """
         if not hasattr(self._local, "sct"):
             # Create new MSS instance for this thread
-            self._local.sct = mss.mss()
+            self._local.sct = mss.mss()  # type: ignore
         return self._local.sct
+
+    def _update_color_bounds(self) -> None:
+        """
+        Updates the cached color bounds if config has changed.
+        This avoids re-calculating bounds and re-converting hex to BGR every frame.
+        """
+        current_color: int = self.config.target_color
+        current_tolerance: int = self.config.color_tolerance
+
+        if (
+            self._lower_bound is None
+            or current_color != self._last_target_color
+            or current_tolerance != self._last_color_tolerance
+        ):
+            target_bgr = self._hex_to_bgr(current_color)
+
+            if current_tolerance == 0:
+                self._lower_bound = np.array(target_bgr, dtype=np.uint8)
+                self._upper_bound = np.array(target_bgr, dtype=np.uint8)
+            else:
+                brightness_factor = current_tolerance * 2.5
+                self._lower_bound = np.array(
+                    [max(0, c - brightness_factor) for c in target_bgr], dtype=np.uint8
+                )
+                self._upper_bound = np.array(
+                    [min(255, c + brightness_factor) for c in target_bgr], dtype=np.uint8
+                )
+
+            self._last_target_color = current_color
+            self._last_color_tolerance = current_tolerance
 
     def find_target(self) -> tuple[bool, int, int]:
         """
@@ -69,6 +111,9 @@ class DetectionSystem:
         scan_top = max(0, scan_top)
         scan_right = min(self.config.screen_width, scan_right)
         scan_bottom = min(self.config.screen_height, scan_bottom)
+
+        # Update color bounds cache
+        self._update_color_bounds()
 
         # First try local search if we found a target in the previous frame
         if self.target_found_last_frame:
@@ -110,32 +155,41 @@ class DetectionSystem:
                 local_bottom -= excess
                 height = local_bottom - local_top
 
-        local_area = {"left": local_left, "top": local_top, "width": width, "height": height}
+        local_area = {
+            "left": local_left,
+            "top": local_top,
+            "width": width,
+            "height": height,
+        }
 
         try:
             sct = self._get_sct()
-            img = np.array(sct.grab(local_area))
-            if img is None or img.size == 0 or img.ndim != 3 or img.shape[2] != 4:
+            img_bgra = np.array(sct.grab(local_area))
+            if (
+                img_bgra is None
+                or img_bgra.size == 0
+                or img_bgra.ndim != 3
+                or img_bgra.shape[2] != 4
+            ):
                 return False, 0, 0
         except Exception:
             return False, 0, 0
 
-        img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
-        target_color = self._hex_to_bgr(self.config.target_color)
+        img = cv2.cvtColor(img_bgra, cv2.COLOR_BGRA2BGR)
 
-        if self.config.color_tolerance == 0:
-            lower_bound = np.array(target_color, dtype=np.uint8)
-            upper_bound = np.array(target_color, dtype=np.uint8)
-        else:
-            brightness_factor = self.config.color_tolerance * 2.5
-            lower_bound = np.array([max(0, c - brightness_factor) for c in target_color], dtype=np.uint8)
-            upper_bound = np.array([min(255, c + brightness_factor) for c in target_color], dtype=np.uint8)
+        # Use cached bounds
+        if self._lower_bound is None or self._upper_bound is None:
+            self._update_color_bounds()
 
-        mask = cv2.inRange(img, lower_bound, upper_bound)
-        matches = cv2.findNonZero(mask)
+        mask = cv2.inRange(img, self._lower_bound, self._upper_bound)  # type: ignore
 
-        if matches is not None and len(matches) > 0:
-            match_x, match_y = matches[0][0]
+        # OPTIMIZATION: Use minMaxLoc instead of findNonZero
+        # findNonZero allocates memory for ALL matching points (O(N))
+        # minMaxLoc finds the max value (255 if match exists) and its location in O(1) memory
+        _, max_val, _, max_loc = cv2.minMaxLoc(mask)
+
+        if max_val > 0:
+            match_x, match_y = max_loc
             screen_x: int = int(match_x + local_left)
             screen_y: int = int(match_y + local_top)
 
@@ -144,7 +198,10 @@ class DetectionSystem:
             center_x: int = self.config.screen_width // 2
             center_y: int = self.config.screen_height // 2
 
-            if abs(screen_x - center_x) > self.config.fov_x or abs(screen_y - center_y) > self.config.fov_y:
+            if (
+                abs(screen_x - center_x) > self.config.fov_x
+                or abs(screen_y - center_y) > self.config.fov_y
+            ):
                 self.target_found_last_frame = False
                 return False, 0, 0
             # -----------------------------
@@ -156,7 +213,9 @@ class DetectionSystem:
 
         return False, 0, 0
 
-    def _full_search(self, left: int, top: int, right: int, bottom: int) -> tuple[bool, int, int]:
+    def _full_search(
+        self, left: int, top: int, right: int, bottom: int
+    ) -> tuple[bool, int, int]:
         """
         Perform a full search within the specified boundaries
 
@@ -199,47 +258,33 @@ class DetectionSystem:
         try:
             # Use thread-local MSS instance to prevent threading conflicts
             sct = self._get_sct()
-            img = np.array(sct.grab(full_area))
-            if img is None or img.size == 0 or img.ndim != 3 or img.shape[2] != 4:
+            img_bgra = np.array(sct.grab(full_area))
+            if (
+                img_bgra is None
+                or img_bgra.size == 0
+                or img_bgra.ndim != 3
+                or img_bgra.shape[2] != 4
+            ):
                 return False, 0, 0
         except Exception:
             # Handle screen capture errors gracefully
-            # This prevents the TypeError: 160000 and similar buffer errors
             return False, 0, 0
 
         # Convert RGB to BGR (OpenCV format)
-        img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
+        img = cv2.cvtColor(img_bgra, cv2.COLOR_BGRA2BGR)
 
-        # Convert target color from hex to BGR
-        target_color = self._hex_to_bgr(self.config.target_color)
-
-        # Apply brightness/lightness tolerance to target color
-        # Tolerance 0 means exact color, higher tolerance allows brighter/lighter variations
-        if self.config.color_tolerance == 0:
-            # Exact color match - use the target color directly
-            lower_bound = np.array(target_color, dtype=np.uint8)
-            upper_bound = np.array(target_color, dtype=np.uint8)
-        else:
-            # Calculate brightness variation based on tolerance
-            # Higher tolerance = more brightness variation allowed
-            brightness_factor = self.config.color_tolerance * 2.5  # Scale factor for noticeable effect
-
-            # Calculate darker and lighter bounds
-            darker_bound = np.array([max(0, c - brightness_factor) for c in target_color], dtype=np.uint8)
-            lighter_bound = np.array([min(255, c + brightness_factor) for c in target_color], dtype=np.uint8)
-
-            lower_bound = darker_bound
-            upper_bound = lighter_bound
+        # Use cached bounds
+        if self._lower_bound is None or self._upper_bound is None:
+            self._update_color_bounds()
 
         # Create mask of pixels within color range
-        mask = cv2.inRange(img, lower_bound, upper_bound)
+        mask = cv2.inRange(img, self._lower_bound, self._upper_bound)  # type: ignore
 
-        # Find coordinates of matching pixels
-        matches = cv2.findNonZero(mask)
+        # OPTIMIZATION: Use minMaxLoc instead of findNonZero
+        _, max_val, _, max_loc = cv2.minMaxLoc(mask)
 
-        if matches is not None and len(matches) > 0:
-            # Get the first match (could implement more sophisticated selection)
-            match_x, match_y = matches[0][0]
+        if max_val > 0:
+            match_x, match_y = max_loc
 
             # Convert back to screen coordinates
             screen_x = match_x + left

@@ -99,7 +99,10 @@ def test_detection_area_clipping_logic():
         ds.target_y = 1000
         ds.target_found_last_frame = True
 
-        with patch("cv2.findNonZero", return_value=np.array([[[10, 10]]])):
+        # patch minMaxLoc instead of findNonZero
+        # returns (minVal, maxVal, minLoc, maxLoc)
+        # We want maxVal > 0, and maxLoc = (10, 10)
+        with patch("cv2.minMaxLoc", return_value=(0, 255, (0, 0), (10, 10))):
             # local_area: left = 1000-500 = 500. top = 1000-500 = 500.
             # screen_x = 10 + 500 = 510.
             # abs(510 - 960) = 450 > fov_x(100). Fails.
@@ -112,7 +115,7 @@ def test_detection_area_clipping_logic():
         ds.target_found_last_frame = True
         # local_area: left = 960-500 = 460. top = 540-500 = 40.
         # We want screen_x = 960. So match_x = 960 - 460 = 500.
-        with patch("cv2.findNonZero", return_value=np.array([[[500, 500]]])):
+        with patch("cv2.minMaxLoc", return_value=(0, 255, (0, 0), (500, 500))):
             found, tx, ty = ds._local_search()
             assert found is True
             assert tx == 960
