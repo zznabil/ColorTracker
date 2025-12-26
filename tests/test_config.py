@@ -14,9 +14,9 @@ def temp_config_file():
     # Setup data
     currupt_data = {
         "fov_x": "corrupted_string",
-        "smoothing": -500.0,
+        "motion_min_cutoff": -500.0,
         "target_fps": 9999,
-        "filter_method": "InvalidMethod",
+        "aim_point": "InvalidTarget",
     }
 
     with open(test_file, "w", encoding="utf-8") as f:
@@ -37,6 +37,6 @@ def test_config_self_healing(temp_config_file):
 
     # Checks
     assert config.fov_x == 50  # String should reset to default
-    assert config.smoothing == 0.0  # -500 should clamp to min
+    assert config.motion_min_cutoff == 0.001  # -500 should clamp to min
     assert config.target_fps == 1000  # 9999 should clamp to max
-    assert config.filter_method == "EMA"  # Invalid option should reset to default
+    assert config.aim_point == 1  # Invalid option should reset to default (Body=1)

@@ -207,25 +207,6 @@ def setup_gui(app):
                 dpg.add_separator()
                 dpg.add_spacer(height=10)
 
-                # Core Sensitivity
-                dpg.add_text("AIM SMOOTHING (Hand Steadiness)", color=(201, 0, 141))
-                app.smoothing_slider = dpg.add_slider_float(
-                    label="",
-                    default_value=app.config.smoothing,
-                    min_value=0.0,
-                    max_value=50.0,
-                    callback=lambda s, a: [
-                        snapped := max(0.0, min(50.0, round(a / 0.5) * 0.5)),
-                        dpg.set_value(s, snapped),
-                        app.config.update("smoothing", snapped),
-                    ][-1],
-                    clamped=True,
-                    format="%.1f",
-                    width=-1,
-                )
-                with dpg.tooltip(app.smoothing_slider):
-                    dpg.add_text("High = slow and steady (sniper style), Low = fast and twitchy (pro-flicker style).")
-
                 dpg.add_spacer(height=20)
                 dpg.add_text("HOTKEYS:", color=(150, 150, 150))
                 dpg.add_text(f"  {app.config.start_key.upper()}: Start Tracking")
@@ -254,15 +235,49 @@ def setup_gui(app):
                         dpg.add_text("Where to shoot: Like picking between a headshot or a body shot.")
 
                 dpg.add_spacer(height=10)
-                dpg.add_text("FILTER BRAIN (Smoothing Logic):")
-                app.filter_combo = dpg.add_combo(
-                    items=["EMA", "DEMA", "TEMA", "Median+EMA", "Dynamic EMA"],
-                    default_value=app.config.filter_method,
-                    callback=lambda s, a: app.config.update("filter_method", a),
-                    width=-1,
-                )
-                with dpg.tooltip(app.filter_combo):
-                    dpg.add_text("EMA is standard, TEMA/DEMA are 'High-Speed' versions with less lag.")
+                dpg.add_text("MOTION ENGINE (1 Euro Filter):", color=(201, 0, 141))
+
+                with dpg.group(horizontal=True):
+                    dpg.add_text("Stabilization:")
+                    app.min_cutoff_slider = dpg.add_slider_float(
+                        label="",
+                        default_value=app.config.motion_min_cutoff,
+                        min_value=0.001,
+                        max_value=1.0,
+                        callback=lambda s, a: [dpg.set_value(s, a), app.config.update("motion_min_cutoff", a)][-1],
+                        width=-1,
+                        format="%.3f",
+                    )
+                with dpg.tooltip(app.min_cutoff_slider):
+                    dpg.add_text("Lower = More stable cursor (less jitter) when moving slowly. Rec: 0.001-0.1")
+
+                with dpg.group(horizontal=True):
+                    dpg.add_text("Responsiveness:")
+                    app.beta_slider = dpg.add_slider_float(
+                        label="",
+                        default_value=app.config.motion_beta,
+                        min_value=0.001,
+                        max_value=1.0,
+                        callback=lambda s, a: [dpg.set_value(s, a), app.config.update("motion_beta", a)][-1],
+                        width=-1,
+                        format="%.3f",
+                    )
+                with dpg.tooltip(app.beta_slider):
+                    dpg.add_text("Higher = Faster reaction to sudden movements (less lag). Rec: 0.001-0.1")
+
+                with dpg.group(horizontal=True):
+                    dpg.add_text("Prediction Scale:")
+                    app.prediction_scale_slider = dpg.add_slider_float(
+                        label="",
+                        default_value=app.config.prediction_scale,
+                        min_value=0.0,
+                        max_value=5.0,
+                        callback=lambda s, a: [dpg.set_value(s, a), app.config.update("prediction_scale", a)][-1],
+                        width=-1,
+                        format="%.2f",
+                    )
+                with dpg.tooltip(app.prediction_scale_slider):
+                    dpg.add_text("Velocity lookahead multiplier. 0.0 = Off.")
 
                 dpg.add_spacer(height=10)
                 dpg.add_separator()
@@ -454,16 +469,15 @@ def setup_gui(app):
                 def refresh_ui_from_config():
                     """Update all UI elements to match current config"""
                     ui_elements = [
-                        (app.smoothing_slider, app.config.smoothing),
-                        (app.filter_combo, app.config.filter_method),
                         (app.head_offset_slider, app.config.head_offset),
                         (app.leg_offset_slider, app.config.leg_offset),
                         (app.tolerance_slider, app.config.color_tolerance),
                         (app.fov_x_slider, app.config.fov_x),
                         (app.fov_y_slider, app.config.fov_y),
                         (app.fps_slider, app.config.target_fps),
-                        (app.prediction_checkbox, app.config.prediction_enabled),
-                        (app.prediction_slider, app.config.prediction_multiplier),
+                        (app.min_cutoff_slider, app.config.motion_min_cutoff),
+                        (app.beta_slider, app.config.motion_beta),
+                        (app.prediction_scale_slider, app.config.prediction_scale),
                         (app.enabled_checkbox, app.config.enabled),
                     ]
 
@@ -559,31 +573,6 @@ def setup_gui(app):
                 dpg.add_spacer(height=10)
                 dpg.add_separator()
                 dpg.add_spacer(height=10)
-
-                dpg.add_text("PREDICTION (Anti-Lag)", color=(201, 0, 141))
-                app.prediction_checkbox = dpg.add_checkbox(
-                    label="Enable Predictive Leading",
-                    default_value=app.config.prediction_enabled,
-                    callback=lambda s, a: app.config.update("prediction_enabled", a),
-                )
-
-                with dpg.group(horizontal=True):
-                    dpg.add_text("Strength:")
-                    app.prediction_slider = dpg.add_slider_float(
-                        label="",
-                        default_value=app.config.prediction_multiplier,
-                        min_value=0.1,
-                        max_value=50.0,
-                        callback=lambda s, a: [
-                            snapped := max(0.1, min(50.0, round(a / 0.5) * 0.5)),
-                            dpg.set_value(s, snapped),
-                            app.config.update("prediction_multiplier", snapped),
-                        ][-1],
-                        width=-1,
-                        format="%.1f",
-                    )
-                with dpg.tooltip(app.prediction_slider):
-                    dpg.add_text("Strength: Higher = aims further in front of the runner.")
 
                 dpg.add_spacer(height=20)
                 dpg.add_separator()

@@ -24,13 +24,12 @@ class Config:
     search_area: int
     fov_x: int
     fov_y: int
-    smoothing: float
-    filter_method: str
     aim_point: int
     head_offset: int
     leg_offset: int
-    prediction_enabled: bool
-    prediction_multiplier: float
+    motion_min_cutoff: float
+    motion_beta: float
+    prediction_scale: float
     start_key: str
     stop_key: str
     target_fps: int
@@ -46,17 +45,12 @@ class Config:
         "search_area": {"type": int, "default": 100, "min": 10, "max": 1000},
         "fov_x": {"type": int, "default": 50, "min": 10, "max": 500},
         "fov_y": {"type": int, "default": 50, "min": 10, "max": 500},
-        "smoothing": {"type": float, "default": 2.0, "min": 0.0, "max": 100.0},
-        "filter_method": {
-            "type": str,
-            "default": "EMA",
-            "options": ["EMA", "DEMA", "TEMA", "Median+EMA", "Dynamic EMA"],
-        },
         "aim_point": {"type": int, "default": 1, "min": 0, "max": 2},
         "head_offset": {"type": int, "default": 20, "min": 0, "max": 200},
         "leg_offset": {"type": int, "default": 30, "min": 0, "max": 200},
-        "prediction_enabled": {"type": bool, "default": True},
-        "prediction_multiplier": {"type": float, "default": 0.5, "min": 0.0, "max": 100.0},
+        "motion_min_cutoff": {"type": float, "default": 0.05, "min": 0.001, "max": 1.0},
+        "motion_beta": {"type": float, "default": 0.05, "min": 0.001, "max": 1.0},
+        "prediction_scale": {"type": float, "default": 1.0, "min": 0.0, "max": 10.0},
         "start_key": {"type": str, "default": "page_up"},
         "stop_key": {"type": str, "default": "page_down"},
         "target_fps": {"type": int, "default": 240, "min": 30, "max": 1000},
@@ -223,17 +217,18 @@ class Config:
             json_content += f'    "fov_y": {config_data.get("fov_y", 41)},\n'
             json_content += "\n"
 
-            json_content += "    // === TRACKING BEHAVIOR SETTINGS ===\n"
-            json_content += "    // Mouse movement smoothing (0.0 = instant, higher = smoother)\n"
-            json_content += "    // 0.0-0.5: Very responsive (competitive gaming)\n"
-            json_content += "    // 0.5-2.0: Balanced (general use)\n"
-            json_content += "    // 2.0-10.0: Very smooth (casual gaming)\n"
-            json_content += f'    "smoothing": {config_data.get("smoothing", 0.0)},\n'
+            json_content += "    // === MOTION ENGINE SETTINGS ===\n"
+            json_content += "    // 1 Euro Filter Settings\n"
+            json_content += "    // motion_min_cutoff: Stabilization. Lower = More stable when slow. Rec: 0.001-0.1\n"
+            json_content += f'    "motion_min_cutoff": {config_data.get("motion_min_cutoff", 0.05)},\n'
+            json_content += "    // motion_beta: Responsiveness. Higher = Faster reaction. Rec: 0.001-0.1\n"
+            json_content += f'    "motion_beta": {config_data.get("motion_beta", 0.05)},\n'
             json_content += "\n"
-            json_content += "    // Filtering method for prediction (Noise reduction)\n"
-            json_content += '    // Options: "EMA", "DEMA", "TEMA", "Median+EMA", "Dynamic EMA"\n'
-            json_content += f'    "filter_method": "{config_data.get("filter_method", "EMA")}",\n'
+            json_content += "    // Prediction Status\n"
+            json_content += "    // prediction_scale: Velocity prediction multiplier. 0.0 = Off.\n"
+            json_content += f'    "prediction_scale": {config_data.get("prediction_scale", 1.0)},\n'
             json_content += "\n"
+            json_content += "    // === TARGETING SETTINGS ===\n"
             json_content += "    // Target tracking point on detected objects\n"
             json_content += '    // Options: "Head", "Chest", "Legs", "Center"\n'
             json_content += "    // Head: Highest damage but smaller target\n"
@@ -251,18 +246,6 @@ class Config:
             json_content += "    // Adjust based on game character models and your preference\n"
             json_content += f'    "head_offset": {config_data.get("head_offset", 20)},\n'
             json_content += f'    "leg_offset": {config_data.get("leg_offset", 30)},\n'
-            json_content += "\n"
-
-            json_content += "    // === PREDICTION SETTINGS ===\n"
-            json_content += "    // Enable movement prediction for moving targets\n"
-            json_content += "    // true: Predicts target movement (better for moving enemies)\n"
-            json_content += "    // false: Tracks at current position (better for stationary targets)\n"
-            json_content += f'    "prediction_enabled": {str(config_data.get("prediction_enabled", False)).lower()},\n'
-            json_content += "\n"
-            json_content += "    // Prediction strength multiplier (0.0-1.0)\n"
-            json_content += "    // Higher values = more aggressive prediction\n"
-            json_content += "    // Start with 0.1 and adjust based on game speed\n"
-            json_content += f'    "prediction_multiplier": {config_data.get("prediction_multiplier", 0.1)},\n'
             json_content += "\n"
 
             json_content += "    // === CONTROL SETTINGS ===\n"

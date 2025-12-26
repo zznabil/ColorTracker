@@ -72,4 +72,4 @@ def test_type_casting_logic(clean_config):
     # Test Numeric Casting from strings
     assert clean_config.validate("fov_x", "100") == 100
     assert clean_config.validate("fov_x", "150.5") == 150  # Int cast
-    assert clean_config.validate("smoothing", "5.5") == 5.5
+    assert clean_config.validate("motion_min_cutoff", "0.55") == 0.55

@@ -18,7 +18,7 @@ import dearpygui.dearpygui as dpg
 # Import core modules
 from core.detection import DetectionSystem
 from core.low_level_movement import LowLevelMovementSystem
-from core.prediction import PredictionSystem
+from core.motion_engine import MotionEngine
 from gui.main_window import setup_gui
 from utils.config import Config
 from utils.keyboard_listener import KeyboardListener
@@ -72,8 +72,8 @@ class ColorTrackerAlgo:
         # Initialize systems with optimized settings
         self.logger.debug("Initializing detection system...")
         self.detection = DetectionSystem(self.config)
-        self.logger.debug("Initializing prediction system...")
-        self.prediction = PredictionSystem(self.config)
+        self.logger.debug("Initializing unified motion engine...")
+        self.motion_engine = MotionEngine(self.config)
 
         # Initialize movement system with optimized settings
         self.logger.debug("Initializing low-level movement system for game compatibility...")
@@ -105,7 +105,7 @@ class ColorTrackerAlgo:
 
         # UI responsiveness optimization
         self._ui_update_interval = 0.05  # 20 FPS for UI updates
-        self._analytics_update_interval = 0.5 # 2 FPS for Analytics graphs
+        self._analytics_update_interval = 0.5  # 2 FPS for Analytics graphs
         self._last_ui_update = 0
         self._last_analytics_update = 0
         self._target_status_cache = None
@@ -255,7 +255,7 @@ class ColorTrackerAlgo:
 
         # Local references to methods to avoid self. lookup overhead
         find_target = self.detection.find_target
-        predict = self.prediction.predict
+        process_motion = self.motion_engine.process
         aim_at = self.movement.aim_at
         update_target_status = self._update_target_status
         update_fps_display = self._update_fps_display
@@ -277,8 +277,8 @@ class ColorTrackerAlgo:
                     if abs(new_frame_interval - frame_interval) > 0.0001:
                         frame_interval = new_frame_interval
                         target_frame_time = frame_interval
-                    # Sync prediction config cache
-                    self.prediction.update_config()
+                    # Sync motion engine config cache
+                    self.motion_engine.update_config()
 
                 # Ultra-efficient FPS calculation (every 1 second for better responsiveness)
                 current_time = time.perf_counter()
@@ -291,14 +291,14 @@ class ColorTrackerAlgo:
 
                     # Log performance metrics periodically
                     if loop_count % 600 == 0 and hasattr(self, "logger"):
-                         self.logger.debug(
+                        self.logger.debug(
                             f"Performance: {stats['fps']:.1f} FPS | "
                             f"Avg: {stats['avg_frame_ms']:.2f}ms | "
                             f"Max: {stats['worst_frame_ms']:.2f}ms | "
                             f"Missed: {int(stats['missed_frames'])}"
                         )
                         # Reset aggregate counters in monitor
-                         perf_monitor.reset_aggregates()
+                        perf_monitor.reset_aggregates()
 
                     # Update UI with rate limiting
                     update_fps_display()
@@ -319,8 +319,8 @@ class ColorTrackerAlgo:
                         # Step 2: If target found, predict and move
                         if target_found:
                             try:
-                                # Calculate prediction (method uses internally cached config)
-                                predicted_x, predicted_y = predict(target_x, target_y)
+                                # Calculate motion (smoothing + prediction)
+                                predicted_x, predicted_y = process_motion(target_x, target_y, target_frame_time)
 
                                 # Move mouse to target
                                 aim_at(predicted_x, predicted_y)

@@ -5,7 +5,7 @@ import numpy as np
 
 from core.detection import DetectionSystem
 from core.low_level_movement import LowLevelMovementSystem
-from core.prediction import PredictionSystem
+from core.motion_engine import MotionEngine
 
 
 class MockConfig:
@@ -17,10 +17,9 @@ class MockConfig:
         self.search_area = 50
         self.target_color = 0xC9008D
         self.color_tolerance = 10
-        self.smoothing = 0.5
-        self.filter_method = "EMA"
-        self.prediction_enabled = True
-        self.prediction_multiplier = 0.5
+        self.motion_min_cutoff = 0.5
+        self.motion_beta = 0.05
+        self.prediction_scale = 1.0
         self.aim_point = 1
         self.head_offset = 10
         self.leg_offset = 20
@@ -42,7 +41,7 @@ def test_full_pipeline_throughput():
 
         # Initialize systems
         ds = DetectionSystem(config)
-        ps = PredictionSystem(config)
+        ps = MotionEngine(config)
         ms = LowLevelMovementSystem(config)
 
         # Bypass SendInput to avoid actual movement during test
@@ -56,7 +55,7 @@ def test_full_pipeline_throughput():
 
                 # 2. Predict if found
                 if found:
-                    px, py = ps.predict(tx, ty)
+                    px, py = ps.process(tx, ty, 0.0)
 
                     # 3. Move
                     ms.aim_at(px, py)
@@ -80,7 +79,7 @@ def test_full_pipeline_throughput():
 def test_prediction_drift_under_oscillation():
     """Verify prediction stability when target oscillates rapidly"""
     config = MockConfig()
-    ps = PredictionSystem(config)
+    ps = MotionEngine(config)
 
     # Oscillate between two points
     points = [(100, 100), (200, 200)] * 50
@@ -89,6 +88,9 @@ def test_prediction_drift_under_oscillation():
     current_time = 100.0
     for x, y in points:
         with patch("time.time", return_value=current_time):
-            px, py = ps.predict(x, y)
+            # Using 0.0 as dt to rely on internal time or just mock if needed
+            # Since motion_engine uses perfor_counter directly, we might need to patch perf_counter
+            with patch("time.perf_counter", return_value=current_time):
+                px, py = ps.process(x, y, 0.0)
             assert np.isfinite(px) and np.isfinite(py)
         current_time += dt

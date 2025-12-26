@@ -16,204 +16,107 @@ import threading
 from unittest.mock import MagicMock, patch
 
 import numpy as np
-import pytest
 
 from core.detection import DetectionSystem
 from core.low_level_movement import LowLevelMovementSystem
-from core.prediction import PredictionSystem
+from core.motion_engine import MotionEngine
 from utils.config import Config
-from utils.filters import DynamicEMA, MedianFilter, SimpleEMA
 from utils.logger import Logger
 
 
-class TestPredictionDeepStateMachine:
-    """Deep testing of prediction system state transitions"""
+class TestMotionDeepStateMachine:
+    """Deep testing of motion engine state transitions"""
 
-    def test_prediction_from_cold_start(self):
-        """Test prediction immediately after initialization"""
+    def test_motion_from_cold_start(self):
+        """Test motion immediately after initialization"""
         config = MagicMock()
-        config.prediction_enabled = True
-        config.prediction_multiplier = 1.0
-        config.filter_method = "EMA"
-        config.smoothing = 0.5
 
-        ps = PredictionSystem(config)
+        config.prediction_scale = 1.0
+        config.motion_min_cutoff = 0.5
+        config.motion_beta = 0.05
+
+        engine = MotionEngine(config)
 
         # First call - should initialize and return input
-        with patch("time.time", return_value=100.0):
-            px, py = ps.predict(500, 500)
+        with patch("time.perf_counter", return_value=100.0):
+            px, py = engine.process(500, 500, 0.0)
 
         assert px == 500
         assert py == 500
 
-    def test_prediction_after_long_pause(self):
-        """Test prediction after significant time gap (simulating pause)"""
+    def test_motion_after_long_pause(self):
+        """Test motion processing after significant time gap"""
         config = MagicMock()
-        config.prediction_enabled = True
-        config.prediction_multiplier = 1.0
-        config.filter_method = "EMA"
-        config.smoothing = 0.5
 
-        ps = PredictionSystem(config)
+        config.prediction_scale = 1.0
+        config.motion_min_cutoff = 0.5
+        config.motion_beta = 0.05
+
+        engine = MotionEngine(config)
 
         # Normal operation
-        with patch("time.time", return_value=100.0):
-            ps.predict(500, 500)
+        with patch("time.perf_counter", return_value=100.0):
+            engine.process(500, 500, 0.0)
 
-        with patch("time.time", return_value=100.016):
-            ps.predict(510, 510)
+        with patch("time.perf_counter", return_value=100.016):
+            engine.process(510, 510, 0.016)
 
         # Long pause (5 minutes)
-        with patch("time.time", return_value=400.0):
-            px, py = ps.predict(600, 600)
+        # 1Euro uses current time delta. If delta is HUGE, smoothing alpha approaches 1 (instant update).
+        # This is expected behavior.
+        with patch("time.perf_counter", return_value=400.0):
+            px, py = engine.process(600, 600, 0.0)
 
-        # Should handle gracefully (dt clamped to 0.1s max)
         assert np.isfinite(px)
         assert np.isfinite(py)
 
-    def test_prediction_rapid_reset_cycles(self):
-        """Test rapid reset-predict cycles"""
+    def test_motion_rapid_reset_cycles(self):
+        """Test rapid reset-process cycles"""
         config = MagicMock()
-        config.prediction_enabled = True
-        config.prediction_multiplier = 1.0
-        config.filter_method = "TEMA"
-        config.smoothing = 0.5
 
-        ps = PredictionSystem(config)
+        config.prediction_scale = 1.0
+        config.motion_min_cutoff = 0.5
+        config.motion_beta = 0.05
+
+        engine = MotionEngine(config)
 
         for cycle in range(100):
-            with patch("time.time", return_value=100.0 + cycle):
-                ps.predict(500, 500)
-            ps.reset()
+            with patch("time.perf_counter", return_value=100.0 + cycle):
+                engine.process(500, 500, 0.0)
+            engine.reset()
 
-        # Should never accumulate bad state
-        assert ps.velocity_x == 0
-        assert ps.velocity_y == 0
-        assert ps.filter_x is None
-        assert ps.filter_y is None
+        assert engine.x_filter is None
+        assert engine.y_filter is None
 
-    def test_prediction_with_negative_coordinates(self):
-        """Test prediction with negative screen coordinates"""
+    def test_motion_with_negative_coordinates(self):
+        """Test motion with negative screen coordinates"""
         config = MagicMock()
-        config.prediction_enabled = True
-        config.prediction_multiplier = 1.0
-        config.filter_method = "EMA"
-        config.smoothing = 0.5
 
-        ps = PredictionSystem(config)
+        config.prediction_scale = 1.0
 
-        with patch("time.time", return_value=100.0):
-            px, py = ps.predict(-100, -100)
+        engine = MotionEngine(config)
+
+        with patch("time.perf_counter", return_value=100.0):
+            px, py = engine.process(-100, -100, 0.0)
 
         # Should handle negative values
         assert np.isfinite(px)
         assert np.isfinite(py)
 
-    def test_prediction_with_huge_coordinates(self):
-        """Test prediction with very large coordinates (multi-monitor)"""
+    def test_motion_with_huge_coordinates(self):
+        """Test process with very large coordinates"""
         config = MagicMock()
-        config.prediction_enabled = True
-        config.prediction_multiplier = 1.0
-        config.filter_method = "EMA"
-        config.smoothing = 0.5
 
-        ps = PredictionSystem(config)
+        config.prediction_scale = 1.0
+
+        engine = MotionEngine(config)
 
         # Simulate 4K @ 4 monitors (7680px wide)
-        with patch("time.time", return_value=100.0):
-            px, py = ps.predict(7000, 2000)
+        with patch("time.perf_counter", return_value=100.0):
+            px, py = engine.process(7000, 2000, 0.0)
 
         assert np.isfinite(px)
         assert np.isfinite(py)
-
-
-class TestFilterDeepNumericalStability:
-    """Deep numerical stability testing for filters"""
-
-    def test_ema_with_denormalized_floats(self):
-        """Test EMA with denormalized (subnormal) float values"""
-        ema = SimpleEMA(alpha=0.5)
-
-        # Subnormal float (very small but non-zero)
-        subnormal = 1e-320
-
-        ema(subnormal)
-        result = ema(subnormal)
-
-        # Should not become zero or NaN
-        assert result >= 0  # May be clamped but not NaN
-
-    def test_ema_with_near_overflow_values(self):
-        """Test EMA with values near float max"""
-        ema = SimpleEMA(alpha=0.5)
-
-        large = 1e308
-
-        ema(large)
-        result = ema(large)
-
-        # Should handle without overflow
-        assert np.isfinite(result) or result == float("inf")
-
-    def test_filter_accumulation_over_time(self):
-        """Test filter doesn't accumulate rounding errors"""
-        ema = SimpleEMA(alpha=0.1)
-
-        # Run 1 million iterations with same value
-        target = 100.0
-        for _ in range(1000000):
-            result = ema(target)
-
-        # Should be very close to target
-        assert abs(result - target) < 0.0001
-
-    def test_median_filter_with_identical_values(self):
-        """Test median filter when all values are identical"""
-        mf = MedianFilter(window_size=5)
-
-        for _ in range(10):
-            result = mf(42.0)
-
-        assert result == 42.0
-
-    def test_median_filter_with_reverse_sorted_input(self):
-        """Test median filter with descending values"""
-        mf = MedianFilter(window_size=5)
-
-        for i in range(5, 0, -1):
-            result = mf(float(i))
-
-        # Buffer: [5, 4, 3, 2, 1], sorted: [1, 2, 3, 4, 5], median: 3
-        assert result == 3.0
-
-    def test_dynamic_ema_with_zero_sensitivity(self):
-        """Test Dynamic EMA edge case with zero sensitivity"""
-        # Sensitivity is used in division, ensure no division by zero
-        dema = DynamicEMA(min_alpha=0.1, max_alpha=0.9, sensitivity=0.0)
-
-        dema(100.0)
-        result = dema(200.0)
-
-        # sensitivity + 0.01 prevents div by zero
-        assert np.isfinite(result)
-
-    def test_dynamic_ema_extreme_speed_transition(self):
-        """Test Dynamic EMA with extreme speed changes"""
-        dema = DynamicEMA(min_alpha=0.1, max_alpha=0.9, sensitivity=1.0)
-
-        # Start stationary
-        for _ in range(10):
-            dema(100.0)
-
-        # Sudden teleport
-        result = dema(10000.0)
-
-        assert np.isfinite(result)
-
-        # Return
-        result = dema(100.0)
-
-        assert np.isfinite(result)
 
 
 class TestDetectionDeepImageProcessing:
@@ -370,9 +273,9 @@ class TestConfigDeepValidation:
             ("fov_x", 1000, 500),  # Clamped to max
             ("fov_y", -1, 10),
             ("fov_y", 1000, 500),
-            ("smoothing", -10, 0.0),
-            ("smoothing", 200, 100.0),
-            ("prediction_multiplier", -5, 0.0),
+            ("motion_min_cutoff", -10, 0.001),
+            ("motion_min_cutoff", 200, 1.0),
+            ("prediction_scale", -5, 0.0),
             ("color_tolerance", -1, 0),
             ("color_tolerance", 300, 100),
         ]
@@ -392,13 +295,9 @@ class TestConfigDeepValidation:
         assert isinstance(config.fov_x, int)
 
         # String to float
-        config.update("smoothing", "5.5")
-        assert config.smoothing == 5.5
-        assert isinstance(config.smoothing, float)
-
-        # String to bool
-        config.update("prediction_enabled", "true")
-        # May be True or remain unchanged depending on implementation
+        config.update("motion_min_cutoff", "0.55")
+        assert config.motion_min_cutoff == 0.55
+        assert isinstance(config.motion_min_cutoff, float)
 
     def test_config_thread_safety_under_load(self):
         """Test config thread safety under heavy load"""
@@ -411,8 +310,8 @@ class TestConfigDeepValidation:
                 for _ in range(iterations):
                     _ = config.fov_x
                     _ = config.fov_y
-                    _ = config.smoothing
-                    _ = config.prediction_multiplier
+                    _ = config.motion_min_cutoff
+                    _ = config.prediction_scale
             except Exception as e:
                 errors.append(e)
 
@@ -420,7 +319,7 @@ class TestConfigDeepValidation:
             try:
                 for i in range(iterations):
                     config.update("fov_x", 10 + (i % 490))
-                    config.update("smoothing", (i % 100) / 10.0)
+                    config.update("motion_min_cutoff", (i % 100) / 100.0)
             except Exception as e:
                 errors.append(e)
 
@@ -484,67 +383,42 @@ class TestNumericalEdgeCases:
     def test_prediction_with_zero_dt(self):
         """Test prediction when time hasn't advanced"""
         config = MagicMock()
-        config.prediction_enabled = True
-        config.prediction_multiplier = 1.0
-        config.filter_method = "EMA"
-        config.smoothing = 0.5
 
-        ps = PredictionSystem(config)
+        config.prediction_scale = 1.0
+
+        engine = MotionEngine(config)
 
         # Same timestamp
-        with patch("time.time", return_value=100.0):
-            ps.predict(500, 500)
-            px, py = ps.predict(510, 510)
+        with patch("time.perf_counter", return_value=100.0):
+            engine.process(500, 500, 0.0)
+            px, py = engine.process(510, 510, 0.0)
 
-        # Should handle zero dt (clamped to 0.001)
+        # Should handle zero dt
         assert np.isfinite(px)
         assert np.isfinite(py)
 
     def test_prediction_with_negative_dt(self):
         """Test prediction with backwards time (clock adjustment)"""
         config = MagicMock()
-        config.prediction_enabled = True
-        config.prediction_multiplier = 1.0
-        config.filter_method = "EMA"
-        config.smoothing = 0.5
 
-        ps = PredictionSystem(config)
+        config.prediction_scale = 1.0
+
+        engine = MotionEngine(config)
 
         # Time goes backwards
-        with patch("time.time", return_value=100.0):
-            ps.predict(500, 500)
+        with patch("time.perf_counter", return_value=100.0):
+            engine.process(500, 500, 0.0)
 
-        with patch("time.time", return_value=99.0):  # Earlier!
-            px, py = ps.predict(510, 510)
+        with patch("time.perf_counter", return_value=99.0):  # Earlier!
+            px, py = engine.process(510, 510, -1.0)
 
-        # Should handle negative dt (clamped)
+        # Should handle negative dt (clamped or handled by 1Euro)
         assert np.isfinite(px)
         assert np.isfinite(py)
-
-    def test_filter_with_alternating_infinities(self):
-        """Test filter with alternating inf/-inf"""
-        ema = SimpleEMA(alpha=0.5)
-
-        ema(100.0)  # Normal
-        ema(float("inf"))  # Positive infinity
-        result = ema(float("-inf"))  # Negative infinity
-
-        # Filter should return previous valid value
-        assert np.isfinite(result)
 
 
 class TestMemoryAndResourceManagement:
     """Test memory and resource management"""
-
-    def test_median_filter_buffer_size_limit(self):
-        """Test median filter buffer doesn't grow indefinitely"""
-        mf = MedianFilter(window_size=5)
-
-        for i in range(10000):
-            mf(float(i))
-
-        # Buffer should stay at window_size
-        assert len(mf.buffer) == 5
 
     def test_logger_buffer_size_management(self):
         """Test logger doesn't accumulate unbounded memory"""
@@ -556,27 +430,3 @@ class TestMemoryAndResourceManagement:
 
         # Should complete without memory error
         assert True
-
-    def test_prediction_state_size_constancy(self):
-        """Test prediction system state doesn't grow"""
-        config = MagicMock()
-        config.prediction_enabled = True
-        config.prediction_multiplier = 1.0
-        config.filter_method = "Median+EMA"
-        config.smoothing = 0.5
-
-        ps = PredictionSystem(config)
-
-        for i in range(10000):
-            with patch("time.time", return_value=100.0 + i * 0.016):
-                ps.predict(500 + (i % 100), 500 + (i % 100))
-
-        # Median filter's buffer should be bounded
-        if isinstance(ps.filter_x, tuple):
-            mf, _ = ps.filter_x
-            if isinstance(mf, MedianFilter):
-                assert len(mf.buffer) <= 3  # window_size
-
-
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])

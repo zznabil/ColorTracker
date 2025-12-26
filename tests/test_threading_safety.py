@@ -35,10 +35,10 @@ def test_save_debounce_concurrency():
 
     # Trigger 500 updates in a row
     for i in range(500):
-        config.update("smoothing", float(i % 10))
+        config.update("motion_min_cutoff", float((i % 10) / 10.0))
 
     # The debounce is 500ms. We wait 600ms and check if it saved.
     # Note: Hard to verify disk write frequency in CI without specialized mocks,
     # but we verify it doesn't crash the timer thread.
     time.sleep(0.6)
-    assert config.smoothing <= 10.0
+    assert config.motion_min_cutoff <= 1.0

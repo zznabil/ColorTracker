@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 from core.detection import DetectionSystem
-from core.prediction import PredictionSystem
+from core.motion_engine import MotionEngine
 from utils.config import Config
 
 
@@ -24,11 +24,10 @@ class TestUltraRobustness:
         # or use a temp file. Config.load() reads from self.config_file.
         # We will mock load/save to focus on in-memory state consistency.
 
-        config.prediction_enabled = True
-        config.prediction_multiplier = 1.5
-        config.smoothing = 0.5
+        config.prediction_scale = 1.5
+        config.motion_min_cutoff = 0.5
 
-        ps = PredictionSystem(config)
+        ps = MotionEngine(config)
 
         stop_event = threading.Event()
         error_list = []
@@ -39,11 +38,11 @@ class TestUltraRobustness:
                     if stop_event.is_set():
                         break
                     # Access config properties rigorously
-                    _ = ps.config.prediction_multiplier
-                    _ = ps.config.smoothing
+                    _ = ps.config.prediction_scale
+                    _ = ps.config.motion_min_cutoff
 
                     # Ensure numerical stability
-                    px, py = ps.predict(100 + i % 10, 100 + i % 10)
+                    px, py = ps.process(100 + i % 10, 100 + i % 10, 0.0)
                     if not (np.isfinite(px) and np.isfinite(py)):
                         error_list.append(ValueError(f"Non-finite prediction at {i}: {px}, {py}"))
             except Exception as e:
@@ -55,8 +54,8 @@ class TestUltraRobustness:
                     if stop_event.is_set():
                         break
                     # Randomize config values
-                    config.prediction_multiplier = random.uniform(-1.0, 10.0)  # Include negative/extreme
-                    config.smoothing = random.uniform(-10.0, 110.0)
+                    config.prediction_scale = random.uniform(-1.0, 10.0)  # Include negative/extreme
+                    config.motion_min_cutoff = random.uniform(-10.0, 110.0)
                     time.sleep(0.0001)
             except Exception as e:
                 error_list.append(e)
@@ -81,9 +80,10 @@ class TestUltraRobustness:
         buffer overflows, or performance degradation.
         """
         config = Config()
-        config.filter_method = "TEMA"  # Use a complex filter
-        config.prediction_enabled = True
-        ps = PredictionSystem(config)
+        config = Config()
+        config.motion_beta = 0.5
+
+        ps = MotionEngine(config)
 
         start_time = 1000.0
         dt = 0.016  # 60 FPS
@@ -100,7 +100,9 @@ class TestUltraRobustness:
                 target_y = center_y + radius * np.sin(t)
 
                 with patch("time.time", return_value=t):
-                    px, py = ps.predict(target_x, target_y)
+                    # We might need to patch perf_counter for 1euro
+                    with patch("time.perf_counter", return_value=t):
+                        px, py = ps.process(target_x, target_y, dt)
 
                     # Sanity check: Prediction should be within reasonable bounds of target
                     # (it will lead, but shouldn't explode)
@@ -157,7 +159,7 @@ class TestUltraRobustness:
         config = Config()
 
         # Inject string where float expected
-        config.smoothing = "0.5"  # type: ignore
+        config.motion_min_cutoff = "0.5"  # type: ignore
         # Python might coerce or crash depending on usage.
         # We want to know what happens.
         # If the code assumes float, '0.5' * 10 will be '0.50.5...' which is BAD for math.
@@ -168,7 +170,7 @@ class TestUltraRobustness:
 
         try:
             # If logic uses it effectively
-            val = float(config.smoothing)
+            val = float(config.motion_min_cutoff)
             assert val == 0.5
         except (ValueError, TypeError):
             pass

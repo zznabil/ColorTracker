@@ -1,10 +1,17 @@
+"""
+Ultra Edge Cases Test Suite
+
+Tests extreme scenarios specifically for movement normalization,
+config corruption recovery, and temporal instability.
+"""
+
 import os
 from unittest.mock import MagicMock, patch
 
 import numpy as np
 
 from core.low_level_movement import LowLevelMovementSystem
-from core.prediction import PredictionSystem
+from core.motion_engine import MotionEngine
 from utils.config import Config
 
 
@@ -54,22 +61,22 @@ def test_movement_normalization_extreme():
 def test_prediction_temporal_instability():
     """Test prediction behavior with erratic frame timing and filter lag"""
     config = MagicMock()
-    config.prediction_enabled = True
-    config.prediction_multiplier = 1.0
-    config.filter_method = "EMA"
-    config.smoothing = 1.0
+    config.prediction_scale = 1.0
+    config.motion_min_cutoff = 0.5
+    config.motion_beta = 0.05
 
-    ps = PredictionSystem(config)
+    ps = MotionEngine(config)
 
-    with patch("time.time", return_value=100.0):
-        ps.predict(100, 100)
+    with patch("time.perf_counter", return_value=100.0):
+        ps.process(100, 100, 0.0)
 
-    with patch("time.time", return_value=100.016):
-        ps.predict(100, 100)
+    with patch("time.perf_counter", return_value=100.016):
+        ps.process(100, 100, 0.016)
 
-    with patch("time.time", return_value=105.016):
-        px, py = ps.predict(200, 200)
-        assert px == 200
+    # Big jump in time
+    with patch("time.perf_counter", return_value=105.016):
+        px, py = ps.process(200, 200, 5.0)
+        assert np.isfinite(px) and np.isfinite(py)
 
 
 def test_detection_area_clipping_logic(mock_screenshot_factory):

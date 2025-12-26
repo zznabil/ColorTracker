@@ -17,9 +17,8 @@ import pytest
 
 from core.detection import DetectionSystem
 from core.low_level_movement import LowLevelMovementSystem
-from core.prediction import PredictionSystem
+from core.motion_engine import MotionEngine
 from utils.config import Config
-from utils.filters import DynamicEMA, MedianFilter, SimpleEMA, TripleEMA
 from utils.logger import Logger
 
 
@@ -88,154 +87,151 @@ class TestConfigBoundaryConditions:
         config.update("color_tolerance", 100)
         assert config.color_tolerance == 100
 
-    def test_config_prediction_multiplier_range(self):
-        """Test prediction multiplier boundary conditions"""
+    def test_config_prediction_scale_range(self):
+        """Test prediction scale boundary conditions"""
         config = Config()
 
         # Minimum (no prediction)
-        config.update("prediction_multiplier", 0.0)
-        assert config.prediction_multiplier == 0.0
+        config.update("prediction_scale", 0.0)
+        assert config.prediction_scale == 0.0
 
         # Maximum aggressive prediction
-        config.update("prediction_multiplier", 100.0)
-        assert config.prediction_multiplier == 100.0
+        config.update("prediction_scale", 10.0)
+        assert config.prediction_scale == 10.0
 
         # Negative values (should clamp to 0)
-        config.update("prediction_multiplier", -1.0)
-        assert config.prediction_multiplier == 0.0
+        config.update("prediction_scale", -1.0)
+        assert config.prediction_scale == 0.0
 
-    def test_config_smoothing_boundary_values(self):
-        """Test smoothing at exact boundaries"""
+    def test_config_min_cutoff_boundary_values(self):
+        """Test min_cutoff at exact boundaries"""
         config = Config()
 
-        # No smoothing
-        config.update("smoothing", 0.0)
-        assert config.smoothing == 0.0
+        # Minimum smoothing
+        config.update("motion_min_cutoff", 0.001)
+        assert config.motion_min_cutoff == 0.001
 
         # Maximum smoothing
-        config.update("smoothing", 100.0)
-        assert config.smoothing == 100.0
+        config.update("motion_min_cutoff", 1.0)
+        assert config.motion_min_cutoff == 1.0
 
         # Out of range values should clamp
-        config.update("smoothing", -0.5)
-        assert config.smoothing == 0.0
+        config.update("motion_min_cutoff", -0.5)
+        assert config.motion_min_cutoff == 0.001
 
-        config.update("smoothing", 150.0)
-        assert config.smoothing == 100.0
+        config.update("motion_min_cutoff", 1.5)
+        assert config.motion_min_cutoff == 1.0
 
 
-class TestPredictionSystemEdgeCases:
-    """Test prediction system edge cases"""
+class TestMotionEngineEdgeCases:
+    """Test motion engine edge cases"""
 
-    def test_prediction_with_zero_velocity(self):
-        """Test prediction when target is stationary"""
+    def test_motion_with_zero_velocity(self):
+        """Test motion when target is stationary"""
         config = MagicMock()
-        config.prediction_enabled = True
-        config.prediction_multiplier = 1.0
-        config.filter_method = "EMA"
-        config.smoothing = 0.5
 
-        ps = PredictionSystem(config)
+        config.prediction_scale = 1.0
+        config.motion_min_cutoff = 0.5
+        config.motion_beta = 0.05
+
+        engine = MotionEngine(config)
 
         # Feed same position multiple times
-        with patch("time.time", return_value=100.0):
-            ps.predict(500, 500)
+        with patch("time.perf_counter", return_value=100.0):
+            engine.process(500, 500, 0.0)
 
-        with patch("time.time", return_value=100.016):
-            ps.predict(500, 500)
+        with patch("time.perf_counter", return_value=100.016):
+            engine.process(500, 500, 0.016)
 
-        with patch("time.time", return_value=100.032):
-            px, py = ps.predict(500, 500)
+        with patch("time.perf_counter", return_value=100.032):
+            px, py = engine.process(500, 500, 0.016)
 
         # Prediction should converge to actual position
         assert abs(px - 500) < 10
         assert abs(py - 500) < 10
 
-    def test_prediction_with_instant_direction_reversal(self):
-        """Test prediction when target instantly reverses direction"""
+    def test_motion_with_instant_direction_reversal(self):
+        """Test motion when target instantly reverses direction"""
         config = MagicMock()
-        config.prediction_enabled = True
-        config.prediction_multiplier = 1.0
-        config.filter_method = "EMA"
-        config.smoothing = 0.3
 
-        ps = PredictionSystem(config)
+        config.prediction_scale = 1.0
+        config.motion_min_cutoff = 0.01  # Reduced cutoff for responsiveness
+        config.motion_beta = 0.5  # High Beta for responsiveness
+
+        engine = MotionEngine(config)
 
         # Move right
-        with patch("time.time", return_value=100.0):
-            ps.predict(100, 100)
+        with patch("time.perf_counter", return_value=100.0):
+            engine.process(100, 100, 0.0)
 
-        with patch("time.time", return_value=100.016):
-            ps.predict(200, 100)
+        with patch("time.perf_counter", return_value=100.016):
+            engine.process(200, 100, 0.016)
 
-        with patch("time.time", return_value=100.032):
-            ps.predict(300, 100)
+        with patch("time.perf_counter", return_value=100.032):
+            engine.process(300, 100, 0.016)
 
         # Instant reversal - move left
-        with patch("time.time", return_value=100.048):
-            ps.predict(200, 100)
+        with patch("time.perf_counter", return_value=100.048):
+            engine.process(200, 100, 0.016)
 
-        with patch("time.time", return_value=100.064):
-            px, py = ps.predict(100, 100)
+        with patch("time.perf_counter", return_value=100.064):
+            px, py = engine.process(100, 100, 0.016)
 
         # Should adapt to new direction
         assert np.isfinite(px)
         assert np.isfinite(py)
 
-    def test_prediction_reset_clears_state(self):
+    def test_motion_reset_clears_state(self):
         """Test that reset properly clears all internal state"""
         config = MagicMock()
-        config.prediction_enabled = True
-        config.prediction_multiplier = 1.0
-        config.filter_method = "TEMA"
-        config.smoothing = 0.5
 
-        ps = PredictionSystem(config)
+        config.prediction_scale = 1.0
+
+        engine = MotionEngine(config)
 
         # Build up state
-        with patch("time.time", return_value=100.0):
-            ps.predict(100, 100)
+        with patch("time.perf_counter", return_value=100.0):
+            engine.process(100, 100, 0.0)
 
-        with patch("time.time", return_value=100.016):
-            ps.predict(200, 200)
+        with patch("time.perf_counter", return_value=100.016):
+            engine.process(200, 200, 0.016)
 
         # Reset
-        ps.reset()
+        engine.reset()
 
-        # After reset, should behave as if fresh
-        with patch("time.time", return_value=101.0):
-            px, py = ps.predict(300, 300)
+        # After reset, should behave as if fresh (no velocity projected from previous)
+        # First frame after reset just returns input
+        with patch("time.perf_counter", return_value=101.0):
+            px, py = engine.process(300, 300, 0.0)
 
         assert px == 300
         assert py == 300
 
-    def test_prediction_with_extreme_frame_rate_variance(self):
-        """Test prediction with highly variable frame timing"""
+    def test_motion_with_extreme_frame_rate_variance(self):
+        """Test motion with highly variable frame timing"""
         config = MagicMock()
-        config.prediction_enabled = True
-        config.prediction_multiplier = 1.0
-        config.filter_method = "EMA"
-        config.smoothing = 0.5
 
-        ps = PredictionSystem(config)
+        config.prediction_scale = 1.0
+
+        engine = MotionEngine(config)
 
         # Normal frame
-        with patch("time.time", return_value=100.0):
-            ps.predict(100, 100)
+        with patch("time.perf_counter", return_value=100.0):
+            engine.process(100, 100, 0.0)
 
         # Very fast frame (1ms)
-        with patch("time.time", return_value=100.001):
-            px, py = ps.predict(101, 101)
+        with patch("time.perf_counter", return_value=100.001):
+            px, py = engine.process(101, 101, 0.001)
             assert np.isfinite(px) and np.isfinite(py)
 
         # Very slow frame (1 second lag)
-        with patch("time.time", return_value=101.001):
-            px, py = ps.predict(200, 200)
+        with patch("time.perf_counter", return_value=101.001):
+            px, py = engine.process(200, 200, 1.0)
             assert np.isfinite(px) and np.isfinite(py)
 
         # Back to normal
-        with patch("time.time", return_value=101.017):
-            px, py = ps.predict(210, 210)
+        with patch("time.perf_counter", return_value=101.017):
+            px, py = engine.process(210, 210, 0.016)
             assert np.isfinite(px) and np.isfinite(py)
 
 
@@ -376,61 +372,6 @@ class TestMovementSystemEdgeCases:
             assert mock_windll.user32.SendInput.called
 
 
-class TestFilterEdgeCases:
-    """Test filter edge cases"""
-
-    def test_all_filters_with_constant_input(self):
-        """Test all filters with unchanging input"""
-        filters = [
-            SimpleEMA(alpha=0.5),
-            TripleEMA(alpha=0.5),
-            MedianFilter(window_size=5),
-            DynamicEMA(min_alpha=0.1, max_alpha=0.9, sensitivity=1.0),
-        ]
-
-        for filt in filters:
-            # Feed constant value
-            for _ in range(100):
-                result = filt(100.0)
-
-            # Should converge to input value
-            assert abs(result - 100.0) < 1.0
-
-    def test_all_filters_with_alternating_input(self):
-        """Test all filters with rapidly alternating input"""
-        filters = [
-            SimpleEMA(alpha=0.5),
-            TripleEMA(alpha=0.5),
-            MedianFilter(window_size=5),
-            DynamicEMA(min_alpha=0.1, max_alpha=0.9, sensitivity=1.0),
-        ]
-
-        for filt in filters:
-            # Alternate between two values
-            for i in range(100):
-                value = 100.0 if i % 2 == 0 else 200.0
-                result = filt(value)
-
-            # Should produce finite result
-            assert np.isfinite(result)
-
-    def test_filters_with_extreme_alpha_values(self):
-        """Test EMA filters with alpha at boundaries"""
-        # Alpha = 0 (no update)
-        f1 = SimpleEMA(alpha=0.0)
-        f1(100.0)
-        result = f1(200.0)
-        # With alpha=0, should stay at initial value
-        assert result == 100.0
-
-        # Alpha = 1 (instant update)
-        f2 = SimpleEMA(alpha=1.0)
-        f2(100.0)
-        result = f2(200.0)
-        # With alpha=1, should immediately become new value
-        assert result == 200.0
-
-
 class TestConcurrencyEdgeCases:
     """Test concurrent access edge cases"""
 
@@ -442,8 +383,8 @@ class TestConcurrencyEdgeCases:
         def reader():
             try:
                 for _ in range(1000):
-                    _ = config.smoothing
-                    _ = config.prediction_multiplier
+                    _ = config.motion_min_cutoff
+                    _ = config.prediction_scale
                     _ = config.fov_x
             except Exception as e:
                 errors.append(e)
@@ -451,8 +392,8 @@ class TestConcurrencyEdgeCases:
         def writer():
             try:
                 for i in range(1000):
-                    config.smoothing = (i % 100) / 100.0
-                    config.prediction_multiplier = (i % 10) / 10.0
+                    config.motion_min_cutoff = (i % 100) / 100.0
+                    config.prediction_scale = (i % 10) / 10.0
                     config.fov_x = 10 + (i % 490)
             except Exception as e:
                 errors.append(e)
@@ -471,29 +412,27 @@ class TestConcurrencyEdgeCases:
 
         assert len(errors) == 0
 
-    def test_prediction_system_concurrent_predict_calls(self):
-        """Test prediction system with concurrent predict calls"""
+    def test_motion_engine_concurrent_process_calls(self):
+        """Test motion engine with concurrent process calls"""
         config = MagicMock()
-        config.prediction_enabled = True
-        config.prediction_multiplier = 1.0
-        config.filter_method = "EMA"
-        config.smoothing = 0.5
 
-        ps = PredictionSystem(config)
+        config.prediction_scale = 1.0
+
+        engine = MotionEngine(config)
         errors = []
 
-        def predict_worker(start_time):
+        def process_worker(start_time):
             try:
                 for i in range(100):
-                    with patch("time.time", return_value=start_time + i * 0.016):
-                        px, py = ps.predict(100 + i, 100 + i)
+                    with patch("time.perf_counter", return_value=start_time + i * 0.016):
+                        px, py = engine.process(100 + i, 100 + i, 0.016)
                         assert np.isfinite(px) and np.isfinite(py)
             except Exception as e:
                 errors.append(e)
 
         threads = [
-            threading.Thread(target=predict_worker, args=(100.0,)),
-            threading.Thread(target=predict_worker, args=(100.0,)),
+            threading.Thread(target=process_worker, args=(100.0,)),
+            threading.Thread(target=process_worker, args=(100.0,)),
         ]
 
         for t in threads:
@@ -555,38 +494,22 @@ class TestIntegrationEdgeCases:
         config.search_area = 50
         config.target_color = 0xFF0000
         config.color_tolerance = 10
-        config.prediction_enabled = False
-        config.filter_method = "EMA"
-        config.smoothing = 0.5
 
-        ps = PredictionSystem(config)
+        config.motion_min_cutoff = 0.5
 
-        # Prediction should pass through unchanged
-        with patch("time.time", return_value=100.0):
-            px, py = ps.predict(500, 500)
+        engine = MotionEngine(config)
 
+        # Prediction should pass through roughly unchanged (smoothing might apply)
+        # But if we feed same value?
+        with patch("time.perf_counter", return_value=100.0):
+            engine.process(500, 500, 0.0)
+
+        with patch("time.perf_counter", return_value=100.1):
+            px, py = engine.process(500, 500, 0.1)
+
+        # Should be exactly 500 if static
         assert px == 500
         assert py == 500
-
-    def test_full_pipeline_with_all_filters(self):
-        """Test prediction system with each filter type"""
-        filter_methods = ["EMA", "DEMA", "TEMA", "Median", "Dynamic EMA"]
-
-        for method in filter_methods:
-            config = MagicMock()
-            config.prediction_enabled = True
-            config.prediction_multiplier = 1.0
-            config.filter_method = method
-            config.smoothing = 0.5
-
-            ps = PredictionSystem(config)
-
-            # Run through multiple frames
-            for i in range(10):
-                with patch("time.time", return_value=100.0 + i * 0.016):
-                    px, py = ps.predict(100 + i * 10, 100 + i * 10)
-                    assert np.isfinite(px)
-                    assert np.isfinite(py)
 
 
 if __name__ == "__main__":
