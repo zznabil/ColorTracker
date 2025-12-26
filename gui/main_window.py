@@ -692,7 +692,9 @@ def setup_gui(app):
     ):
         dpg.add_spacer(height=5)
         dpg.add_text("Enter profile name:")
-        dpg.add_input_text(tag="new_profile_name")
+        dpg.add_input_text(
+            tag="new_profile_name", hint="e.g. MyConfig_v1", callback=save_new_profile, on_enter=True
+        )
         dpg.add_spacer(height=10)
         with dpg.group(horizontal=True):
             dpg.add_button(label="SAVE", callback=save_new_profile, width=120, height=25)

@@ -80,5 +80,5 @@
     // Master enable/disable switch
     // true: Color Tracking Algo can be activated with start_key
     // false: Color Tracking Algo completely disabled
-    "enabled": true
+    "enabled": false
 }
