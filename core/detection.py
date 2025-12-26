@@ -115,7 +115,7 @@ class DetectionSystem:
         try:
             sct = self._get_sct()
             img = np.array(sct.grab(local_area))
-            if img is None or img.size == 0:
+            if img is None or img.size == 0 or img.ndim != 3 or img.shape[2] != 4:
                 return False, 0, 0
         except Exception:
             return False, 0, 0
@@ -200,7 +200,7 @@ class DetectionSystem:
             # Use thread-local MSS instance to prevent threading conflicts
             sct = self._get_sct()
             img = np.array(sct.grab(full_area))
-            if img is None or img.size == 0:
+            if img is None or img.size == 0 or img.ndim != 3 or img.shape[2] != 4:
                 return False, 0, 0
         except Exception:
             # Handle screen capture errors gracefully

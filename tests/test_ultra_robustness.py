@@ -145,10 +145,9 @@ class TestUltraRobustness:
             try:
                 found, x, y = ds.find_target()
                 assert found is False
-            except Exception:
-                # We expect it might catch an exception internally or we might need to fix code to handle this
-                # Ideally, we want robust code that doesn't crash app
-                pass
+            except Exception as e:
+                # We want robust code that doesn't crash app
+                pytest.fail(f"Crashed on malformed array: {e}")
 
     def test_type_fuzzing_config(self):
         """
