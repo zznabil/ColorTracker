@@ -154,12 +154,13 @@ class ColorTrackerAlgo:
                 self._gui_cache["status_text"] = dpg.does_item_exist(self.status_text)
 
             if self._gui_cache["status_text"]:
-                if self.config.enabled:
-                    dpg.set_value(self.status_text, "Status: Active")
-                    dpg.configure_item(self.status_text, color=(0, 255, 0))
-                else:
-                    dpg.set_value(self.status_text, "Status: Idle")
-                    dpg.configure_item(self.status_text, color=(255, 255, 255))
+                # Only explicitly set Idle. If enabled, the algo loop handles "Scanning"/"Locked"
+                if not self.config.enabled:
+                    dpg.set_value(self.status_text, "Status: IDLE")
+                    dpg.configure_item(self.status_text, color=(200, 200, 200))
+                    # Also reset the LED if it exists (for the unified dashboard)
+                    if hasattr(self, "status_led") and hasattr(self, "theme_idle"):
+                        dpg.bind_item_theme(self.status_led, self.theme_idle)
 
         # Update enabled checkbox with caching
         if hasattr(self, "enabled_checkbox"):

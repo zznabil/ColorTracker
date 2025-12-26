@@ -36,6 +36,28 @@ def setup_gui(app):
 
     dpg.bind_theme(global_theme)
 
+    # Define Status Indicator Themes
+    with dpg.theme() as app.theme_idle:
+        with dpg.theme_component(dpg.mvAll):
+            dpg.add_theme_color(dpg.mvThemeCol_Button, (100, 100, 100))
+            dpg.add_theme_color(dpg.mvThemeCol_ButtonHovered, (100, 100, 100))
+            dpg.add_theme_color(dpg.mvThemeCol_ButtonActive, (100, 100, 100))
+            dpg.add_theme_style(dpg.mvStyleVar_FrameRounding, 5)
+
+    with dpg.theme() as app.theme_scanning:
+        with dpg.theme_component(dpg.mvAll):
+            dpg.add_theme_color(dpg.mvThemeCol_Button, (255, 255, 0))  # Yellow
+            dpg.add_theme_color(dpg.mvThemeCol_ButtonHovered, (255, 255, 0))
+            dpg.add_theme_color(dpg.mvThemeCol_ButtonActive, (255, 255, 0))
+            dpg.add_theme_style(dpg.mvStyleVar_FrameRounding, 5)
+
+    with dpg.theme() as app.theme_locked:
+        with dpg.theme_component(dpg.mvAll):
+            dpg.add_theme_color(dpg.mvThemeCol_Button, (0, 255, 0))  # Green
+            dpg.add_theme_color(dpg.mvThemeCol_ButtonHovered, (0, 255, 0))
+            dpg.add_theme_color(dpg.mvThemeCol_ButtonActive, (0, 255, 0))
+            dpg.add_theme_style(dpg.mvStyleVar_FrameRounding, 5)
+
     # Create overlay for FOV display (prefer viewport drawlist to avoid blocking inputs)
     app.fov_overlay_enabled = False
     app._fov_use_viewport_drawlist = False
@@ -168,7 +190,11 @@ def setup_gui(app):
         dpg.add_text("COLOR TRACKER V3", color=(201, 0, 141))
 
         with dpg.group(horizontal=True):
-            app.status_text = dpg.add_text("Status: Idle")
+            # Unified Status Dashboard
+            app.status_led = dpg.add_button(label="", width=10, height=10)
+            dpg.bind_item_theme(app.status_led, app.theme_idle)
+            app.status_text = dpg.add_text("Status: IDLE")
+            dpg.add_spacer(width=20)
             app.fps_text = dpg.add_text("FPS: 0.0")
 
         dpg.add_separator()
@@ -642,14 +668,17 @@ def setup_gui(app):
         # Add update target status method to app with optimized status updates
         def update_target_status(found):
             if found:
-                dpg.set_value(app.status_text, "Status: Target Locked")
+                dpg.set_value(app.status_text, "Status: TARGET LOCKED")
                 dpg.configure_item(app.status_text, color=(0, 255, 0))
+                dpg.bind_item_theme(app.status_led, app.theme_locked)
             elif app.config.enabled:
-                dpg.set_value(app.status_text, "Status: Scanning")
+                dpg.set_value(app.status_text, "Status: SCANNING...")
                 dpg.configure_item(app.status_text, color=(255, 255, 0))
+                dpg.bind_item_theme(app.status_led, app.theme_scanning)
             else:
-                dpg.set_value(app.status_text, "Status: Idle")
-                dpg.configure_item(app.status_text, color=(255, 255, 255))
+                dpg.set_value(app.status_text, "Status: IDLE")
+                dpg.configure_item(app.status_text, color=(200, 200, 200))
+                dpg.bind_item_theme(app.status_led, app.theme_idle)
 
         app.update_target_status = update_target_status
 
