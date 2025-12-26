@@ -1,0 +1,118 @@
+c:\Users\Admin\Documents\ColorTracker\core\prediction.py
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:56:27 - error: "alpha" is not a known attribute of "None" (reportOptionalMemberAccess)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:56:27 - error: Cannot assign to attribute "alpha" for class "tuple[MedianFilter, SimpleEMA]"
+  ┬á┬áAttribute "alpha" is unknown (reportAttributeAccessIssue)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:56:27 - error: Cannot assign to attribute "alpha" for class "DynamicEMA"
+  ┬á┬áAttribute "alpha" is unknown (reportAttributeAccessIssue)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:58:24 - error: Object of type "tuple[MedianFilter, SimpleEMA]" is not callable
+  ┬á┬áAttribute "__call__" is unknown (reportCallIssue)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:58:24 - error: Object of type "None" cannot be called (reportOptionalCall)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:72:13 - error: Object of type "None" is not subscriptable (reportOptionalSubscript)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:72:13 - error: "__getitem__" method not defined on type "SimpleEMA" (reportIndexIssue)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:72:13 - error: "__getitem__" method not defined on type "DynamicEMA" (reportIndexIssue)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:72:13 - error: "__getitem__" method not defined on type "DoubleEMA" (reportIndexIssue)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:72:13 - error: "__getitem__" method not defined on type "TripleEMA" (reportIndexIssue)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:75:21 - error: Object of type "None" is not subscriptable (reportOptionalSubscript)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:75:21 - error: "__getitem__" method not defined on type "SimpleEMA" (reportIndexIssue)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:75:21 - error: "__getitem__" method not defined on type "DynamicEMA" (reportIndexIssue)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:75:21 - error: "__getitem__" method not defined on type "DoubleEMA" (reportIndexIssue)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:75:21 - error: "__getitem__" method not defined on type "TripleEMA" (reportIndexIssue)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:77:24 - error: Object of type "None" is not subscriptable (reportOptionalSubscript)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:77:24 - error: "__getitem__" method not defined on type "SimpleEMA" (reportIndexIssue)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:77:24 - error: "__getitem__" method not defined on type "DynamicEMA" (reportIndexIssue)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:77:24 - error: "__getitem__" method not defined on type "DoubleEMA" (reportIndexIssue)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:77:24 - error: "__getitem__" method not defined on type "TripleEMA" (reportIndexIssue)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:89:27 - error: "sensitivity" is not a known attribute of "None" (reportOptionalMemberAccess)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:89:27 - error: Cannot assign to attribute "sensitivity" for class "SimpleEMA"
+  ┬á┬áAttribute "sensitivity" is unknown (reportAttributeAccessIssue)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:89:27 - error: Cannot assign to attribute "sensitivity" for class "tuple[MedianFilter, SimpleEMA]"
+  ┬á┬áAttribute "sensitivity" is unknown (reportAttributeAccessIssue)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:89:27 - error: Cannot assign to attribute "sensitivity" for class "DoubleEMA"
+  ┬á┬áAttribute "sensitivity" is unknown (reportAttributeAccessIssue)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:89:27 - error: Cannot assign to attribute "sensitivity" for class "TripleEMA"
+  ┬á┬áAttribute "sensitivity" is unknown (reportAttributeAccessIssue)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:91:24 - error: Object of type "tuple[MedianFilter, SimpleEMA]" is not callable
+  ┬á┬áAttribute "__call__" is unknown (reportCallIssue)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:91:24 - error: Object of type "None" cannot be called (reportOptionalCall)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:106:27 - error: "ema1" is not a known attribute of "None" (reportOptionalMemberAccess)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:106:27 - error: Cannot access attribute "ema1" for class "SimpleEMA"
+  ┬á┬áAttribute "ema1" is unknown (reportAttributeAccessIssue)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:106:27 - error: Cannot access attribute "ema1" for class "tuple[MedianFilter, SimpleEMA]"
+  ┬á┬áAttribute "ema1" is unknown (reportAttributeAccessIssue)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:106:27 - error: Cannot access attribute "ema1" for class "DynamicEMA"
+  ┬á┬áAttribute "ema1" is unknown (reportAttributeAccessIssue)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:107:27 - error: "ema2" is not a known attribute of "None" (reportOptionalMemberAccess)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:107:27 - error: Cannot access attribute "ema2" for class "SimpleEMA"
+  ┬á┬áAttribute "ema2" is unknown (reportAttributeAccessIssue)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:107:27 - error: Cannot access attribute "ema2" for class "tuple[MedianFilter, SimpleEMA]"
+  ┬á┬áAttribute "ema2" is unknown (reportAttributeAccessIssue)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:107:27 - error: Cannot access attribute "ema2" for class "DynamicEMA"
+  ┬á┬áAttribute "ema2" is unknown (reportAttributeAccessIssue)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:109:24 - error: Object of type "tuple[MedianFilter, SimpleEMA]" is not callable
+  ┬á┬áAttribute "__call__" is unknown (reportCallIssue)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:109:24 - error: Object of type "None" cannot be called (reportOptionalCall)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:125:27 - error: "ema1" is not a known attribute of "None" (reportOptionalMemberAccess)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:125:27 - error: Cannot access attribute "ema1" for class "SimpleEMA"
+  ┬á┬áAttribute "ema1" is unknown (reportAttributeAccessIssue)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:125:27 - error: Cannot access attribute "ema1" for class "tuple[MedianFilter, SimpleEMA]"
+  ┬á┬áAttribute "ema1" is unknown (reportAttributeAccessIssue)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:125:27 - error: Cannot access attribute "ema1" for class "DynamicEMA"
+  ┬á┬áAttribute "ema1" is unknown (reportAttributeAccessIssue)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:126:27 - error: "ema2" is not a known attribute of "None" (reportOptionalMemberAccess)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:126:27 - error: Cannot access attribute "ema2" for class "SimpleEMA"
+  ┬á┬áAttribute "ema2" is unknown (reportAttributeAccessIssue)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:126:27 - error: Cannot access attribute "ema2" for class "tuple[MedianFilter, SimpleEMA]"
+  ┬á┬áAttribute "ema2" is unknown (reportAttributeAccessIssue)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:126:27 - error: Cannot access attribute "ema2" for class "DynamicEMA"
+  ┬á┬áAttribute "ema2" is unknown (reportAttributeAccessIssue)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:127:27 - error: "ema3" is not a known attribute of "None" (reportOptionalMemberAccess)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:127:27 - error: Cannot access attribute "ema3" for class "SimpleEMA"
+  ┬á┬áAttribute "ema3" is unknown (reportAttributeAccessIssue)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:127:27 - error: Cannot access attribute "ema3" for class "tuple[MedianFilter, SimpleEMA]"
+  ┬á┬áAttribute "ema3" is unknown (reportAttributeAccessIssue)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:127:27 - error: Cannot access attribute "ema3" for class "DynamicEMA"
+  ┬á┬áAttribute "ema3" is unknown (reportAttributeAccessIssue)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:127:27 - error: Cannot access attribute "ema3" for class "DoubleEMA"
+  ┬á┬áAttribute "ema3" is unknown (reportAttributeAccessIssue)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:129:24 - error: Object of type "tuple[MedianFilter, SimpleEMA]" is not callable
+  ┬á┬áAttribute "__call__" is unknown (reportCallIssue)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:129:24 - error: Object of type "None" cannot be called (reportOptionalCall)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:141:24 - error: Object of type "tuple[MedianFilter, SimpleEMA]" is not callable
+  ┬á┬áAttribute "__call__" is unknown (reportCallIssue)
+  c:\Users\Admin\Documents\ColorTracker\core\prediction.py:141:24 - error: Object of type "None" cannot be called (reportOptionalCall)
+c:\Users\Admin\Documents\ColorTracker\gui\main_window.py
+  c:\Users\Admin\Documents\ColorTracker\gui\main_window.py:105:25 - error: "set_item_rect_size" is not a known attribute of module "dearpygui.dearpygui" (reportAttributeAccessIssue)
+  c:\Users\Admin\Documents\ColorTracker\gui\main_window.py:427:38 - error: "cb" is possibly unbound (reportPossiblyUnboundVariable)
+  c:\Users\Admin\Documents\ColorTracker\gui\main_window.py:428:87 - error: "rule_name" is possibly unbound (reportPossiblyUnboundVariable)
+c:\Users\Admin\Documents\ColorTracker\main.py
+  c:\Users\Admin\Documents\ColorTracker\main.py:75:63 - error: Cannot access attribute "debug_mode" for class "Config"
+  ┬á┬áAttribute "debug_mode" is unknown (reportAttributeAccessIssue)
+  c:\Users\Admin\Documents\ColorTracker\main.py:144:75 - error: Cannot access attribute "status_text" for class "SAIColorTrackingAlgo*"
+  ┬á┬áAttribute "status_text" is unknown (reportAttributeAccessIssue)
+  c:\Users\Admin\Documents\ColorTracker\main.py:148:40 - error: Cannot access attribute "status_text" for class "SAIColorTrackingAlgo*"
+  ┬á┬áAttribute "status_text" is unknown (reportAttributeAccessIssue)
+  c:\Users\Admin\Documents\ColorTracker\main.py:149:45 - error: Cannot access attribute "status_text" for class "SAIColorTrackingAlgo*"
+  ┬á┬áAttribute "status_text" is unknown (reportAttributeAccessIssue)
+  c:\Users\Admin\Documents\ColorTracker\main.py:151:40 - error: Cannot access attribute "status_text" for class "SAIColorTrackingAlgo*"
+  ┬á┬áAttribute "status_text" is unknown (reportAttributeAccessIssue)
+  c:\Users\Admin\Documents\ColorTracker\main.py:152:45 - error: Cannot access attribute "status_text" for class "SAIColorTrackingAlgo*"
+  ┬á┬áAttribute "status_text" is unknown (reportAttributeAccessIssue)
+  c:\Users\Admin\Documents\ColorTracker\main.py:157:80 - error: Cannot access attribute "enabled_checkbox" for class "SAIColorTrackingAlgo*"
+  ┬á┬áAttribute "enabled_checkbox" is unknown (reportAttributeAccessIssue)
+  c:\Users\Admin\Documents\ColorTracker\main.py:160:36 - error: Cannot access attribute "enabled_checkbox" for class "SAIColorTrackingAlgo*"
+  ┬á┬áAttribute "enabled_checkbox" is unknown (reportAttributeAccessIssue)
+  c:\Users\Admin\Documents\ColorTracker\main.py:267:92 - error: "target_x" is possibly unbound (reportPossiblyUnboundVariable)
+  c:\Users\Admin\Documents\ColorTracker\main.py:267:102 - error: "target_y" is possibly unbound (reportPossiblyUnboundVariable)
+  c:\Users\Admin\Documents\ColorTracker\main.py:269:68 - error: "target_x" is possibly unbound (reportPossiblyUnboundVariable)
+  c:\Users\Admin\Documents\ColorTracker\main.py:269:78 - error: "target_y" is possibly unbound (reportPossiblyUnboundVariable)
+  c:\Users\Admin\Documents\ColorTracker\main.py:312:72 - error: Cannot access attribute "fps_text" for class "SAIColorTrackingAlgo*"
+  ┬á┬áAttribute "fps_text" is unknown (reportAttributeAccessIssue)
+  c:\Users\Admin\Documents\ColorTracker\main.py:315:36 - error: Cannot access attribute "fps_text" for class "SAIColorTrackingAlgo*"
+  ┬á┬áAttribute "fps_text" is unknown (reportAttributeAccessIssue)
+  c:\Users\Admin\Documents\ColorTracker\main.py:327:18 - error: Cannot access attribute "update_target_status" for class "SAIColorTrackingAlgo*"
+  ┬á┬áAttribute "update_target_status" is unknown (reportAttributeAccessIssue)
+c:\Users\Admin\Documents\ColorTracker\utils\logger.py
+  c:\Users\Admin\Documents\ColorTracker\utils\logger.py:208:52 - error: Argument of type "int | None" cannot be assigned to parameter "value" of type "float" in function "set_y_scroll"
+  ┬á┬áType "int | None" is not assignable to type "float"
+  ┬á┬á┬á┬á"None" is not assignable to "float" (reportArgumentType)
+73 errors, 0 warnings, 0 informations

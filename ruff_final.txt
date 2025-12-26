@@ -1,0 +1,63 @@
+I001 [*] Import block is un-sorted or un-formatted
+  --> main.py:9:1
+   |
+ 7 |   """
+ 8 |
+ 9 | / import logging
+10 | | import threading
+11 | | import time
+12 | |
+13 | | import dearpygui.dearpygui as dpg
+14 | |
+15 | | # Import core modules
+16 | | from core.detection import DetectionSystem
+17 | | from core.low_level_movement import LowLevelMovementSystem
+18 | | from core.prediction import PredictionSystem
+19 | | from gui.main_window import setup_gui
+20 | | from typing import Any, Callable
+21 | | from utils.config import Config
+22 | | from utils.keyboard_listener import KeyboardListener
+23 | | from utils.logger import Logger
+24 | | from utils.screen_info import ScreenInfo
+   | |________________________________________^
+   |
+help: Organize imports
+
+UP035 [*] Import from `collections.abc` instead: `Callable`
+  --> main.py:20:1
+   |
+18 | from core.prediction import PredictionSystem
+19 | from gui.main_window import setup_gui
+20 | from typing import Any, Callable
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+21 | from utils.config import Config
+22 | from utils.keyboard_listener import KeyboardListener
+   |
+help: Import from `collections.abc`
+
+F401 [*] `typing.Callable` imported but unused
+  --> main.py:20:25
+   |
+18 | from core.prediction import PredictionSystem
+19 | from gui.main_window import setup_gui
+20 | from typing import Any, Callable
+   |                         ^^^^^^^^
+21 | from utils.config import Config
+22 | from utils.keyboard_listener import KeyboardListener
+   |
+help: Remove unused import: `typing.Callable`
+
+F841 Local variable `new_text` is assigned to but never used
+   --> utils\logger.py:205:17
+    |
+203 |             if dpg.does_item_exist("debug_text"):
+204 |                 current_text = dpg.get_value("debug_text")
+205 |                 new_text = current_text + formatted_message + "\n"
+    |                 ^^^^^^^^
+206 |
+207 |                 # Auto-scroll if enabled
+    |
+help: Remove assignment to unused variable `new_text`
+
+Found 4 errors.
+[*] 3 fixable with the `--fix` option (1 hidden fix can be enabled with the `--unsafe-fixes` option).
