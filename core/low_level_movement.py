@@ -38,7 +38,9 @@ else:
 
         user32 = User32()
 
-    windll = MockWindll()  # type: ignore
+    # Assign to ctypes.windll so tests that patch 'ctypes.windll' affect this object
+    ctypes.windll = MockWindll()  # type: ignore
+    windll = ctypes.windll
 
     class MockWintypes:
         LONG = ctypes.c_long

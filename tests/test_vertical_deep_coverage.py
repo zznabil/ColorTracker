@@ -288,9 +288,11 @@ class TestDetectionDeepImageProcessing:
 
         def capture_sct():
             try:
-                sct = ds._get_sct()
-                # Verify we got a valid SCT instance
-                sct_results.append(sct is not None)
+                # Patch mss.mss inside the thread to avoid $DISPLAY errors
+                with patch("mss.mss"):
+                    sct = ds._get_sct()
+                    # Verify we got a valid SCT instance
+                    sct_results.append(sct is not None)
             except Exception as e:
                 errors.append(e)
 
