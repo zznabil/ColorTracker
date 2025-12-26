@@ -40,6 +40,12 @@ else:
 
     windll = MockWindll()  # type: ignore
 
+    # Inject into ctypes so that tests patching ctypes.windll work correctly
+    if hasattr(ctypes, "windll"):
+        pass  # Should not happen on standard Linux python without wine, but just in case
+    else:
+        ctypes.windll = windll  # type: ignore
+
     class MockWintypes:
         LONG = ctypes.c_long
         DWORD = ctypes.c_ulong

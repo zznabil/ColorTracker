@@ -288,9 +288,14 @@ class TestDetectionDeepImageProcessing:
 
         def capture_sct():
             try:
-                sct = ds._get_sct()
-                # Verify we got a valid SCT instance
-                sct_results.append(sct is not None)
+                # Mock mss.mss for each thread to avoid ScreenShotError
+                with patch("mss.mss") as mock_mss_ctor:
+                    mock_sct_instance = MagicMock()
+                    mock_mss_ctor.return_value = mock_sct_instance
+
+                    sct = ds._get_sct()
+                    # Verify we got a valid SCT instance
+                    sct_results.append(sct is not None)
             except Exception as e:
                 errors.append(e)
 

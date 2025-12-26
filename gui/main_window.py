@@ -434,6 +434,77 @@ def setup_gui(app):
             with dpg.tab(label="System"):
                 dpg.add_spacer(height=5)
 
+                dpg.add_text("PROFILES", color=(201, 0, 141))
+
+                def refresh_profile_combo():
+                    profiles = app.config.list_profiles()
+                    dpg.configure_item("profile_combo", items=profiles, default_value=app.config.current_profile_name)
+
+                def on_profile_selected(sender, app_data):
+                    if app.config.load_profile(app_data):
+                        # Use reset_all_settings logic to refresh UI but without resetting values to default
+                        # We just want to refresh UI with loaded values
+                        refresh_ui_from_config()
+                        if hasattr(app, "logger"):
+                            app.logger.info(f"Loaded profile: {app_data}")
+
+                def refresh_ui_from_config():
+                    """Update all UI elements to match current config"""
+                    ui_elements = [
+                        (app.smoothing_slider, app.config.smoothing),
+                        (app.filter_combo, app.config.filter_method),
+                        (app.head_offset_slider, app.config.head_offset),
+                        (app.leg_offset_slider, app.config.leg_offset),
+                        (app.tolerance_slider, app.config.color_tolerance),
+                        (app.fov_x_slider, app.config.fov_x),
+                        (app.fov_y_slider, app.config.fov_y),
+                        (app.fps_slider, app.config.target_fps),
+                        (app.prediction_checkbox, app.config.prediction_enabled),
+                        (app.prediction_slider, app.config.prediction_multiplier),
+                        (app.enabled_checkbox, app.config.enabled),
+                    ]
+
+                    for item, value in ui_elements:
+                        if dpg.does_item_exist(item):
+                            dpg.set_value(item, value)
+
+                    if dpg.does_item_exist(app.aim_point_radio):
+                        dpg.set_value(
+                            app.aim_point_radio, {0: "Head", 1: "Body", 2: "Legs"}.get(app.config.aim_point, "Body")
+                        )
+
+                    if dpg.does_item_exist(app.color_picker):
+                        c = app.config.target_color
+                        dpg.set_value(
+                            app.color_picker, [(c >> 16 & 0xFF) / 255.0, (c >> 8 & 0xFF) / 255.0, (c & 0xFF) / 255.0]
+                        )
+
+                    app.update_tolerance_preview()
+
+                dpg.add_combo(
+                    items=app.config.list_profiles(),
+                    default_value=app.config.current_profile_name,
+                    tag="profile_combo",
+                    callback=on_profile_selected,
+                    width=-1,
+                )
+
+                with dpg.group(horizontal=True):
+                    dpg.add_button(
+                        label="New / Save As...",
+                        callback=lambda: dpg.show_item("save_profile_modal"),
+                        width=120,
+                    )
+                    dpg.add_button(
+                        label="Delete",
+                        callback=lambda: dpg.show_item("delete_profile_modal"),
+                        width=120,
+                    )
+
+                dpg.add_spacer(height=10)
+                dpg.add_separator()
+                dpg.add_spacer(height=10)
+
                 dpg.add_text("PERFORMANCE", color=(201, 0, 141))
                 dpg.add_text("Target Update Rate (FPS):")
                 app.fps_slider = dpg.add_slider_int(
@@ -570,38 +641,7 @@ def setup_gui(app):
         def reset_all_settings():
             """Reset all settings to defaults and refresh the UI"""
             app.config.reset_to_defaults()
-
-            # Refresh all UI components with new config values
-            ui_elements = [
-                (app.smoothing_slider, app.config.smoothing),
-                (app.filter_combo, app.config.filter_method),
-                (app.head_offset_slider, app.config.head_offset),
-                (app.leg_offset_slider, app.config.leg_offset),
-                (app.tolerance_slider, app.config.color_tolerance),
-                (app.fov_x_slider, app.config.fov_x),
-                (app.fov_y_slider, app.config.fov_y),
-                (app.fps_slider, app.config.target_fps),
-                (app.prediction_checkbox, app.config.prediction_enabled),
-                (app.prediction_slider, app.config.prediction_multiplier),
-                (app.enabled_checkbox, app.config.enabled),
-            ]
-
-            for item, value in ui_elements:
-                if dpg.does_item_exist(item):
-                    dpg.set_value(item, value)
-
-            if dpg.does_item_exist(app.aim_point_radio):
-                dpg.set_value(app.aim_point_radio, {0: "Head", 1: "Body", 2: "Legs"}.get(app.config.aim_point, "Body"))
-
-            if dpg.does_item_exist(app.color_picker):
-                c = app.config.target_color
-                dpg.set_value(app.color_picker, [(c >> 16 & 0xFF) / 255.0, (c >> 8 & 0xFF) / 255.0, (c & 0xFF) / 255.0])
-
-            # Reset toggle button state since defaults enable everything
-            if dpg.does_item_exist("main_toggle_btn"):
-                dpg.configure_item("main_toggle_btn", enabled=True, label="TOGGLE TRACKING")
-
-            app.update_tolerance_preview()
+            refresh_ui_from_config()
             dpg.hide_item("reset_confirmation_modal")
             if hasattr(app, "logger"):
                 app.logger.info("Application settings reset to defaults.")
@@ -626,4 +666,64 @@ def setup_gui(app):
             dpg.add_button(label="YES, RESET", callback=app.reset_all_settings, width=120, height=25)
             dpg.add_button(
                 label="CANCEL", callback=lambda: dpg.hide_item("reset_confirmation_modal"), width=120, height=25
+            )
+
+    # Save Profile Modal
+    def save_new_profile(sender, app_data):
+        name = dpg.get_value("new_profile_name")
+        if app.config.save_profile(name):
+            refresh_profile_combo()
+            dpg.set_value("profile_combo", name)
+            dpg.hide_item("save_profile_modal")
+            dpg.set_value("new_profile_name", "")  # clear
+        else:
+            # Maybe show error
+            pass
+
+    with dpg.window(
+        label="Save New Profile",
+        modal=True,
+        show=False,
+        tag="save_profile_modal",
+        no_title_bar=True,
+        width=260,
+        height=130,
+        pos=[60, 200],
+    ):
+        dpg.add_spacer(height=5)
+        dpg.add_text("Enter profile name:")
+        dpg.add_input_text(tag="new_profile_name")
+        dpg.add_spacer(height=10)
+        with dpg.group(horizontal=True):
+            dpg.add_button(label="SAVE", callback=save_new_profile, width=120, height=25)
+            dpg.add_button(
+                label="CANCEL", callback=lambda: dpg.hide_item("save_profile_modal"), width=120, height=25
+            )
+
+    # Delete Profile Modal
+    def confirm_delete_profile():
+        current = app.config.current_profile_name
+        if app.config.delete_profile(current):
+            refresh_profile_combo()
+            dpg.set_value("profile_combo", app.config.current_profile_name)
+            refresh_ui_from_config()
+            dpg.hide_item("delete_profile_modal")
+
+    with dpg.window(
+        label="Confirm Delete",
+        modal=True,
+        show=False,
+        tag="delete_profile_modal",
+        no_title_bar=True,
+        width=260,
+        height=100,
+        pos=[60, 200],
+    ):
+        dpg.add_spacer(height=5)
+        dpg.add_text("Delete current profile?\nThis cannot be undone.", wrap=240)
+        dpg.add_spacer(height=10)
+        with dpg.group(horizontal=True):
+            dpg.add_button(label="DELETE", callback=confirm_delete_profile, width=120, height=25)
+            dpg.add_button(
+                label="CANCEL", callback=lambda: dpg.hide_item("delete_profile_modal"), width=120, height=25
             )
