@@ -604,6 +604,78 @@ def setup_gui(app):
                 with dpg.tooltip(reset_btn):
                     dpg.add_text("Warning: This will revert EVERY setting back to its factory default value.")
 
+            # --- ANALYTICS TAB ---
+            with dpg.tab(label="Stats"):
+                dpg.add_spacer(height=5)
+                dpg.add_text("REAL-TIME ANALYTICS", color=(201, 0, 141))
+
+                # Stats Summary
+                with dpg.group(horizontal=True):
+                    dpg.add_text("Current FPS:")
+                    app.analytics_fps_val = dpg.add_text("0.0", color=(0, 255, 0))
+                    dpg.add_spacer(width=20)
+                    dpg.add_text("Avg Latency:")
+                    app.analytics_latency_val = dpg.add_text("0.00ms", color=(0, 255, 255))
+
+                with dpg.group(horizontal=True):
+                    dpg.add_text("1% Low FPS:")
+                    app.analytics_low_val = dpg.add_text("0.0", color=(255, 100, 100))
+                    dpg.add_spacer(width=20)
+                    dpg.add_text("Missed Frames:")
+                    app.analytics_missed_val = dpg.add_text("0", color=(255, 50, 50))
+
+                dpg.add_spacer(height=10)
+
+                # FPS Graph
+                dpg.add_text("FPS History (Last 1000 frames)")
+                with dpg.plot(label="FPS", height=150, width=-1):
+                    dpg.add_plot_legend()
+                    dpg.add_plot_axis(dpg.mvXAxis, label="Time", no_tick_labels=True)
+                    with dpg.plot_axis(dpg.mvYAxis, label="FPS"):
+                        app.analytics_fps_series = dpg.add_line_series([], [], label="FPS")
+
+                dpg.add_spacer(height=10)
+
+                # Latency Graph
+                dpg.add_text("Frame Latency (ms)")
+                with dpg.plot(label="Latency", height=150, width=-1):
+                    dpg.add_plot_legend()
+                    dpg.add_plot_axis(dpg.mvXAxis, label="Time", no_tick_labels=True)
+                    with dpg.plot_axis(dpg.mvYAxis, label="ms"):
+                        app.analytics_latency_series = dpg.add_line_series([], [], label="Frame Time")
+                        app.analytics_detection_series = dpg.add_line_series([], [], label="Detection Time", parent=dpg.last_item())
+
+                def update_analytics():
+                    if not hasattr(app, "perf_monitor"):
+                        return
+
+                    stats = app.perf_monitor.get_stats()
+                    history = app.perf_monitor.get_history()
+
+                    # Update Text
+                    dpg.set_value(app.analytics_fps_val, f"{stats['fps']:.1f}")
+                    dpg.set_value(app.analytics_latency_val, f"{stats['avg_frame_ms']:.2f}ms")
+                    dpg.set_value(app.analytics_low_val, f"{stats['one_percent_low_fps']:.1f}")
+                    dpg.set_value(app.analytics_missed_val, f"{int(stats['missed_frames'])}")
+
+                    # Update Graphs
+                    # We create simple X axis indices for now
+                    if history["fps"]:
+                        x_data = list(range(len(history["fps"])))
+                        dpg.set_value(app.analytics_fps_series, [x_data, history["fps"]])
+
+                    if history["frame_times"]:
+                        x_data = list(range(len(history["frame_times"])))
+                        dpg.set_value(app.analytics_latency_series, [x_data, history["frame_times"]])
+
+                    if history["detection_times"]:
+                        # Ensure lengths match if needed, but plotting handles it usually
+                        x_data = list(range(len(history["detection_times"])))
+                        dpg.set_value(app.analytics_detection_series, [x_data, history["detection_times"]])
+
+                app.update_analytics = update_analytics
+
+
             # --- DEBUG TAB (Conditional) ---
             if hasattr(app, "logger") and app.logger.debug_console_enabled:
                 with dpg.tab(label="Debug"):

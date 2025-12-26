@@ -23,6 +23,7 @@ from gui.main_window import setup_gui
 from utils.config import Config
 from utils.keyboard_listener import KeyboardListener
 from utils.logger import Logger
+from utils.performance_monitor import PerformanceMonitor
 from utils.screen_info import ScreenInfo
 
 
@@ -34,6 +35,7 @@ class ColorTrackerAlgo:
     fps_text: int | str
     enabled_checkbox: int | str
     update_target_status: Any
+    update_analytics: Any
     start_time: float
 
     def __init__(self):
@@ -63,6 +65,9 @@ class ColorTrackerAlgo:
         self.config.screen_width = screen_width
         self.config.screen_height = screen_height
         self.logger.debug(f"Screen resolution detected: {screen_width}x{screen_height}")
+
+        # Initialize performance monitor
+        self.perf_monitor = PerformanceMonitor()
 
         # Initialize systems with optimized settings
         self.logger.debug("Initializing detection system...")
@@ -100,7 +105,9 @@ class ColorTrackerAlgo:
 
         # UI responsiveness optimization
         self._ui_update_interval = 0.05  # 20 FPS for UI updates
+        self._analytics_update_interval = 0.5 # 2 FPS for Analytics graphs
         self._last_ui_update = 0
+        self._last_analytics_update = 0
         self._target_status_cache = None
 
         # Cache frequently accessed GUI items
@@ -246,15 +253,13 @@ class ColorTrackerAlgo:
         self.start_time = time.perf_counter()
         self.last_fps_update = self.start_time
 
-        # Performance monitoring
-        performance_stats = {"total_frames": 0, "missed_frames": 0, "avg_frame_time": 0.0, "worst_frame_time": 0.0}
-
         # Local references to methods to avoid self. lookup overhead
         find_target = self.detection.find_target
         predict = self.prediction.predict
         aim_at = self.movement.aim_at
         update_target_status = self._update_target_status
         update_fps_display = self._update_fps_display
+        perf_monitor = self.perf_monitor
 
         # High-performance timing variables
         target_frame_time = frame_interval
@@ -263,7 +268,6 @@ class ColorTrackerAlgo:
             while self.running:
                 loop_start_time = time.perf_counter()
                 loop_count += 1
-                performance_stats["total_frames"] += 1
 
                 # Update cached config values periodically (less frequent for performance)
                 if loop_count % 500 == 0:
@@ -278,28 +282,23 @@ class ColorTrackerAlgo:
 
                 # Ultra-efficient FPS calculation (every 1 second for better responsiveness)
                 current_time = time.perf_counter()
-                self.frame_count += 1
 
-                if current_time - self.last_fps_update >= 1.0:  # Update every 1 second
-                    actual_fps = self.frame_count / (current_time - self.last_fps_update)
-                    self.fps = actual_fps
+                # Use PerformanceMonitor for stats
+                if current_time - self.last_fps_update >= 1.0:
+                    stats = perf_monitor.get_stats()
+                    self.fps = stats["fps"]
                     self.last_fps_update = current_time
-                    self.frame_count = 0
 
                     # Log performance metrics periodically
                     if loop_count % 600 == 0 and hasattr(self, "logger"):
-                        avg_frame_time = performance_stats["avg_frame_time"]
-                        worst_frame_time = performance_stats["worst_frame_time"]
-                        missed_frames = performance_stats["missed_frames"]
-                        self.logger.debug(
-                            f"Performance: {actual_fps:.1f} FPS | "
-                            f"Avg: {avg_frame_time * 1000:.2f}ms | "
-                            f"Max: {worst_frame_time * 1000:.2f}ms | "
-                            f"Missed: {missed_frames}"
+                         self.logger.debug(
+                            f"Performance: {stats['fps']:.1f} FPS | "
+                            f"Avg: {stats['avg_frame_ms']:.2f}ms | "
+                            f"Max: {stats['worst_frame_ms']:.2f}ms | "
+                            f"Missed: {int(stats['missed_frames'])}"
                         )
-                        # Reset worst frame time
-                        performance_stats["worst_frame_time"] = 0.0
-                        performance_stats["missed_frames"] = 0
+                        # Reset aggregate counters in monitor
+                         perf_monitor.reset_aggregates()
 
                     # Update UI with rate limiting
                     update_fps_display()
@@ -307,8 +306,11 @@ class ColorTrackerAlgo:
                 # Only run if enabled
                 if config_enabled:
                     try:
-                        # Step 1: Detect target with retry logic for transient capture errors
+                        # Step 1: Detect target
+                        t0_detect = time.perf_counter()
                         target_found, target_x, target_y = find_target()
+                        t1_detect = time.perf_counter()
+                        perf_monitor.record_detection(t1_detect - t0_detect)
 
                         # Update target status with rate limiting (less frequent at high FPS)
                         if loop_count % 100 == 0:
@@ -334,13 +336,6 @@ class ColorTrackerAlgo:
                 frame_end_time = time.perf_counter()
                 actual_frame_time = frame_end_time - loop_start_time
 
-                # Update performance stats
-                performance_stats["avg_frame_time"] = (
-                    performance_stats["avg_frame_time"] * 0.95 + actual_frame_time * 0.05
-                )
-                if actual_frame_time > performance_stats["worst_frame_time"]:
-                    performance_stats["worst_frame_time"] = actual_frame_time
-
                 # Calculate precise sleep time
                 sleep_time = target_frame_time - actual_frame_time
 
@@ -358,8 +353,8 @@ class ColorTrackerAlgo:
                             break
                 else:
                     # Frame took too long - log missed frame
-                    performance_stats["missed_frames"] += 1
                     # Don't sleep, immediately start next frame to catch up
+                    perf_monitor.record_frame(actual_frame_time, missed=True)
 
         except Exception as fatal_error:
             # Fatal errors should always be logged
@@ -432,6 +427,12 @@ class ColorTrackerAlgo:
 
                 # Update UI state
                 self._update_ui_state()
+
+                # Update Analytics (Rate limited)
+                if hasattr(self, "update_analytics"):
+                    if current_time - self._last_analytics_update >= self._analytics_update_interval:
+                        self.update_analytics()
+                        self._last_analytics_update = current_time
 
                 last_frame_time = current_time
 

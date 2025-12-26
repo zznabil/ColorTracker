@@ -13,7 +13,7 @@
     // Color matching tolerance (0-100)
     // Lower = more precise matching, Higher = more flexible matching
     // Recommended: 10-20 for good lighting, 25-50 for variable lighting
-    "color_tolerance": 100,
+    "color_tolerance": 0,
 
     // === DETECTION AREA SETTINGS ===
     // Search area radius around crosshair (pixels)
