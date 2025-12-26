@@ -2,7 +2,7 @@
     // === DISPLAY CONFIGURATION ===
     // Screen resolution settings - MUST match your actual monitor resolution
     "screen_width": 1920,     // Width in pixels (common: 1920, 2560, 3840)
-    "screen_height": 1200,    // Height in pixels (common: 1080, 1440, 2160)
+    "screen_height": 1080,    // Height in pixels (common: 1080, 1440, 2160)
 
     // === COLOR DETECTION SETTINGS ===
     // Target color to detect (RGB value as integer)
@@ -13,7 +13,7 @@
     // Color matching tolerance (0-100)
     // Lower = more precise matching, Higher = more flexible matching
     // Recommended: 10-20 for good lighting, 25-50 for variable lighting
-    "color_tolerance": 100,
+    "color_tolerance": 20,
 
     // === DETECTION AREA SETTINGS ===
     // Search area radius around crosshair (pixels)
@@ -25,7 +25,7 @@
     // fov_x: horizontal detection range, fov_y: vertical detection range
     // Smaller values = faster performance, larger = wider detection
     // Recommended: 30-60 for most games
-    "fov_x": 209,
+    "fov_x": 100,
     "fov_y": 100,
 
     // === TRACKING BEHAVIOR SETTINGS ===
@@ -33,18 +33,18 @@
     // 0.0-0.5: Very responsive (competitive gaming)
     // 0.5-2.0: Balanced (general use)
     // 2.0-10.0: Very smooth (casual gaming)
-    "smoothing": 9.9,
+    "smoothing": 2.0,
 
     // Filtering method for prediction (Noise reduction)
     // Options: "EMA", "DEMA", "TEMA", "Median+EMA", "Dynamic EMA"
-    "filter_method": "Dynamic EMA",
+    "filter_method": "EMA",
 
     // Target tracking point on detected objects
     // Options: "Head", "Chest", "Legs", "Center"
     // Head: Highest damage but smaller target
     // Chest: Balanced damage and hit probability
     // Legs: Largest target area but lower damage
-    "aim_point": "Body",
+    "aim_point": "Chest",
 
     // Pixel offset adjustments for tracking points
     // head_offset: pixels above detected center for headshots
@@ -57,12 +57,12 @@
     // Enable movement prediction for moving targets
     // true: Predicts target movement (better for moving enemies)
     // false: Tracks at current position (better for stationary targets)
-    "prediction_enabled": false,
+    "prediction_enabled": true,
 
     // Prediction strength multiplier (0.0-1.0)
     // Higher values = more aggressive prediction
     // Start with 0.1 and adjust based on game speed
-    "prediction_multiplier": 0.0,
+    "prediction_multiplier": 0.5,
 
     // === CONTROL SETTINGS ===
     // Hotkeys for color tracking algo control
