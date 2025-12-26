@@ -25,7 +25,7 @@ class TestDetectionNoiseResilience:
         config.color_tolerance = 10
         return config
 
-    def test_salt_and_pepper_noise_resilience(self, base_config):
+    def test_salt_and_pepper_noise_resilience(self, base_config, mock_screenshot_factory):
         """Test detection with high-frequency pixel noise"""
         ds = DetectionSystem(base_config)
 
@@ -40,14 +40,14 @@ class TestDetectionNoiseResilience:
             mask = np.random.random((100, 100)) < 0.1
             img[mask] = noise[mask]
 
-            mock_sct.return_value.grab.return_value = img
+            mock_sct.return_value.grab.return_value = mock_screenshot_factory(img)
 
             found, x, y = ds.find_target()
             # Should still find target if cluster is big enough or noise doesn't overwhelm
             # Note: find_target might return center of multiple noise pixels if tolerance is high
             assert isinstance(found, bool)
 
-    def test_multiple_competing_clusters(self, base_config):
+    def test_multiple_competing_clusters(self, base_config, mock_screenshot_factory):
         """Test recovery when multiple similar color clusters are present"""
         ds = DetectionSystem(base_config)
 
@@ -57,14 +57,14 @@ class TestDetectionNoiseResilience:
             img[20, 20] = [0, 0, 255, 255]
             img[80, 80] = [0, 0, 255, 255]
 
-            mock_sct.return_value.grab.return_value = img
+            mock_sct.return_value.grab.return_value = mock_screenshot_factory(img)
 
             found, x, y = ds.find_target()
             assert found is True
             # Should pick one (usually the first one found or average depending on CV2 implementation)
             assert x > 0 and y > 0
 
-    def test_target_partially_obscured_at_fov_edge(self, base_config):
+    def test_target_partially_obscured_at_fov_edge(self, base_config, mock_screenshot_factory):
         """Test detection stability when target is clipped at FOV boundaries"""
         ds = DetectionSystem(base_config)
 
@@ -73,18 +73,18 @@ class TestDetectionNoiseResilience:
             # Target at very bottom right edge
             img[99, 99] = [0, 0, 255, 255]
 
-            mock_sct.return_value.grab.return_value = img
+            mock_sct.return_value.grab.return_value = mock_screenshot_factory(img)
 
             found, x, y = ds.find_target()
             assert found is True
 
-    def test_zero_pixel_found_no_crash(self, base_config):
+    def test_zero_pixel_found_no_crash(self, base_config, mock_screenshot_factory):
         """Verify no pixels matching color results in False found, not crash"""
         ds = DetectionSystem(base_config)
 
         with patch.object(ds, "_get_sct") as mock_sct:
             img = np.zeros((100, 100, 4), dtype=np.uint8)  # No red
-            mock_sct.return_value.grab.return_value = img
+            mock_sct.return_value.grab.return_value = mock_screenshot_factory(img)
 
             found, x, y = ds.find_target()
             assert found is False

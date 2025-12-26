@@ -160,7 +160,9 @@ class DetectionSystem:
 
         try:
             sct = self._get_sct()
-            img_bgra = np.array(sct.grab(local_area))
+            sct_img = sct.grab(local_area)
+            # OPTIMIZATION: Use frombuffer to avoid memory copy
+            img_bgra = np.frombuffer(sct_img.bgra, dtype=np.uint8).reshape((sct_img.height, sct_img.width, 4))
             if img_bgra is None or img_bgra.size == 0 or img_bgra.ndim != 3 or img_bgra.shape[2] != 4:
                 return False, 0, 0
         except Exception:
@@ -246,7 +248,9 @@ class DetectionSystem:
         try:
             # Use thread-local MSS instance to prevent threading conflicts
             sct = self._get_sct()
-            img_bgra = np.array(sct.grab(full_area))
+            sct_img = sct.grab(full_area)
+            # OPTIMIZATION: Use frombuffer to avoid memory copy
+            img_bgra = np.frombuffer(sct_img.bgra, dtype=np.uint8).reshape((sct_img.height, sct_img.width, 4))
             if img_bgra is None or img_bgra.size == 0 or img_bgra.ndim != 3 or img_bgra.shape[2] != 4:
                 return False, 0, 0
         except Exception:

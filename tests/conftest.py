@@ -5,6 +5,29 @@ from unittest.mock import MagicMock
 import pytest
 
 
+class MockScreenShot:
+    """Mock for mss.screenshot.ScreenShot compatible with np.frombuffer optimizations"""
+    def __init__(self, arr):
+        # arr should be (H, W, 4)
+        self.height, self.width, self.channels = arr.shape
+        self.raw = arr.tobytes()
+        self._array = arr
+
+    @property
+    def bgra(self):
+        return self.raw
+
+    def __array__(self):
+        return self._array
+
+
+@pytest.fixture
+def mock_screenshot_factory():
+    def _create(arr):
+        return MockScreenShot(arr)
+    return _create
+
+
 @pytest.fixture(autouse=True)
 def mock_windows_api(monkeypatch):
     """

@@ -72,7 +72,7 @@ def test_prediction_temporal_instability():
         assert px == 200
 
 
-def test_detection_area_clipping_logic():
+def test_detection_area_clipping_logic(mock_screenshot_factory):
     """Test if detection area is always within screen bounds and FOV check works"""
     from core.detection import DetectionSystem
 
@@ -89,7 +89,9 @@ def test_detection_area_clipping_logic():
 
     with patch.object(ds, "_get_sct") as mock_sct:
         grab_mock = MagicMock()
-        grab_mock.return_value = np.zeros((1, 1, 4), dtype=np.uint8)
+        # Ensure the mock returns an object with shape compatible with the logic
+        # 1x1 image for testing flow
+        grab_mock.return_value = mock_screenshot_factory(np.zeros((1, 1, 4), dtype=np.uint8))
         mock_sct.return_value.grab = grab_mock
 
         # 1. Target far outside FOV but within search area
