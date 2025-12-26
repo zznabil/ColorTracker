@@ -13,7 +13,7 @@
     // Color matching tolerance (0-100)
     // Lower = more precise matching, Higher = more flexible matching
     // Recommended: 10-20 for good lighting, 25-50 for variable lighting
-    "color_tolerance": 10,
+    "color_tolerance": 0,
 
     // === DETECTION AREA SETTINGS ===
     // Search area radius around crosshair (pixels)
@@ -25,15 +25,15 @@
     // fov_x: horizontal detection range, fov_y: vertical detection range
     // Smaller values = faster performance, larger = wider detection
     // Recommended: 30-60 for most games
-    "fov_x": 25,
-    "fov_y": 25,
+    "fov_x": 100,
+    "fov_y": 100,
 
     // === TRACKING BEHAVIOR SETTINGS ===
     // Mouse movement smoothing (0.0 = instant, higher = smoother)
     // 0.0-0.5: Very responsive (competitive gaming)
     // 0.5-2.0: Balanced (general use)
     // 2.0-10.0: Very smooth (casual gaming)
-    "smoothing": 50.0,
+    "smoothing": 9.9,
 
     // Filtering method for prediction (Noise reduction)
     // Options: "EMA", "DEMA", "TEMA", "Median+EMA", "Dynamic EMA"
@@ -57,12 +57,12 @@
     // Enable movement prediction for moving targets
     // true: Predicts target movement (better for moving enemies)
     // false: Tracks at current position (better for stationary targets)
-    "prediction_enabled": true,
+    "prediction_enabled": false,
 
     // Prediction strength multiplier (0.0-1.0)
     // Higher values = more aggressive prediction
     // Start with 0.1 and adjust based on game speed
-    "prediction_multiplier": 16.0,
+    "prediction_multiplier": 0.0,
 
     // === CONTROL SETTINGS ===
     // Hotkeys for color tracking algo for single player games in development control
@@ -75,7 +75,7 @@
     // Target frames per second for detection loop
     // Higher FPS = more responsive but uses more CPU
     // Recommended: 60-120 for balanced performance, 240-480 for competitive, 960 for extreme
-    "target_fps": 360,
+    "target_fps": 960,
 
     // Master enable/disable switch
     // true: Color Tracking Algo can be activated with start_key

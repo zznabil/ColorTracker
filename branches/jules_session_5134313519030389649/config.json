@@ -1,0 +1,88 @@
+{
+    // === DISPLAY CONFIGURATION ===
+    // Screen resolution settings - MUST match your actual monitor resolution
+    "screen_width": 1920,     // Width in pixels (common: 1920, 2560, 3840)
+    "screen_height": 1200,    // Height in pixels (common: 1080, 1440, 2160)
+
+    // === COLOR DETECTION SETTINGS ===
+    // Target color to detect (RGB value as integer)
+    // Use color picker in GUI to set this value automatically
+    // Common target colors: Purple ~16733797, Red ~16711680, Pink ~16761035
+    "target_color": 16733020,
+
+    // Color matching tolerance (0-100)
+    // Lower = more precise matching, Higher = more flexible matching
+    // Recommended: 10-20 for good lighting, 25-50 for variable lighting
+    "color_tolerance": 0,
+
+    // === DETECTION AREA SETTINGS ===
+    // Search area radius around crosshair (pixels)
+    // Larger = wider detection but slower performance
+    // Recommended: 50-150 depending on game and screen resolution
+    "search_area": 100,
+
+    // Field of view for target detection (pixels from center)
+    // fov_x: horizontal detection range, fov_y: vertical detection range
+    // Smaller values = faster performance, larger = wider detection
+    // Recommended: 30-60 for most games
+    "fov_x": 209,
+    "fov_y": 100,
+
+    // === TRACKING BEHAVIOR SETTINGS ===
+    // Mouse movement smoothing (0.0 = instant, higher = smoother)
+    // 0.0-0.5: Very responsive (competitive gaming)
+    // 0.5-2.0: Balanced (general use)
+    // 2.0-10.0: Very smooth (casual gaming)
+    "smoothing": 9.9,
+
+    // Filtering method for prediction (Noise reduction)
+    // Options: "EMA", "DEMA", "TEMA", "Median+EMA", "Dynamic EMA"
+    "filter_method": "Dynamic EMA",
+
+    // Target tracking point on detected objects
+    // Options: "Head", "Chest", "Legs", "Center"
+    // Head: Highest damage but smaller target
+    // Chest: Balanced damage and hit probability
+    // Legs: Largest target area but lower damage
+    "aim_point": "Body",
+
+    // Pixel offset adjustments for tracking points
+    // head_offset: pixels above detected center for headshots
+    // leg_offset: pixels below detected center for leg shots
+    // Adjust based on game character models and your preference
+    "head_offset": 20,
+    "leg_offset": 30,
+
+    // === PREDICTION SETTINGS ===
+    // Enable movement prediction for moving targets
+    // true: Predicts target movement (better for moving enemies)
+    // false: Tracks at current position (better for stationary targets)
+    "prediction_enabled": false,
+
+    // Prediction strength multiplier (0.0-1.0)
+    // Higher values = more aggressive prediction
+    // Start with 0.1 and adjust based on game speed
+    "prediction_multiplier": 0.0,
+
+    // === CONTROL SETTINGS ===
+    // Hotkeys for color tracking algo control
+    // Available keys: F1-F12, page_up, page_down, insert, delete, home, end
+    // ctrl+key, alt+key, shift+key combinations also supported
+    "start_key": "page_up",
+    "stop_key": "page_down",
+
+    // === PERFORMANCE SETTINGS ===
+    // Target frames per second for detection loop
+    // Higher FPS = more responsive but uses more CPU
+    // Recommended: 60-120 for balanced performance, 240-480 for competitive, 960 for extreme
+    "target_fps": 960,
+
+    // Master enable/disable switch
+    // true: Color Tracking Algo can be activated with start_key
+    // false: Color Tracking Algo completely disabled
+    "enabled": true,
+
+    // === METADATA ===
+    "description": "",
+    "hotkey": ""
+}

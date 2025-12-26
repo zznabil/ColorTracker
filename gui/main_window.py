@@ -17,23 +17,22 @@ def setup_gui(app):
         app: The main application instance
     """
     # Set up theme with immediate visual feedback
-    with dpg.theme() as global_theme:
-        with dpg.theme_component(dpg.mvAll):
-            dpg.add_theme_color(dpg.mvThemeCol_FrameBg, (71, 71, 77), category=dpg.mvThemeCat_Core)
-            dpg.add_theme_color(dpg.mvThemeCol_Button, (91, 91, 102), category=dpg.mvThemeCat_Core)
-            dpg.add_theme_color(dpg.mvThemeCol_ButtonHovered, (111, 111, 122), category=dpg.mvThemeCat_Core)
-            dpg.add_theme_color(dpg.mvThemeCol_ButtonActive, (201, 0, 141), category=dpg.mvThemeCat_Core)
-            dpg.add_theme_color(dpg.mvThemeCol_SliderGrab, (201, 0, 141), category=dpg.mvThemeCat_Core)
-            dpg.add_theme_color(dpg.mvThemeCol_SliderGrabActive, (231, 30, 171), category=dpg.mvThemeCat_Core)
-            dpg.add_theme_color(dpg.mvThemeCol_CheckMark, (201, 0, 141), category=dpg.mvThemeCat_Core)
-            dpg.add_theme_color(dpg.mvThemeCol_Header, (71, 71, 77), category=dpg.mvThemeCat_Core)
-            dpg.add_theme_color(dpg.mvThemeCol_HeaderHovered, (91, 91, 102), category=dpg.mvThemeCat_Core)
-            dpg.add_theme_color(dpg.mvThemeCol_HeaderActive, (111, 111, 122), category=dpg.mvThemeCat_Core)
-            dpg.add_theme_style(dpg.mvStyleVar_FrameRounding, 3, category=dpg.mvThemeCat_Core)
-            dpg.add_theme_style(dpg.mvStyleVar_WindowRounding, 5, category=dpg.mvThemeCat_Core)
-            # Add immediate visual feedback for interactive elements
-            dpg.add_theme_style(dpg.mvStyleVar_FramePadding, 8, 6, category=dpg.mvThemeCat_Core)
-            dpg.add_theme_style(dpg.mvStyleVar_ItemSpacing, 6, 6, category=dpg.mvThemeCat_Core)
+    with dpg.theme() as global_theme, dpg.theme_component(dpg.mvAll):
+        dpg.add_theme_color(dpg.mvThemeCol_FrameBg, (71, 71, 77), category=dpg.mvThemeCat_Core)
+        dpg.add_theme_color(dpg.mvThemeCol_Button, (91, 91, 102), category=dpg.mvThemeCat_Core)
+        dpg.add_theme_color(dpg.mvThemeCol_ButtonHovered, (111, 111, 122), category=dpg.mvThemeCat_Core)
+        dpg.add_theme_color(dpg.mvThemeCol_ButtonActive, (201, 0, 141), category=dpg.mvThemeCat_Core)
+        dpg.add_theme_color(dpg.mvThemeCol_SliderGrab, (201, 0, 141), category=dpg.mvThemeCat_Core)
+        dpg.add_theme_color(dpg.mvThemeCol_SliderGrabActive, (231, 30, 171), category=dpg.mvThemeCat_Core)
+        dpg.add_theme_color(dpg.mvThemeCol_CheckMark, (201, 0, 141), category=dpg.mvThemeCat_Core)
+        dpg.add_theme_color(dpg.mvThemeCol_Header, (71, 71, 77), category=dpg.mvThemeCat_Core)
+        dpg.add_theme_color(dpg.mvThemeCol_HeaderHovered, (91, 91, 102), category=dpg.mvThemeCat_Core)
+        dpg.add_theme_color(dpg.mvThemeCol_HeaderActive, (111, 111, 122), category=dpg.mvThemeCat_Core)
+        dpg.add_theme_style(dpg.mvStyleVar_FrameRounding, 3, category=dpg.mvThemeCat_Core)
+        dpg.add_theme_style(dpg.mvStyleVar_WindowRounding, 5, category=dpg.mvThemeCat_Core)
+        # Add immediate visual feedback for interactive elements
+        dpg.add_theme_style(dpg.mvStyleVar_FramePadding, 8, 6, category=dpg.mvThemeCat_Core)
+        dpg.add_theme_style(dpg.mvStyleVar_ItemSpacing, 6, 6, category=dpg.mvThemeCat_Core)
 
     dpg.bind_theme(global_theme)
 
@@ -59,29 +58,31 @@ def setup_gui(app):
         app._fov_use_viewport_drawlist = True
     except Exception:
         # Fallback: window-based overlay (may block inputs in some DPG versions)
-        with dpg.window(
-            label="FOV Overlay",
-            width=screen_w,
-            height=screen_h,
-            no_title_bar=True,
-            no_move=True,
-            no_resize=True,
-            no_collapse=True,
-            no_background=True,
-            no_bring_to_front_on_focus=True,
-            no_inputs=True,
-            show=False,
-            tag="fov_overlay",
+        with (
+            dpg.window(
+                label="FOV Overlay",
+                width=screen_w,
+                height=screen_h,
+                no_title_bar=True,
+                no_move=True,
+                no_resize=True,
+                no_collapse=True,
+                no_background=True,
+                no_bring_to_front_on_focus=True,
+                no_inputs=True,
+                show=False,
+                tag="fov_overlay",
+            ),
+            dpg.drawlist(width=screen_w, height=screen_h, tag="fov_drawlist"),
         ):
-            with dpg.drawlist(width=screen_w, height=screen_h, tag="fov_drawlist"):
-                dpg.draw_rectangle(
-                    [0, 0],
-                    [100, 100],
-                    color=[0, 255, 0, 255],  # Bright green border
-                    fill=[0, 255, 0, 30],  # Semi-transparent green fill
-                    thickness=2,
-                    tag="fov_rect",
-                )
+            dpg.draw_rectangle(
+                [0, 0],
+                [100, 100],
+                color=[0, 255, 0, 255],  # Bright green border
+                fill=[0, 255, 0, 30],  # Semi-transparent green fill
+                thickness=2,
+                tag="fov_rect",
+            )
 
     # Helper functions for FOV overlay with optimized updates
     def update_fov_overlay():
@@ -129,11 +130,10 @@ def setup_gui(app):
                 dpg.configure_item("fov_overlay", no_inputs=True, no_bring_to_front_on_focus=True)
                 dpg.show_item("fov_overlay")
             update_fov_overlay()
+        elif getattr(app, "_fov_use_viewport_drawlist", False):
+            dpg.configure_item("fov_rect", show=False)
         else:
-            if getattr(app, "_fov_use_viewport_drawlist", False):
-                dpg.configure_item("fov_rect", show=False)
-            else:
-                dpg.hide_item("fov_overlay")
+            dpg.hide_item("fov_overlay")
 
     def on_fov_x_changed(sender, a):
         # Immediate value snapping with visual feedback
@@ -153,12 +153,19 @@ def setup_gui(app):
         if getattr(app, "fov_overlay_enabled", False):
             update_fov_overlay()
 
+    def on_master_enable_changed(sender, app_data):
+        """Update master enable state and sync UI visual feedback"""
+        app.config.update("enabled", app_data)
+        if dpg.does_item_exist("main_toggle_btn"):
+            dpg.configure_item("main_toggle_btn", enabled=app_data)
+            dpg.configure_item("main_toggle_btn", label="TOGGLE TRACKING" if app_data else "DISABLED (Master Off)")
+
     # Create main window with optimized layout
     with dpg.window(
         tag="main_window", label="Color Tracking Algo for Single Player Games in Development", width=380, height=520
     ):
         # Header section - Always visible
-        dpg.add_text("SAI COLOR TRACKER V3", color=(201, 0, 141))
+        dpg.add_text("COLOR TRACKER V3", color=(201, 0, 141))
 
         with dpg.group(horizontal=True):
             app.status_text = dpg.add_text("Status: Idle")
@@ -175,7 +182,11 @@ def setup_gui(app):
                 # Active Control Group
                 with dpg.group(horizontal=True):
                     toggle_btn = dpg.add_button(
-                        label="TOGGLE TRACKING", callback=lambda: app.toggle_algo(), width=180, height=30
+                        label="TOGGLE TRACKING",
+                        tag="main_toggle_btn",
+                        callback=lambda: app.toggle_algo(),
+                        width=180,
+                        height=30,
                     )
                     with dpg.tooltip(toggle_btn):
                         dpg.add_text("The main On/Off switch. Click this to start or stop the bot.")
@@ -183,10 +194,14 @@ def setup_gui(app):
                     app.enabled_checkbox = dpg.add_checkbox(
                         label="Master Enable",
                         default_value=app.config.enabled,
-                        callback=lambda s, a: app.config.update("enabled", a),
+                        callback=on_master_enable_changed,
                     )
                     with dpg.tooltip(app.enabled_checkbox):
                         dpg.add_text("The 'Safety' switch. If this is OFF, the hotkeys won't work.")
+
+                    # Initial state sync
+                    if not app.config.enabled:
+                        dpg.configure_item("main_toggle_btn", enabled=False, label="DISABLED (Master Off)")
 
                 dpg.add_spacer(height=10)
                 dpg.add_separator()
@@ -373,9 +388,8 @@ def setup_gui(app):
                         ][-1],
                     )
                     app.tolerance_preview = dpg.add_button(label="", width=40, height=20)
-                    with dpg.theme() as tolerance_theme:
-                        with dpg.theme_component(dpg.mvButton):
-                            dpg.add_theme_color(dpg.mvThemeCol_Button, [r, g, b, 255], category=dpg.mvThemeCat_Core)
+                    with dpg.theme() as tolerance_theme, dpg.theme_component(dpg.mvButton):
+                        dpg.add_theme_color(dpg.mvThemeCol_Button, [r, g, b, 255], category=dpg.mvThemeCat_Core)
                     app.tolerance_theme = tolerance_theme
                     dpg.bind_item_theme(app.tolerance_preview, tolerance_theme)
                 app.update_tolerance_preview()
@@ -395,6 +409,8 @@ def setup_gui(app):
                         callback=on_fov_x_changed,
                         width=-1,
                     )
+                    with dpg.tooltip(app.fov_x_slider):
+                        dpg.add_text("Horizontal scan range (pixels). Smaller is faster but requires better aim.")
 
                 with dpg.group(horizontal=True):
                     dpg.add_text("Height:")
@@ -406,14 +422,122 @@ def setup_gui(app):
                         callback=on_fov_y_changed,
                         width=-1,
                     )
+                    with dpg.tooltip(app.fov_y_slider):
+                        dpg.add_text("Vertical scan range (pixels). Keep tight to avoid distractions.")
 
                 app.fov_overlay_checkbox = dpg.add_checkbox(
                     label="Show Visual Search Box (Overlay)", default_value=False, callback=on_fov_overlay_toggled
                 )
+                with dpg.tooltip(app.fov_overlay_checkbox):
+                    dpg.add_text("Draws a green box showing exactly where the bot is looking.")
 
             # --- SYSTEM TAB ---
             with dpg.tab(label="System"):
                 dpg.add_spacer(height=5)
+
+                dpg.add_text("PROFILES", color=(201, 0, 141))
+
+                """
+                def refresh_profile_combo():
+                    # Disabled
+                    pass
+
+                def update_metadata_fields():
+                    # Disabled
+                    pass
+
+                def on_profile_selected(sender, app_data):
+                    # Disabled
+                    pass
+                """
+
+                def refresh_ui_from_config():
+                    """Update all UI elements to match current config"""
+                    ui_elements = [
+                        (app.smoothing_slider, app.config.smoothing),
+                        (app.filter_combo, app.config.filter_method),
+                        (app.head_offset_slider, app.config.head_offset),
+                        (app.leg_offset_slider, app.config.leg_offset),
+                        (app.tolerance_slider, app.config.color_tolerance),
+                        (app.fov_x_slider, app.config.fov_x),
+                        (app.fov_y_slider, app.config.fov_y),
+                        (app.fps_slider, app.config.target_fps),
+                        (app.prediction_checkbox, app.config.prediction_enabled),
+                        (app.prediction_slider, app.config.prediction_multiplier),
+                        (app.enabled_checkbox, app.config.enabled),
+                    ]
+
+                    for item, value in ui_elements:
+                        if dpg.does_item_exist(item):
+                            dpg.set_value(item, value)
+
+                    if dpg.does_item_exist(app.aim_point_radio):
+                        dpg.set_value(
+                            app.aim_point_radio, {0: "Head", 1: "Body", 2: "Legs"}.get(app.config.aim_point, "Body")
+                        )
+
+                    if dpg.does_item_exist(app.color_picker):
+                        c = app.config.target_color
+                        dpg.set_value(
+                            app.color_picker, [(c >> 16 & 0xFF) / 255.0, (c >> 8 & 0xFF) / 255.0, (c & 0xFF) / 255.0]
+                        )
+
+                    app.update_tolerance_preview()
+
+                """
+                dpg.add_combo(
+                    items=app.config.list_profiles(),
+                    default_value=app.config.current_profile_name,
+                    tag="profile_combo",
+                    callback=on_profile_selected,
+                    width=-1,
+                )
+
+                dpg.add_spacer(height=5)
+                dpg.add_text("Metadata:")
+                try:
+                    dpg.add_input_text(label="Description", tag="meta_description")
+                    dpg.set_value("meta_description", str(getattr(app.config, "description", "")))
+                    dpg.set_item_callback("meta_description", lambda s, a: app.config.update("description", a))
+                except Exception as e:
+                    print(f"Warning: Failed to init description input: {e}")
+
+                try:
+                    dpg.add_input_text(label="Hotkey", tag="meta_hotkey", width=100)
+                    dpg.set_value("meta_hotkey", str(getattr(app.config, "hotkey", "")))
+                    dpg.set_item_callback("meta_hotkey", lambda s, a: app.config.update("hotkey", a))
+                except Exception as e:
+                    print(f"Warning: Failed to init hotkey input: {e}")
+                with dpg.tooltip("meta_hotkey"):
+                    dpg.add_text("Example: F1, Ctrl+P. (Visual reference only currently)")
+
+                dpg.add_spacer(height=5)
+                with dpg.group(horizontal=True):
+                    dpg.add_button(
+                        label="Save As...",
+                        callback=lambda: dpg.show_item("save_profile_modal"),
+                        width=80,
+                    )
+                    dpg.add_button(
+                        label="Rename",
+                        callback=lambda: dpg.show_item("rename_profile_modal"),
+                        width=80,
+                    )
+                    dpg.add_button(
+                        label="Duplicate",
+                        callback=lambda: dpg.show_item("duplicate_profile_modal"),
+                        width=80,
+                    )
+                    dpg.add_button(
+                        label="Delete",
+                        callback=lambda: dpg.show_item("delete_profile_modal"),
+                        width=80,
+                    )
+                """
+
+                dpg.add_spacer(height=10)
+                dpg.add_separator()
+                dpg.add_spacer(height=10)
 
                 dpg.add_text("PERFORMANCE", color=(201, 0, 141))
                 dpg.add_text("Target Update Rate (FPS):")
@@ -461,6 +585,96 @@ def setup_gui(app):
                 with dpg.tooltip(app.prediction_slider):
                     dpg.add_text("Strength: Higher = aims further in front of the runner.")
 
+                dpg.add_spacer(height=20)
+                dpg.add_separator()
+                dpg.add_spacer(height=10)
+
+                reset_btn = dpg.add_button(
+                    label="RESET ALL SETTINGS",
+                    callback=lambda: dpg.show_item("reset_confirmation_modal"),
+                    width=-1,
+                    height=30,
+                )
+                with dpg.theme() as reset_theme:
+                    with dpg.theme_component(dpg.mvButton):
+                        dpg.add_theme_color(dpg.mvThemeCol_Button, (110, 40, 40), category=dpg.mvThemeCat_Core)
+                        dpg.add_theme_color(dpg.mvThemeCol_ButtonHovered, (150, 50, 50), category=dpg.mvThemeCat_Core)
+                        dpg.add_theme_color(dpg.mvThemeCol_ButtonActive, (180, 60, 60), category=dpg.mvThemeCat_Core)
+                dpg.bind_item_theme(reset_btn, reset_theme)
+                with dpg.tooltip(reset_btn):
+                    dpg.add_text("Warning: This will revert EVERY setting back to its factory default value.")
+
+            # --- ANALYTICS TAB ---
+            with dpg.tab(label="Stats"):
+                dpg.add_spacer(height=5)
+                dpg.add_text("REAL-TIME ANALYTICS", color=(201, 0, 141))
+
+                # Stats Summary
+                with dpg.group(horizontal=True):
+                    dpg.add_text("Current FPS:")
+                    app.analytics_fps_val = dpg.add_text("0.0", color=(0, 255, 0))
+                    dpg.add_spacer(width=20)
+                    dpg.add_text("Avg Latency:")
+                    app.analytics_latency_val = dpg.add_text("0.00ms", color=(0, 255, 255))
+
+                with dpg.group(horizontal=True):
+                    dpg.add_text("1% Low FPS:")
+                    app.analytics_low_val = dpg.add_text("0.0", color=(255, 100, 100))
+                    dpg.add_spacer(width=20)
+                    dpg.add_text("Missed Frames:")
+                    app.analytics_missed_val = dpg.add_text("0", color=(255, 50, 50))
+
+                dpg.add_spacer(height=10)
+
+                # FPS Graph
+                dpg.add_text("FPS History (Last 1000 frames)")
+                with dpg.plot(label="FPS", height=150, width=-1):
+                    dpg.add_plot_legend()
+                    dpg.add_plot_axis(dpg.mvXAxis, label="Time", no_tick_labels=True)
+                    with dpg.plot_axis(dpg.mvYAxis, label="FPS"):
+                        app.analytics_fps_series = dpg.add_line_series([], [], label="FPS")
+
+                dpg.add_spacer(height=10)
+
+                # Latency Graph
+                dpg.add_text("Frame Latency (ms)")
+                with dpg.plot(label="Latency", height=150, width=-1):
+                    dpg.add_plot_legend()
+                    dpg.add_plot_axis(dpg.mvXAxis, label="Time", no_tick_labels=True)
+                    with dpg.plot_axis(dpg.mvYAxis, label="ms"):
+                        app.analytics_latency_series = dpg.add_line_series([], [], label="Frame Time")
+                        app.analytics_detection_series = dpg.add_line_series([], [], label="Detection Time")
+
+                def update_analytics():
+                    if not hasattr(app, "perf_monitor"):
+                        return
+
+                    stats = app.perf_monitor.get_stats()
+                    history = app.perf_monitor.get_history()
+
+                    # Update Text
+                    dpg.set_value(app.analytics_fps_val, f"{stats['fps']:.1f}")
+                    dpg.set_value(app.analytics_latency_val, f"{stats['avg_frame_ms']:.2f}ms")
+                    dpg.set_value(app.analytics_low_val, f"{stats['one_percent_low_fps']:.1f}")
+                    dpg.set_value(app.analytics_missed_val, f"{int(stats['missed_frames'])}")
+
+                    # Update Graphs
+                    # We create simple X axis indices for now
+                    if history["fps"]:
+                        x_data = list(range(len(history["fps"])))
+                        dpg.set_value(app.analytics_fps_series, [x_data, history["fps"]])
+
+                    if history["frame_times"]:
+                        x_data = list(range(len(history["frame_times"])))
+                        dpg.set_value(app.analytics_latency_series, [x_data, history["frame_times"]])
+
+                    if history["detection_times"]:
+                        # Ensure lengths match if needed, but plotting handles it usually
+                        x_data = list(range(len(history["detection_times"])))
+                        dpg.set_value(app.analytics_detection_series, [x_data, history["detection_times"]])
+
+                app.update_analytics = update_analytics
+
             # --- DEBUG TAB (Conditional) ---
             if hasattr(app, "logger") and app.logger.debug_console_enabled:
                 with dpg.tab(label="Debug"):
@@ -501,13 +715,12 @@ def setup_gui(app):
             if found:
                 dpg.set_value(app.status_text, "Status: Target Locked")
                 dpg.configure_item(app.status_text, color=(0, 255, 0))
+            elif app.config.enabled:
+                dpg.set_value(app.status_text, "Status: Scanning")
+                dpg.configure_item(app.status_text, color=(255, 255, 0))
             else:
-                if app.config.enabled:
-                    dpg.set_value(app.status_text, "Status: Scanning")
-                    dpg.configure_item(app.status_text, color=(255, 255, 0))
-                else:
-                    dpg.set_value(app.status_text, "Status: Idle")
-                    dpg.configure_item(app.status_text, color=(255, 255, 255))
+                dpg.set_value(app.status_text, "Status: Idle")
+                dpg.configure_item(app.status_text, color=(255, 255, 255))
 
         app.update_target_status = update_target_status
 
@@ -529,3 +742,42 @@ def setup_gui(app):
             return min(960, max(120, snapped))
 
         app._snap_fps_value = _snap_fps_value
+
+        def reset_all_settings():
+            """Reset all settings to defaults and refresh the UI"""
+            app.config.reset_to_defaults()
+            refresh_ui_from_config()
+            dpg.hide_item("reset_confirmation_modal")
+            if hasattr(app, "logger"):
+                app.logger.info("Application settings reset to defaults.")
+
+        app.reset_all_settings = reset_all_settings
+
+    # --- MODALS ---
+    with dpg.window(
+        label="Confirm Reset",
+        modal=True,
+        show=False,
+        tag="reset_confirmation_modal",
+        no_title_bar=True,
+        width=260,
+        height=100,
+        pos=[60, 200],
+    ):
+        dpg.add_spacer(height=5)
+        dpg.add_text("Reset all settings to factory defaults?\nThis cannot be undone.", wrap=240)
+        dpg.add_spacer(height=10)
+        with dpg.group(horizontal=True):
+            dpg.add_button(label="YES, RESET", callback=app.reset_all_settings, width=120, height=25)
+            dpg.add_button(
+                label="CANCEL", callback=lambda: dpg.hide_item("reset_confirmation_modal"), width=120, height=25
+            )
+
+    """
+    # Save Profile Modal
+    def save_new_profile(sender, app_data):
+        # Disabled
+        pass
+
+    # ... Modal windows commented out ...
+    """
