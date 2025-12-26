@@ -347,3 +347,12 @@ class Config:
                 config_dict[key] = value
 
         return config_dict
+
+    def reset_to_defaults(self):
+        """
+        Reset all configuration settings to their default values and save immediately
+        """
+        print("Config: Resetting all settings to defaults...")
+        for key, schema in self.DEFAULT_CONFIG.items():
+            setattr(self, key, schema["default"])
+        self.save()

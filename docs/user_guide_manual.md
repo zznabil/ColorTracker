@@ -1,7 +1,7 @@
-# SAI Color Tracking Algorithm V3 - User Guide
+# ColorTracker Algorithm V3 - User Guide
 
 ## Introduction
-The SAI Color Tracking Algorithm V3 is a color detection and tracking tool. It detects a target color on screen and moves the mouse cursor toward the detected target.
+The ColorTracker Algorithm V3 is a color detection and tracking tool. It detects a target color on screen and moves the mouse cursor toward the detected target.
 
 ## Features
 - Fast detection loop using `mss`

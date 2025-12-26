@@ -150,6 +150,15 @@ def setup_gui(app):
         if getattr(app, "fov_overlay_enabled", False):
             update_fov_overlay()
 
+    def on_master_enable_changed(sender, app_data):
+        """Update master enable state and sync UI visual feedback"""
+        app.config.update("enabled", app_data)
+        if dpg.does_item_exist("main_toggle_btn"):
+            dpg.configure_item("main_toggle_btn", enabled=app_data)
+            dpg.configure_item(
+                "main_toggle_btn", label="TOGGLE TRACKING" if app_data else "DISABLED (Master Off)"
+            )
+
     # Create main window with optimized layout
     with dpg.window(
         tag="main_window", label="Color Tracking Algo for Single Player Games in Development", width=380, height=520
@@ -172,7 +181,11 @@ def setup_gui(app):
                 # Active Control Group
                 with dpg.group(horizontal=True):
                     toggle_btn = dpg.add_button(
-                        label="TOGGLE TRACKING", callback=lambda: app.toggle_algo(), width=180, height=30
+                        label="TOGGLE TRACKING",
+                        tag="main_toggle_btn",
+                        callback=lambda: app.toggle_algo(),
+                        width=180,
+                        height=30,
                     )
                     with dpg.tooltip(toggle_btn):
                         dpg.add_text("The main On/Off switch. Click this to start or stop the bot.")
@@ -180,10 +193,14 @@ def setup_gui(app):
                     app.enabled_checkbox = dpg.add_checkbox(
                         label="Master Enable",
                         default_value=app.config.enabled,
-                        callback=lambda s, a: app.config.update("enabled", a),
+                        callback=on_master_enable_changed,
                     )
                     with dpg.tooltip(app.enabled_checkbox):
                         dpg.add_text("The 'Safety' switch. If this is OFF, the hotkeys won't work.")
+
+                    # Initial state sync
+                    if not app.config.enabled:
+                        dpg.configure_item("main_toggle_btn", enabled=False, label="DISABLED (Master Off)")
 
                 dpg.add_spacer(height=10)
                 dpg.add_separator()
@@ -579,6 +596,10 @@ def setup_gui(app):
             if dpg.does_item_exist(app.color_picker):
                 c = app.config.target_color
                 dpg.set_value(app.color_picker, [(c >> 16 & 0xFF) / 255.0, (c >> 8 & 0xFF) / 255.0, (c & 0xFF) / 255.0])
+
+            # Reset toggle button state since defaults enable everything
+            if dpg.does_item_exist("main_toggle_btn"):
+                dpg.configure_item("main_toggle_btn", enabled=True, label="TOGGLE TRACKING")
 
             app.update_tolerance_preview()
             dpg.hide_item("reset_confirmation_modal")

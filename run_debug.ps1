@@ -1,4 +1,4 @@
-# SAI Color Tracking Algorithm V3 - Enhanced Debug Launch Script
+# ColorTracker Algorithm V3 - Enhanced Debug Launch Script
 # Combines best features from BAT script with PowerShell robustness
 
 # Set console colors for better visibility
@@ -8,7 +8,7 @@ Clear-Host
 
 # Display header (BAT script simplicity)
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "  SAI Color Tracking Algorithm V3 - Debug Mode" -ForegroundColor Cyan
+Write-Host "  ColorTracker Algorithm V3 - Debug Mode" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -110,7 +110,7 @@ try {
 }
 
 Write-Host ""
-Write-Host "Launching SAI Color Tracking Algorithm V3..." -ForegroundColor Yellow
+Write-Host "Launching ColorTracker Algorithm V3..." -ForegroundColor Yellow
 Write-Host ""
 
 # Run the main Python script (BAT script simplicity + PowerShell error handling)

@@ -13,7 +13,7 @@
     // Color matching tolerance (0-100)
     // Lower = more precise matching, Higher = more flexible matching
     // Recommended: 10-20 for good lighting, 25-50 for variable lighting
-    "color_tolerance": 0,
+    "color_tolerance": 15,
 
     // === DETECTION AREA SETTINGS ===
     // Search area radius around crosshair (pixels)
@@ -25,19 +25,19 @@
     // fov_x: horizontal detection range, fov_y: vertical detection range
     // Smaller values = faster performance, larger = wider detection
     // Recommended: 30-60 for most games
-    "fov_x": 209,
-    "fov_y": 100,
+    "fov_x": 25,
+    "fov_y": 25,
 
     // === TRACKING BEHAVIOR SETTINGS ===
     // Mouse movement smoothing (0.0 = instant, higher = smoother)
     // 0.0-0.5: Very responsive (competitive gaming)
     // 0.5-2.0: Balanced (general use)
     // 2.0-10.0: Very smooth (casual gaming)
-    "smoothing": 9.9,
+    "smoothing": 50.0,
 
     // Filtering method for prediction (Noise reduction)
     // Options: "EMA", "DEMA", "TEMA", "Median+EMA", "Dynamic EMA"
-    "filter_method": "Dynamic EMA",
+    "filter_method": "TEMA",
 
     // Target tracking point on detected objects
     // Options: "Head", "Chest", "Legs", "Center"
@@ -57,12 +57,12 @@
     // Enable movement prediction for moving targets
     // true: Predicts target movement (better for moving enemies)
     // false: Tracks at current position (better for stationary targets)
-    "prediction_enabled": false,
+    "prediction_enabled": true,
 
     // Prediction strength multiplier (0.0-1.0)
     // Higher values = more aggressive prediction
     // Start with 0.1 and adjust based on game speed
-    "prediction_multiplier": 0.0,
+    "prediction_multiplier": 26.0,
 
     // === CONTROL SETTINGS ===
     // Hotkeys for color tracking algo for single player games in development control
@@ -80,5 +80,5 @@
     // Master enable/disable switch
     // true: Color Tracking Algo can be activated with start_key
     // false: Color Tracking Algo completely disabled
-    "enabled": true
+    "enabled": false
 }

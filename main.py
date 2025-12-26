@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
 """
-SAI Color Tracking Algorithm V3
+ColorTracker Algorithm V3
 
-Main entry point for the SAI Color Tracking Algorithm V3 application.
+Main entry point for the ColorTracker Algorithm V3 application.
 """
 
 import logging
@@ -24,8 +24,8 @@ from utils.logger import Logger
 from utils.screen_info import ScreenInfo
 
 
-class SAIColorTrackingAlgo:
-    """Main application class for SAI Color Tracking Algorithm V3 with optimized UI responsiveness"""
+class ColorTrackerAlgo:
+    """Main application class for ColorTracker Algorithm V3 with optimized UI responsiveness"""
 
     # Explicitly declare dynamic attributes for static analysis (Pyright)
     status_text: int | str
@@ -46,7 +46,7 @@ class SAIColorTrackingAlgo:
 
         # Create logger with optimized settings
         self.logger = Logger(log_level=logging.DEBUG, log_to_file=True)
-        self.logger.info("SAI Color Tracking Algorithm V3 starting...")
+        self.logger.info("ColorTracker Algorithm V3 starting...")
         self.logger.debug("Debug logging enabled - all operations will be logged verbosely")
 
         # Log debug console availability
@@ -336,7 +336,7 @@ class SAIColorTrackingAlgo:
 
         # Create viewport window with optimized settings
         self.logger.debug("Creating DearPyGUI viewport...")
-        dpg.create_viewport(title="SAI Color Tracking Algorithm V3", width=380, height=520)
+        dpg.create_viewport(title="ColorTracker Algorithm V3", width=380, height=520)
         self.logger.debug("Setting up DearPyGUI context...")
         dpg.setup_dearpygui()
         self.logger.debug("Showing viewport window...")
@@ -393,7 +393,7 @@ class SAIColorTrackingAlgo:
 
 if __name__ == "__main__":
     try:
-        app = SAIColorTrackingAlgo()
+        app = ColorTrackerAlgo()
         app.run()
     except Exception as e:
         print(f"Error: {e}")

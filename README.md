@@ -1,4 +1,4 @@
-# SAI Color Tracker V3
+# ColorTracker V3
 
 A high-performance, modular color tracking and mouse automation tool.
 

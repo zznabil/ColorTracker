@@ -1,4 +1,4 @@
-# SAI Color Tracking Algorithm V3 Dependencies
+# ColorTracker Algorithm V3 Dependencies
 
 # GUI Framework
 dearpygui>=1.8.0
