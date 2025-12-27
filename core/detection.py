@@ -155,6 +155,43 @@ class DetectionSystem:
         except Exception:
             return False, None
 
+    def _detect_in_area(self, left: int, top: int, width: int, height: int) -> tuple[bool, int, int]:
+        """
+        Helper method to capture and scan a specific screen area for the target color.
+
+        Args:
+            left: Left coordinate of the area
+            top: Top coordinate of the area
+            width: Width of the area
+            height: Height of the area
+
+        Returns:
+            Tuple containing (found_boolean, screen_x, screen_y)
+        """
+        # Validate area dimensions to prevent buffer overflow
+        if width <= 0 or height <= 0:
+            return False, 0, 0
+
+        area = {"left": left, "top": top, "width": width, "height": height}
+
+        success, img_bgra = self._capture_and_process_frame(area)
+        if not success:
+            return False, 0, 0
+
+        # Use cached bounds
+        if self._lower_bound is None or self._upper_bound is None:
+            self._update_color_bounds()
+
+        # Create mask of pixels within color range
+        mask = cv2.inRange(img_bgra, self._lower_bound, self._upper_bound)  # type: ignore
+        _, max_val, _, max_loc = cv2.minMaxLoc(mask)
+
+        if max_val <= 0:
+            return False, 0, 0
+
+        match_x, match_y = max_loc
+        return True, int(match_x + left), int(match_y + top)
+
     def _local_search(self) -> tuple[bool, int, int]:
         """
         Perform a local search around the last known target position.
@@ -170,9 +207,6 @@ class DetectionSystem:
         width = local_right - local_left
         height = local_bottom - local_top
 
-        if width <= 0 or height <= 0:
-            return False, 0, 0
-
         # Optimization: Guard against excessively large search areas
         if width > 1000 or height > 1000:
             local_left, local_right, local_top, local_bottom = self._clamp_search_area(
@@ -180,23 +214,10 @@ class DetectionSystem:
             )
             width, height = local_right - local_left, local_bottom - local_top
 
-        local_area = {"left": local_left, "top": local_top, "width": width, "height": height}
+        found, screen_x, screen_y = self._detect_in_area(local_left, local_top, width, height)
 
-        success, img_bgra = self._capture_and_process_frame(local_area)
-        if not success:
+        if not found:
             return False, 0, 0
-
-        # Use cached bounds
-        if self._lower_bound is None or self._upper_bound is None:
-            self._update_color_bounds()
-
-        mask = cv2.inRange(img_bgra, self._lower_bound, self._upper_bound)  # type: ignore
-        _, max_val, _, max_loc = cv2.minMaxLoc(mask)
-
-        if max_val <= 0:
-            return False, 0, 0
-
-        screen_x, screen_y = int(max_loc[0] + local_left), int(max_loc[1] + local_top)
 
         # FOV Restriction Check
         center_x, center_y = self.config.screen_width // 2, self.config.screen_height // 2
@@ -221,51 +242,21 @@ class DetectionSystem:
         Returns:
             Tuple containing target found status and coordinates
         """
-        # Calculate dimensions and validate them
+        # Calculate dimensions
         width = right - left
         height = bottom - top
-
-        # Validate area dimensions to prevent buffer overflow
-        # MSS has issues with very large areas or invalid dimensions
-        if width <= 0 or height <= 0:
-            # Invalid dimensions - return no target found
-            return False, 0, 0
 
         # Optimization: Clamp very large search areas
         left, right, top, bottom = self._clamp_search_area(left, right, top, bottom, max_size=1500)
         width = right - left
         height = bottom - top
 
-        # Create capture area dictionary
-        full_area = {"left": left, "top": top, "width": width, "height": height}
+        found, screen_x, screen_y = self._detect_in_area(left, top, width, height)
 
-        success, img_bgra = self._capture_and_process_frame(full_area)
-        if not success:
-            return False, 0, 0
-
-        # OPTIMIZATION: Removed cv2.cvtColor(img_bgra, cv2.COLOR_BGRA2BGR)
-        # We now perform color matching directly on BGRA data.
-
-        # Use cached bounds
-        if self._lower_bound is None or self._upper_bound is None:
-            self._update_color_bounds()
-
-        # Create mask of pixels within color range
-        mask = cv2.inRange(img_bgra, self._lower_bound, self._upper_bound)  # type: ignore
-
-        # OPTIMIZATION: Use minMaxLoc instead of findNonZero
-        _, max_val, _, max_loc = cv2.minMaxLoc(mask)
-
-        if max_val <= 0:
+        if not found:
             # No match found in full search
             self.target_found_last_frame = False
             return False, 0, 0
-
-        match_x, match_y = max_loc
-
-        # Convert back to screen coordinates
-        screen_x = match_x + left
-        screen_y = match_y + top
 
         # Update target position
         self.target_x = screen_x
@@ -291,20 +282,6 @@ class DetectionSystem:
 
         # Return as BGR (OpenCV format)
         return (b, g, r)
-
-    def _capture_to_numpy(self, area: dict[str, int]) -> NDArray[np.uint8] | None:
-        """
-        Captures a screen area and returns it as a numpy array using zero-copy optimization.
-
-        Uses np.frombuffer to create a view into the raw BGRA memory, avoiding expensive
-        memory allocation and copy operations during the high-speed detection loop.
-        """
-        sct = self._get_sct()
-        sct_img = sct.grab(area)
-        img = np.frombuffer(sct_img.bgra, dtype=np.uint8).reshape((sct_img.height, sct_img.width, 4))
-        if img.size == 0 or img.ndim != 3:
-            return None
-        return img
 
     def _clamp_search_area(
         self, left: int, right: int, top: int, bottom: int, max_size: int
