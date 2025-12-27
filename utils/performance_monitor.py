@@ -1,4 +1,8 @@
 import collections
+import csv
+import datetime
+import json
+import os
 import threading
 import time
 
@@ -105,3 +109,70 @@ class PerformanceMonitor:
         with self._lock:
             self.worst_frame_time = 0.0
             self.missed_frames = 0
+
+    def export_history(self, filepath: str, format: str = "csv") -> bool:
+        """
+        Export performance history to a file.
+
+        Args:
+            filepath: Path to save the file.
+            format: "csv" or "json".
+
+        Returns:
+            True if successful, False otherwise.
+        """
+        try:
+            # Ensure directory exists
+            directory = os.path.dirname(filepath)
+            if directory and not os.path.exists(directory):
+                os.makedirs(directory)
+
+            data = self.get_history()
+
+            # Prepare data with timestamp
+            timestamp = datetime.datetime.now().isoformat()
+
+            if format.lower() == "json":
+                export_data = {
+                    "timestamp": timestamp,
+                    "stats": self.get_stats(),
+                    "history": data
+                }
+                with open(filepath, "w", encoding="utf-8") as f:
+                    json.dump(export_data, f, indent=2)
+
+            elif format.lower() == "csv":
+                with open(filepath, "w", encoding="utf-8", newline="") as f:
+                    writer = csv.writer(f)
+
+                    # Write header with metadata
+                    writer.writerow(["# SAI Color Tracker V3 Performance Export"])
+                    writer.writerow([f"# Date: {timestamp}"])
+                    stats = self.get_stats()
+                    writer.writerow([f"# Average FPS: {stats['fps']:.2f}"])
+                    writer.writerow([])
+
+                    # Determine max length
+                    max_len = max(
+                        len(data["fps"]),
+                        len(data["frame_times"]),
+                        len(data["detection_times"])
+                    )
+
+                    writer.writerow(["Frame Index", "FPS", "Frame Time (ms)", "Detection Time (ms)"])
+
+                    fps_list = list(data["fps"])
+                    frame_times = list(data["frame_times"])
+                    detection_times = list(data["detection_times"])
+
+                    for i in range(max_len):
+                        fps_val = fps_list[i] if i < len(fps_list) else ""
+                        frame_val = frame_times[i] if i < len(frame_times) else ""
+                        detect_val = detection_times[i] if i < len(detection_times) else ""
+                        writer.writerow([i, fps_val, frame_val, detect_val])
+
+            return True
+
+        except Exception as e:
+            print(f"Error exporting performance history: {e}")
+            return False

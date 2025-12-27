@@ -161,6 +161,8 @@ def setup_gui(app):
             dpg.configure_item("main_toggle_btn", label="TOGGLE TRACKING" if app_data else "DISABLED (Master Off)")
 
     # Create main window with optimized layout
+    import datetime  # Import here to avoid circular imports if any, or just convenience
+
     with dpg.window(
         tag="main_window", label="Color Tracking Algo for Single Player Games in Development", width=380, height=520
     ):
@@ -633,6 +635,31 @@ def setup_gui(app):
                     with dpg.plot_axis(dpg.mvYAxis, label="ms"):
                         app.analytics_latency_series = dpg.add_line_series([], [], label="Frame Time")
                         app.analytics_detection_series = dpg.add_line_series([], [], label="Detection Time")
+
+                dpg.add_spacer(height=10)
+                dpg.add_separator()
+                dpg.add_spacer(height=10)
+
+                # Export Button
+                def export_analytics():
+                    if hasattr(app, "perf_monitor"):
+                        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                        filename = f"stats_{timestamp}.csv"
+                        if app.perf_monitor.export_history(filename):
+                            if dpg.does_item_exist("analytics_status"):
+                                dpg.set_value("analytics_status", f"Saved to {filename}")
+                                dpg.configure_item("analytics_status", color=(0, 255, 0))
+                        else:
+                            if dpg.does_item_exist("analytics_status"):
+                                dpg.set_value("analytics_status", "Export Failed")
+                                dpg.configure_item("analytics_status", color=(255, 0, 0))
+
+                dpg.add_button(
+                    label="Export Stats to CSV",
+                    callback=export_analytics,
+                    width=-1
+                )
+                dpg.add_text("", tag="analytics_status", color=(150, 150, 150))
 
                 def update_analytics():
                     if not hasattr(app, "perf_monitor"):
