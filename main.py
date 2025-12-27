@@ -312,6 +312,8 @@ class ColorTrackerAlgo:
                         target_frame_time = frame_interval
                     # Sync motion engine config cache
                     self.motion_engine.update_config()
+                    # Sync detection system config cache (resolution, FOV, etc.)
+                    self.detection.update_config()
 
                 # Ultra-efficient FPS calculation (every 1 second for better responsiveness)
                 current_time = time.perf_counter()

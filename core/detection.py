@@ -31,6 +31,17 @@ class DetectionSystem:
     _last_target_color: int | None
     _last_color_tolerance: int | None
 
+    # Cached config values for zero-latency lookup
+    _screen_width: int
+    _screen_height: int
+    _center_x: int
+    _center_y: int
+    _fov_x: int
+    _fov_y: int
+    _search_area_size: int
+    # Pre-calculated scan area tuple (left, top, right, bottom)
+    _scan_area: tuple[int, int, int, int]
+
     def __init__(self, config: Any) -> None:
         """
         Initialize the detection system
@@ -54,6 +65,33 @@ class DetectionSystem:
         self._upper_bound = None
         self._last_target_color = None
         self._last_color_tolerance = None
+
+        # Initialize configuration cache
+        self.update_config()
+
+    def update_config(self) -> None:
+        """
+        Updates cached configuration values to avoid property lookups and
+        redundant calculations in the hot path.
+        """
+        self._screen_width = getattr(self.config, "screen_width", 1920)
+        self._screen_height = getattr(self.config, "screen_height", 1080)
+        self._fov_x = getattr(self.config, "fov_x", 100)
+        self._fov_y = getattr(self.config, "fov_y", 100)
+        self._search_area_size = getattr(self.config, "search_area", 100)
+
+        # Pre-calculate center
+        self._center_x = self._screen_width // 2
+        self._center_y = self._screen_height // 2
+
+        # Pre-calculate Full Search Area (FOV) boundaries
+        # This removes 4 arithmetic operations and 4 min/max calls per frame
+        scan_left = max(0, self._center_x - self._fov_x)
+        scan_top = max(0, self._center_y - self._fov_y)
+        scan_right = min(self._screen_width, self._center_x + self._fov_x)
+        scan_bottom = min(self._screen_height, self._center_y + self._fov_y)
+
+        self._scan_area = (scan_left, scan_top, scan_right, scan_bottom)
 
     def _get_sct(self) -> Any:
         """
@@ -102,25 +140,10 @@ class DetectionSystem:
 
     def find_target(self) -> tuple[bool, int, int]:
         """
-        Search for target pixel color on screen
+        Search for target pixel color on screen.
+        OPTIMIZATION: Uses pre-calculated cached values for zero-latency execution.
         """
-        # Get screen center coordinates
-        center_x: int = self.config.screen_width // 2
-        center_y: int = self.config.screen_height // 2
-
-        # Calculate FOV boundaries
-        scan_left: int = center_x - self.config.fov_x
-        scan_top: int = center_y - self.config.fov_y
-        scan_right: int = center_x + self.config.fov_x
-        scan_bottom: int = center_y + self.config.fov_y
-
-        # Ensure boundaries are within screen
-        scan_left = max(0, scan_left)
-        scan_top = max(0, scan_top)
-        scan_right = min(self.config.screen_width, scan_right)
-        scan_bottom = min(self.config.screen_height, scan_bottom)
-
-        # Update color bounds cache
+        # Update color bounds cache (lightweight check)
         self._update_color_bounds()
 
         # First try local search if we found a target in the previous frame
@@ -130,7 +153,8 @@ class DetectionSystem:
                 return result
 
         # If local search failed or no previous target, do full FOV search
-        return self._full_search(scan_left, scan_top, scan_right, scan_bottom)
+        # Unpack cached tuple directly into arguments
+        return self._full_search(*self._scan_area)
 
     def _capture_and_process_frame(self, area: dict) -> tuple[bool, Any]:
         """
@@ -160,11 +184,11 @@ class DetectionSystem:
         Perform a local search around the last known target position.
         """
         # Calculate local search area with bounds checking
-        search_area: int = self.config.search_area
+        search_area: int = self._search_area_size
         local_left = max(0, self.target_x - search_area)
         local_top = max(0, self.target_y - search_area)
-        local_right = min(self.config.screen_width, self.target_x + search_area)
-        local_bottom = min(self.config.screen_height, self.target_y + search_area)
+        local_right = min(self._screen_width, self.target_x + search_area)
+        local_bottom = min(self._screen_height, self.target_y + search_area)
 
         # Calculate dimensions and validate
         width = local_right - local_left
@@ -198,9 +222,8 @@ class DetectionSystem:
 
         screen_x, screen_y = int(max_loc[0] + local_left), int(max_loc[1] + local_top)
 
-        # FOV Restriction Check
-        center_x, center_y = self.config.screen_width // 2, self.config.screen_height // 2
-        if abs(screen_x - center_x) > self.config.fov_x or abs(screen_y - center_y) > self.config.fov_y:
+        # FOV Restriction Check using cached values
+        if abs(screen_x - self._center_x) > self._fov_x or abs(screen_y - self._center_y) > self._fov_y:
             self.target_found_last_frame = False
             return False, 0, 0
 
