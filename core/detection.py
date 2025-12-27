@@ -183,27 +183,27 @@ class DetectionSystem:
         # minMaxLoc finds the max value (255 if match exists) and its location in O(1) memory
         _, max_val, _, max_loc = cv2.minMaxLoc(mask)
 
-        if max_val > 0:
-            match_x, match_y = max_loc
-            screen_x: int = int(match_x + local_left)
-            screen_y: int = int(match_y + local_top)
+        if max_val <= 0:
+            return False, 0, 0
 
-            # --- FOV Restriction Check ---
-            # Ensure the target found in local search is still within the global FOV bounds
-            center_x: int = self.config.screen_width // 2
-            center_y: int = self.config.screen_height // 2
+        match_x, match_y = max_loc
+        screen_x: int = int(match_x + local_left)
+        screen_y: int = int(match_y + local_top)
 
-            if abs(screen_x - center_x) > self.config.fov_x or abs(screen_y - center_y) > self.config.fov_y:
-                self.target_found_last_frame = False
-                return False, 0, 0
-            # -----------------------------
+        # --- FOV Restriction Check ---
+        # Ensure the target found in local search is still within the global FOV bounds
+        center_x: int = self.config.screen_width // 2
+        center_y: int = self.config.screen_height // 2
 
-            self.target_x = screen_x
-            self.target_y = screen_y
-            self.target_found_last_frame = True
-            return True, screen_x, screen_y
+        if abs(screen_x - center_x) > self.config.fov_x or abs(screen_y - center_y) > self.config.fov_y:
+            self.target_found_last_frame = False
+            return False, 0, 0
+        # -----------------------------
 
-        return False, 0, 0
+        self.target_x = screen_x
+        self.target_y = screen_y
+        self.target_found_last_frame = True
+        return True, screen_x, screen_y
 
     def _full_search(self, left: int, top: int, right: int, bottom: int) -> tuple[bool, int, int]:
         """
@@ -270,23 +270,23 @@ class DetectionSystem:
         # OPTIMIZATION: Use minMaxLoc instead of findNonZero
         _, max_val, _, max_loc = cv2.minMaxLoc(mask)
 
-        if max_val > 0:
-            match_x, match_y = max_loc
+        if max_val <= 0:
+            # No match found in full search
+            self.target_found_last_frame = False
+            return False, 0, 0
 
-            # Convert back to screen coordinates
-            screen_x = match_x + left
-            screen_y = match_y + top
+        match_x, match_y = max_loc
 
-            # Update target position
-            self.target_x = screen_x
-            self.target_y = screen_y
-            self.target_found_last_frame = True
+        # Convert back to screen coordinates
+        screen_x = match_x + left
+        screen_y = match_y + top
 
-            return True, screen_x, screen_y
+        # Update target position
+        self.target_x = screen_x
+        self.target_y = screen_y
+        self.target_found_last_frame = True
 
-        # No match found in full search
-        self.target_found_last_frame = False
-        return False, 0, 0
+        return True, screen_x, screen_y
 
     def _hex_to_bgr(self, hex_color: int) -> tuple[int, int, int]:
         """

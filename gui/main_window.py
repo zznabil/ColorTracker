@@ -135,23 +135,20 @@ def setup_gui(app):
         else:
             dpg.hide_item("fov_overlay")
 
-    def on_fov_x_changed(sender, a):
+    def _update_fov(sender, value, axis_name):
         # Immediate value snapping with visual feedback
-        snapped = max(25, min(250, round(a / 25) * 25))
-        if abs(a - snapped) > 0.1:  # Only update if value changed significantly
+        snapped = max(25, min(250, round(value / 25) * 25))
+        if abs(value - snapped) > 0.1:  # Only update if value changed significantly
             dpg.set_value(sender, snapped)
-        app.config.update("fov_x", snapped)
+        app.config.update(axis_name, snapped)
         if getattr(app, "fov_overlay_enabled", False):
             update_fov_overlay()
 
+    def on_fov_x_changed(sender, a):
+        _update_fov(sender, a, "fov_x")
+
     def on_fov_y_changed(sender, a):
-        # Immediate value snapping with visual feedback
-        snapped = max(25, min(250, round(a / 25) * 25))
-        if abs(a - snapped) > 0.1:  # Only update if value changed significantly
-            dpg.set_value(sender, snapped)
-        app.config.update("fov_y", snapped)
-        if getattr(app, "fov_overlay_enabled", False):
-            update_fov_overlay()
+        _update_fov(sender, a, "fov_y")
 
     def on_master_enable_changed(sender, app_data):
         """Update master enable state and sync UI visual feedback"""
