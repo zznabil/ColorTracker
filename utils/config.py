@@ -6,6 +6,7 @@ Configuration Utility
 Handles loading and saving configuration settings.
 """
 
+import glob
 import json
 import os
 import threading
@@ -68,6 +69,7 @@ class Config:
 
         # Internal state
         self.config_file = "config.json"
+        self.profiles_dir = "profiles"
         self._last_save_time = 0
         self._save_debounce_ms = 500
         self._save_timer = None
@@ -121,16 +123,18 @@ class Config:
 
         return value
 
-    def load(self):
+    def load(self, filepath: str | None = None):
         """
         Load configuration from file if it exists with robust validation and repair
         """
-        if not os.path.exists(self.config_file):
-            print(f"Config: {self.config_file} not found. Using defaults.")
+        target_file = filepath if filepath else self.config_file
+
+        if not os.path.exists(target_file):
+            print(f"Config: {target_file} not found. Using defaults.")
             return
 
         try:
-            with open(self.config_file, encoding="utf-8") as f:
+            with open(target_file, encoding="utf-8") as f:
                 content = f.read()
 
             # Strip comments
@@ -158,19 +162,22 @@ class Config:
                     print(f"Config Repair: Missing key '{key}' in {self.config_file}. Using default.")
                     setattr(self, key, self.DEFAULT_CONFIG[key]["default"])
 
-            print("Configuration successfully loaded and validated.")
+            print(f"Configuration successfully loaded from {target_file}.")
         except Exception as e:
-            print(f"Critical Error loading {self.config_file}: {e}. Falling back to safe defaults.")
+            print(f"Critical Error loading {target_file}: {e}. Falling back to safe defaults.")
             # Self-healing: Reset to defaults on critical failure
-            for key, schema in self.DEFAULT_CONFIG.items():
-                setattr(self, key, schema["default"])
+            if target_file == self.config_file:
+                for key, schema in self.DEFAULT_CONFIG.items():
+                    setattr(self, key, schema["default"])
 
-    def save(self):
+    def save(self, filepath: str | None = None):
         """
         Save current configuration to file with detailed comments preserved
         """
-        # Cancel any pending save timer since we are saving now
-        if self._save_timer:
+        target_file = filepath if filepath else self.config_file
+
+        # Cancel any pending save timer since we are saving now (only if saving main config)
+        if target_file == self.config_file and self._save_timer:
             self._save_timer.cancel()
             self._save_timer = None
 
@@ -179,8 +186,8 @@ class Config:
                 # Create a dictionary of all configuration attributes
                 config_data = {}
                 for key, value in self.__dict__.items():
-                    # Skip the config_file attribute and internal attributes
-                    if key not in ["config_file", "_last_save_time", "_save_debounce_ms", "_save_timer", "_lock"]:
+                    # Skip internal attributes
+                    if not key.startswith("_") and key != "config_file" and key != "profiles_dir":
                         config_data[key] = value
 
                 # Build the complete JSON content as a single string to avoid file handle issues
@@ -271,12 +278,63 @@ class Config:
             json_content += "}\n"
 
             # Write all content at once to avoid file handle issues
-            with open(self.config_file, "w", encoding="utf-8") as f:
+            with open(target_file, "w", encoding="utf-8") as f:
                 f.write(json_content)
 
-            print(f"Configuration saved to {self.config_file}")
+            print(f"Configuration saved to {target_file}")
         except Exception as e:
             print(f"Error saving configuration: {e}")
+
+    def reset_to_defaults(self):
+        """Resets all configuration to default values and saves."""
+        for key, schema in self.DEFAULT_CONFIG.items():
+            setattr(self, key, schema["default"])
+        self.save()
+        print("Configuration reset to defaults.")
+
+    def ensure_profiles_dir(self):
+        """Ensures the profiles directory exists."""
+        if not os.path.exists(self.profiles_dir):
+            os.makedirs(self.profiles_dir)
+
+    def get_profiles(self) -> list[str]:
+        """Returns a list of available profile names."""
+        self.ensure_profiles_dir()
+        files = glob.glob(os.path.join(self.profiles_dir, "*.json"))
+        # Return sorted list of filenames without extension
+        return sorted([os.path.splitext(os.path.basename(f))[0] for f in files])
+
+    def save_profile(self, name: str):
+        """Saves current configuration as a named profile."""
+        self.ensure_profiles_dir()
+        # Sanitize name
+        clean_name = "".join(c for c in name if c.isalnum() or c in (" ", "-", "_")).strip()
+        if not clean_name:
+            raise ValueError("Invalid profile name")
+
+        filepath = os.path.join(self.profiles_dir, f"{clean_name}.json")
+        self.save(filepath=filepath)
+        return clean_name
+
+    def load_profile(self, name: str):
+        """Loads a named profile into the current configuration."""
+        self.ensure_profiles_dir()
+        filepath = os.path.join(self.profiles_dir, f"{name}.json")
+        if os.path.exists(filepath):
+            self.load(filepath=filepath)
+            # Auto-save to make it the active config
+            self.save()
+            return True
+        return False
+
+    def delete_profile(self, name: str):
+        """Deletes a named profile."""
+        self.ensure_profiles_dir()
+        filepath = os.path.join(self.profiles_dir, f"{name}.json")
+        if os.path.exists(filepath):
+            os.remove(filepath)
+            return True
+        return False
 
     def update(self, key: str, value: Any):
         """

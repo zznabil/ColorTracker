@@ -25,7 +25,7 @@
     // fov_x: horizontal detection range, fov_y: vertical detection range
     // Smaller values = faster performance, larger = wider detection
     // Recommended: 30-60 for most games
-    "fov_x": 25,
+    "fov_x": 123,
     "fov_y": 25,
 
     // === MOTION ENGINE SETTINGS ===

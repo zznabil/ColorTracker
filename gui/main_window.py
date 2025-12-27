@@ -452,19 +452,22 @@ def setup_gui(app):
 
                 dpg.add_text("PROFILES", color=(201, 0, 141))
 
-                """
                 def refresh_profile_combo():
-                    # Disabled
-                    pass
-
-                def update_metadata_fields():
-                    # Disabled
-                    pass
+                    profiles = app.config.get_profiles()
+                    if dpg.does_item_exist("profile_combo"):
+                        dpg.configure_item("profile_combo", items=profiles)
+                        # Reset value if current selection no longer exists
+                        current = dpg.get_value("profile_combo")
+                        if current and current not in profiles:
+                            dpg.set_value("profile_combo", "")
 
                 def on_profile_selected(sender, app_data):
-                    # Disabled
-                    pass
-                """
+                    if not app_data:
+                        return
+                    if app.config.load_profile(app_data):
+                        refresh_ui_from_config()
+                        if hasattr(app, "logger"):
+                            app.logger.info(f"Loaded profile: {app_data}")
 
                 def refresh_ui_from_config():
                     """Update all UI elements to match current config"""
@@ -498,56 +501,27 @@ def setup_gui(app):
 
                     app.update_tolerance_preview()
 
-                """
                 dpg.add_combo(
-                    items=app.config.list_profiles(),
-                    default_value=app.config.current_profile_name,
+                    items=app.config.get_profiles(),
                     tag="profile_combo",
                     callback=on_profile_selected,
                     width=-1,
                 )
-
-                dpg.add_spacer(height=5)
-                dpg.add_text("Metadata:")
-                try:
-                    dpg.add_input_text(label="Description", tag="meta_description")
-                    dpg.set_value("meta_description", str(getattr(app.config, "description", "")))
-                    dpg.set_item_callback("meta_description", lambda s, a: app.config.update("description", a))
-                except Exception as e:
-                    print(f"Warning: Failed to init description input: {e}")
-
-                try:
-                    dpg.add_input_text(label="Hotkey", tag="meta_hotkey", width=100)
-                    dpg.set_value("meta_hotkey", str(getattr(app.config, "hotkey", "")))
-                    dpg.set_item_callback("meta_hotkey", lambda s, a: app.config.update("hotkey", a))
-                except Exception as e:
-                    print(f"Warning: Failed to init hotkey input: {e}")
-                with dpg.tooltip("meta_hotkey"):
-                    dpg.add_text("Example: F1, Ctrl+P. (Visual reference only currently)")
+                with dpg.tooltip("profile_combo"):
+                    dpg.add_text("Select a profile to load its settings immediately.")
 
                 dpg.add_spacer(height=5)
                 with dpg.group(horizontal=True):
                     dpg.add_button(
                         label="Save As...",
-                        callback=lambda: dpg.show_item("save_profile_modal"),
-                        width=80,
-                    )
-                    dpg.add_button(
-                        label="Rename",
-                        callback=lambda: dpg.show_item("rename_profile_modal"),
-                        width=80,
-                    )
-                    dpg.add_button(
-                        label="Duplicate",
-                        callback=lambda: dpg.show_item("duplicate_profile_modal"),
-                        width=80,
+                        callback=lambda: [dpg.set_value("new_profile_name", ""), dpg.show_item("save_profile_modal")],
+                        width=115,
                     )
                     dpg.add_button(
                         label="Delete",
                         callback=lambda: dpg.show_item("delete_profile_modal"),
-                        width=80,
+                        width=115,
                     )
-                """
 
                 dpg.add_spacer(height=10)
                 dpg.add_separator()
@@ -762,11 +736,66 @@ def setup_gui(app):
                 label="CANCEL", callback=lambda: dpg.hide_item("reset_confirmation_modal"), width=120, height=25
             )
 
-    """
     # Save Profile Modal
     def save_new_profile(sender, app_data):
-        # Disabled
-        pass
+        name = dpg.get_value("new_profile_name")
+        if name:
+            try:
+                saved_name = app.config.save_profile(name)
+                refresh_profile_combo()
+                dpg.set_value("profile_combo", saved_name)
+                dpg.hide_item("save_profile_modal")
+                if hasattr(app, "logger"):
+                    app.logger.info(f"Saved profile: {saved_name}")
+            except Exception as e:
+                print(f"Error saving profile: {e}")
 
-    # ... Modal windows commented out ...
-    """
+    with dpg.window(
+        label="Save Profile As...",
+        modal=True,
+        show=False,
+        tag="save_profile_modal",
+        no_title_bar=True,
+        width=260,
+        height=130,
+        pos=[60, 200],
+    ):
+        dpg.add_spacer(height=5)
+        dpg.add_text("Enter profile name:")
+        dpg.add_input_text(tag="new_profile_name", width=-1)
+        dpg.add_spacer(height=10)
+        with dpg.group(horizontal=True):
+            dpg.add_button(label="SAVE", callback=save_new_profile, width=120, height=25)
+            dpg.add_button(
+                label="CANCEL", callback=lambda: dpg.hide_item("save_profile_modal"), width=120, height=25
+            )
+
+    # Delete Profile Modal
+    def delete_current_profile(sender, app_data):
+        name = dpg.get_value("profile_combo")
+        if name:
+            if app.config.delete_profile(name):
+                refresh_profile_combo()
+                dpg.set_value("profile_combo", "")
+                dpg.hide_item("delete_profile_modal")
+                if hasattr(app, "logger"):
+                    app.logger.info(f"Deleted profile: {name}")
+
+    with dpg.window(
+        label="Confirm Delete",
+        modal=True,
+        show=False,
+        tag="delete_profile_modal",
+        no_title_bar=True,
+        width=260,
+        height=120,
+        pos=[60, 200],
+    ):
+        dpg.add_spacer(height=5)
+        dpg.add_text("Delete the selected profile?\nThis cannot be undone.", wrap=240)
+        dpg.add_spacer(height=10)
+        with dpg.group(horizontal=True):
+            dpg.add_button(label="DELETE", callback=delete_current_profile, width=120, height=25)
+            dpg.add_button(
+                label="CANCEL", callback=lambda: dpg.hide_item("delete_profile_modal"), width=120, height=25
+            )
