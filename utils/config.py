@@ -88,36 +88,49 @@ class Config:
         schema = self.DEFAULT_CONFIG[key]
         expected_type = schema["type"]
 
-        # 1. Type Correction with Guard Clauses
+        # 1. Type Correction
         try:
-            if expected_type is bool:
-                if isinstance(value, str):
-                    return value.lower() in ("true", "1", "yes", "y", "on")
-                return bool(value)
-
-            if expected_type is int and not isinstance(value, int):
-                value = int(float(value))
-            elif expected_type is float and not isinstance(value, float):
-                value = float(value)
-            elif expected_type is str and not isinstance(value, str):
-                value = str(value)
-
+            value = self._correct_type(value, expected_type)
         except (ValueError, TypeError):
             print(f"Config Repair: Invalid type for '{key}' (expected {expected_type.__name__}). Resetting to default.")
             return schema["default"]
 
         # 2. Range Validation (Clamping)
-        if expected_type in (int, float):
-            if "min" in schema:
-                value = max(schema["min"], value)
-            if "max" in schema:
-                value = min(schema["max"], value)
+        value = self._clamp_value(value, schema)
 
         # 3. Option Validation
         if "options" in schema and value not in schema["options"]:
             print(f"Config Repair: '{key}' ({value}) not a valid option. Resetting to default.")
             return schema["default"]
 
+        return value
+
+    def _correct_type(self, value: Any, expected_type: type) -> Any:
+        """
+        Attempts to cast the value to the expected type.
+        """
+        if expected_type is bool:
+            if isinstance(value, str):
+                return value.lower() in ("true", "1", "yes", "y", "on")
+            return bool(value)
+
+        if expected_type is int and not isinstance(value, int):
+            return int(float(value))
+        elif expected_type is float and not isinstance(value, float):
+            return float(value)
+        elif expected_type is str and not isinstance(value, str):
+            return str(value)
+        return value
+
+    def _clamp_value(self, value: Any, schema: dict) -> Any:
+        """
+        Clamps the value within the min/max range defined in the schema.
+        """
+        if isinstance(value, (int, float)):
+            if "min" in schema:
+                value = max(schema["min"], value)
+            if "max" in schema:
+                value = min(schema["max"], value)
         return value
 
     def load(self):
