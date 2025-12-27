@@ -1,4 +1,5 @@
 import time
+from typing import cast
 from unittest.mock import patch
 
 import numpy as np
@@ -6,6 +7,7 @@ import numpy as np
 from core.detection import DetectionSystem
 from core.low_level_movement import LowLevelMovementSystem
 from core.motion_engine import MotionEngine
+from utils.config import Config
 
 
 class MockConfig:
@@ -40,7 +42,7 @@ def test_full_pipeline_throughput():
         sct_instance.grab.return_value = dummy_img
 
         # Initialize systems
-        ds = DetectionSystem(config)
+        ds = DetectionSystem(cast(Config, config))
         ps = MotionEngine(config)
         ms = LowLevelMovementSystem(config)
 
