@@ -55,29 +55,41 @@ def test_motion_smoothing(motion_engine):
 
     # Move to 100, 100 instantly
     time.sleep(0.016)
-    out_x, out_y = motion_engine.process(100, 100, 0.016)
 
-    # With smoothing, it shouldn't jump to 100 immediately
-    # Unless beta is very high or min_cutoff is very high.
-    # With default 0.05/0.05, it should lag significantly on first jump logic?
-    # Actually 1Euro is adaptive. High speed = low smoothing.
-    # But let's check values.
-    # dx will be large, so cutoff -> beta * dx.
-    # If dx ~ 100/0.016 = 6250.
-    # cutoff ~ 0.05 + 0.05 * 6250 = 312.
-    # Smoothing factor alpha ~ 1.0 (very responsive).
-    # So it might actually be close to 100.
+    # We expect some smoothing for large jumps if parameters allow
+    # With beta=0.05, it adapts to speed.
+    # Let's use a larger jump to verify "lag" property of 1Euro filter
+    # but 1Euro is designed to minimize lag at high speed!
+    # So checking smoothing on high speed jump is tricky.
+    # It minimizes jitter (low speed) and lag (high speed).
 
-    # Let's try slow movement to force smoothing.
+    # Let's test low speed smoothing (jitter reduction).
     motion_engine.reset()
     motion_engine.process(0, 0, 0.016)
 
-    # Move slowly (simulate time passing)
+    # Move a tiny amount that simulates jitter or slow movement
+    # If we move 10 pixels in 0.016s, that's ~600px/s.
+
+    # Let's check that it doesn't overshoot?
+    out_x, out_y = motion_engine.process(100, 100, 0.016)
+
+    # It should not exceed the target
+    assert out_x <= 100
+    assert out_y <= 100
+
+    # Reset and test significant smoothing expectation
+    motion_engine.reset()
+    motion_engine.config.motion_min_cutoff = 0.001 # Very heavy smoothing
+    motion_engine.config.motion_beta = 0.0
+    motion_engine.update_config()
+
+    motion_engine.process(0, 0, 0.016)
     time.sleep(0.016)
-    out_x, out_y = motion_engine.process(1, 1, 0.016)
-    # dx ~ 60. cutoff ~ 3. alpha ~ 1/(1 + 1/(2pi*3*0.016)) ~ 1/(1+3) ~ 0.25?
-    # So it should be smoothed.
-    assert out_x < 1 or out_y < 1
+    out_x, out_y = motion_engine.process(100, 100, 0.016)
+
+    # With heavy smoothing (low cutoff, 0 beta), it should lag significantly
+    assert out_x < 90
+    assert out_y < 90
 
 
 def test_prediction_logic(motion_engine):
@@ -114,22 +126,11 @@ def test_robustness_nan(motion_engine):
     # Should return previous valid (10) or clamped value, but definitely strict int
     assert isinstance(out_x, int)
     assert isinstance(out_y, int)
-    # Our implementation checks isfinite and returns raw if not,
-    # but raw is nan... wait.
-    # "if not math.isfinite(predicted_x): predicted_x = x"
-    # If x is nan, predicted_x becomes nan.
-    # Then return int(nan) -> ValueError!
-    # Ah, I need to fix this in implementation!
-    # I should catch this in test or fix code first?
-    # I'll fix code in a second pass if test fails.
-    # Actually I should fix it now before run.
-    # Checking code:
-    # if not math.isfinite(predicted_x): predicted_x = x
-    # If x is also infinite/nan...
-    # I should fallback to last valid or 0.
 
-    # Let's see if the implementation handles it.
-    pass
+    # Verify values are safe (0 or previous)
+    # The implementation returns previous values if available
+    assert out_x == 10
+    assert out_y == 10
 
 
 def test_config_update(motion_engine):

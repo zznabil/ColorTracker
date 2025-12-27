@@ -18,6 +18,9 @@ class OneEuroFilter:
     Adaptive low-pass filter minimizing jitter and lag.
     """
 
+    # OPTIMIZATION: Use __slots__ to reduce memory footprint and access time
+    __slots__ = ("min_cutoff", "beta", "d_cutoff", "x_prev", "dx_prev", "t_prev")
+
     def __init__(self, t0: float, x0: float, min_cutoff: float = 1.0, beta: float = 0.0, d_cutoff: float = 1.0):
         self.min_cutoff = float(min_cutoff)
         self.beta = float(beta)
@@ -157,9 +160,9 @@ class MotionEngine:
 
         # 3. Safety Clamping & Validation
         if not math.isfinite(predicted_x):
-            predicted_x = x
+            predicted_x = x if math.isfinite(x) else 0.0
         if not math.isfinite(predicted_y):
-            predicted_y = y
+            predicted_y = y if math.isfinite(y) else 0.0
 
         return int(round(predicted_x)), int(round(predicted_y))
 
