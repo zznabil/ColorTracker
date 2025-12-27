@@ -68,10 +68,16 @@ class Config:
 
         # Internal state
         self.config_file = "config.json"
+        self.profiles_dir = "profiles"
+        self.current_profile_name = "Default"
         self._last_save_time = 0
         self._save_debounce_ms = 500
         self._save_timer = None
         self._lock = threading.Lock()
+
+        # Ensure profiles directory exists
+        if not os.path.exists(self.profiles_dir):
+            os.makedirs(self.profiles_dir)
 
         # Load and validate saved configuration
         self.load()
@@ -325,8 +331,136 @@ class Config:
         """
         config_dict = {}
         for key, value in self.__dict__.items():
-            # Skip the config_file attribute
-            if key != "config_file":
+            # Skip internal attributes
+            if not key.startswith("_") and key not in ["config_file", "profiles_dir", "current_profile_name"]:
                 config_dict[key] = value
 
         return config_dict
+
+    # === PROFILE MANAGEMENT ===
+
+    def list_profiles(self) -> list[str]:
+        """
+        List all available profiles in the profiles directory.
+        """
+        if not os.path.exists(self.profiles_dir):
+            return []
+
+        profiles = []
+        for f in os.listdir(self.profiles_dir):
+            if f.endswith(".json"):
+                profiles.append(f[:-5])  # Remove .json extension
+
+        # Ensure Default exists
+        if "Default" not in profiles:
+            profiles.append("Default")
+
+        return sorted(profiles)
+
+    def reset_to_defaults(self):
+        """
+        Reset all configuration settings to their default values.
+        """
+        for key, schema in self.DEFAULT_CONFIG.items():
+            setattr(self, key, schema["default"])
+        self.save()
+        print("Configuration reset to defaults.")
+
+    def load_profile(self, profile_name: str) -> bool:
+        """
+        Load a profile from disk into the current configuration (Snapshot model).
+        Updates config.json immediately.
+        """
+        # Special handling for Default profile
+        if profile_name == "Default":
+            self.reset_to_defaults()
+            self.current_profile_name = "Default"
+            print("Loaded profile: Default (Reset to factory defaults)")
+            return True
+
+        filepath = os.path.join(self.profiles_dir, f"{profile_name}.json")
+        if not os.path.exists(filepath):
+            print(f"Profile {profile_name} not found.")
+            return False
+
+        try:
+            # Profiles are generated as valid JSON, so we load them directly.
+            # We avoid regex stripping here because it corrupts the valid "//" metadata key.
+            with open(filepath, encoding="utf-8") as f:
+                profile_data = json.load(f)
+
+            # Apply profile data to current state
+            for key, value in profile_data.items():
+                if key in self.DEFAULT_CONFIG:
+                     # Special legacy handling
+                    if key == "aim_point" and isinstance(value, str):
+                        aim_point_map = {"Head": 0, "Body": 1, "Legs": 2, "Chest": 1, "Center": 1}
+                        value = aim_point_map.get(value, 1)
+
+                    validated = self.validate(key, value)
+                    setattr(self, key, validated)
+
+            self.current_profile_name = profile_name
+            self.save() # Update config.json to match this profile
+            print(f"Loaded profile: {profile_name}")
+            return True
+
+        except Exception as e:
+            print(f"Error loading profile {profile_name}: {e}")
+            return False
+
+    def save_profile(self, profile_name: str) -> bool:
+        """
+        Save the current configuration to a named profile file.
+        """
+        if not profile_name or profile_name.strip() == "":
+            return False
+
+        # Sanitize profile name
+        # Allow only alphanumeric, underscore, hyphen, space
+        import re
+        if not re.match(r"^[a-zA-Z0-9_\-\s]+$", profile_name):
+            print(f"Invalid profile name: {profile_name}")
+            return False
+
+        filepath = os.path.join(self.profiles_dir, f"{profile_name}.json")
+
+        try:
+            # reuse save logic but to a specific file
+            # Ideally we'd refactor save() to accept a filepath, but we can just duplicate the simplified dict dump here
+            # since save() has a lot of comments hardcoded for config.json specifically.
+
+            config_data = self.get_all()
+
+            # Add metadata
+            config_data["//"] = f"Profile: {profile_name}"
+
+            with open(filepath, "w", encoding="utf-8") as f:
+                json.dump(config_data, f, indent=4)
+
+            self.current_profile_name = profile_name
+            print(f"Saved profile: {profile_name}")
+            return True
+        except Exception as e:
+            print(f"Error saving profile {profile_name}: {e}")
+            return False
+
+    def delete_profile(self, profile_name: str) -> bool:
+        """
+        Delete a profile file.
+        """
+        if profile_name == "Default":
+            print("Cannot delete Default profile.")
+            return False
+
+        filepath = os.path.join(self.profiles_dir, f"{profile_name}.json")
+        if os.path.exists(filepath):
+            try:
+                os.remove(filepath)
+                if self.current_profile_name == profile_name:
+                    self.current_profile_name = "Default"
+                return True
+            except Exception as e:
+                print(f"Error deleting profile {profile_name}: {e}")
+                return False
+        return False

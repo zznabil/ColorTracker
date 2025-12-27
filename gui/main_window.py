@@ -452,19 +452,16 @@ def setup_gui(app):
 
                 dpg.add_text("PROFILES", color=(201, 0, 141))
 
-                """
                 def refresh_profile_combo():
-                    # Disabled
-                    pass
-
-                def update_metadata_fields():
-                    # Disabled
-                    pass
+                    if dpg.does_item_exist("profile_combo"):
+                        dpg.configure_item("profile_combo", items=app.config.list_profiles(), default_value=app.config.current_profile_name)
 
                 def on_profile_selected(sender, app_data):
-                    # Disabled
-                    pass
-                """
+                    if app.config.load_profile(app_data):
+                         refresh_ui_from_config()
+                    else:
+                         # Revert combo if load failed (e.g. file missing)
+                         dpg.set_value(sender, app.config.current_profile_name)
 
                 def refresh_ui_from_config():
                     """Update all UI elements to match current config"""
@@ -498,7 +495,6 @@ def setup_gui(app):
 
                     app.update_tolerance_preview()
 
-                """
                 dpg.add_combo(
                     items=app.config.list_profiles(),
                     default_value=app.config.current_profile_name,
@@ -506,24 +502,6 @@ def setup_gui(app):
                     callback=on_profile_selected,
                     width=-1,
                 )
-
-                dpg.add_spacer(height=5)
-                dpg.add_text("Metadata:")
-                try:
-                    dpg.add_input_text(label="Description", tag="meta_description")
-                    dpg.set_value("meta_description", str(getattr(app.config, "description", "")))
-                    dpg.set_item_callback("meta_description", lambda s, a: app.config.update("description", a))
-                except Exception as e:
-                    print(f"Warning: Failed to init description input: {e}")
-
-                try:
-                    dpg.add_input_text(label="Hotkey", tag="meta_hotkey", width=100)
-                    dpg.set_value("meta_hotkey", str(getattr(app.config, "hotkey", "")))
-                    dpg.set_item_callback("meta_hotkey", lambda s, a: app.config.update("hotkey", a))
-                except Exception as e:
-                    print(f"Warning: Failed to init hotkey input: {e}")
-                with dpg.tooltip("meta_hotkey"):
-                    dpg.add_text("Example: F1, Ctrl+P. (Visual reference only currently)")
 
                 dpg.add_spacer(height=5)
                 with dpg.group(horizontal=True):
@@ -538,16 +516,14 @@ def setup_gui(app):
                         width=80,
                     )
                     dpg.add_button(
-                        label="Duplicate",
-                        callback=lambda: dpg.show_item("duplicate_profile_modal"),
-                        width=80,
-                    )
-                    dpg.add_button(
                         label="Delete",
                         callback=lambda: dpg.show_item("delete_profile_modal"),
                         width=80,
                     )
-                """
+
+                    # Tooltips for buttons
+                    with dpg.tooltip(dpg.last_item()):
+                        dpg.add_text("Delete current profile (Default cannot be deleted)")
 
                 dpg.add_spacer(height=10)
                 dpg.add_separator()
@@ -762,11 +738,73 @@ def setup_gui(app):
                 label="CANCEL", callback=lambda: dpg.hide_item("reset_confirmation_modal"), width=120, height=25
             )
 
-    """
-    # Save Profile Modal
-    def save_new_profile(sender, app_data):
-        # Disabled
-        pass
+    # --- PROFILE MODALS ---
 
-    # ... Modal windows commented out ...
-    """
+    # SAVE AS
+    def save_new_profile(sender, app_data):
+        name = dpg.get_value("new_profile_name")
+        if name and name.strip():
+            if app.config.save_profile(name):
+                refresh_profile_combo()
+                dpg.hide_item("save_profile_modal")
+                dpg.set_value("new_profile_name", "") # Clear input
+
+    with dpg.window(label="Save Profile As", modal=True, show=False, tag="save_profile_modal", width=300, height=120, pos=[40, 200], no_resize=True):
+        dpg.add_text("Enter new profile name:")
+        dpg.add_input_text(tag="new_profile_name", width=-1)
+        dpg.add_spacer(height=10)
+        with dpg.group(horizontal=True):
+            dpg.add_button(label="Save", callback=save_new_profile, width=120)
+            dpg.add_button(label="Cancel", callback=lambda: dpg.hide_item("save_profile_modal"), width=120)
+
+    # RENAME
+    def rename_profile(sender, app_data):
+        new_name = dpg.get_value("rename_profile_name")
+        if new_name and new_name.strip():
+            # Save as new, then delete old
+            old_name = app.config.current_profile_name
+            if old_name == "Default":
+                # Don't delete default, just save new
+                app.config.save_profile(new_name)
+            else:
+                if app.config.save_profile(new_name):
+                    app.config.delete_profile(old_name)
+
+            refresh_profile_combo()
+            dpg.hide_item("rename_profile_modal")
+            dpg.set_value("rename_profile_name", "")
+
+    with dpg.window(label="Rename Profile", modal=True, show=False, tag="rename_profile_modal", width=300, height=120, pos=[40, 200], no_resize=True):
+        dpg.add_text("Enter new name:")
+        dpg.add_input_text(tag="rename_profile_name", width=-1)
+        dpg.add_spacer(height=10)
+        with dpg.group(horizontal=True):
+            dpg.add_button(label="Rename", callback=rename_profile, width=120)
+            dpg.add_button(label="Cancel", callback=lambda: dpg.hide_item("rename_profile_modal"), width=120)
+
+    # DELETE
+    def delete_current_profile(sender, app_data):
+        name = app.config.current_profile_name
+        if name == "Default":
+             # Should be blocked by UI but just in case
+             return
+
+        if app.config.delete_profile(name):
+            app.config.current_profile_name = "Default"
+            app.config.load_profile("Default")
+            refresh_profile_combo()
+            refresh_ui_from_config()
+            dpg.hide_item("delete_profile_modal")
+
+    with dpg.window(label="Delete Profile", modal=True, show=False, tag="delete_profile_modal", width=300, height=120, pos=[40, 200], no_resize=True):
+        dpg.add_text("Are you sure you want to delete this profile?", wrap=280)
+        dpg.add_spacer(height=10)
+        with dpg.group(horizontal=True):
+            delete_btn = dpg.add_button(label="DELETE", callback=delete_current_profile, width=120)
+            with dpg.theme() as delete_theme:
+                with dpg.theme_component(dpg.mvButton):
+                    dpg.add_theme_color(dpg.mvThemeCol_Button, (150, 40, 40), category=dpg.mvThemeCat_Core)
+                    dpg.add_theme_color(dpg.mvThemeCol_ButtonHovered, (180, 50, 50), category=dpg.mvThemeCat_Core)
+            dpg.bind_item_theme(delete_btn, delete_theme)
+
+            dpg.add_button(label="Cancel", callback=lambda: dpg.hide_item("delete_profile_modal"), width=120)

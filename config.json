@@ -1,19 +1,19 @@
 {
     // === DISPLAY CONFIGURATION ===
     // Screen resolution settings - MUST match your actual monitor resolution
-    "screen_width": 2560,     // Width in pixels (common: 1920, 2560, 3840)
-    "screen_height": 1440,    // Height in pixels (common: 1080, 1440, 2160)
+    "screen_width": 1920,     // Width in pixels (common: 1920, 2560, 3840)
+    "screen_height": 1080,    // Height in pixels (common: 1080, 1440, 2160)
 
     // === COLOR DETECTION SETTINGS ===
     // Target color to detect (RGB value as integer)
     // Use color picker in GUI to set this value automatically
     // Common target colors: Purple ~16733797, Red ~16711680, Pink ~16761035
-    "target_color": 16733020,
+    "target_color": 16733797,
 
     // Color matching tolerance (0-100)
     // Lower = more precise matching, Higher = more flexible matching
     // Recommended: 10-20 for good lighting, 25-50 for variable lighting
-    "color_tolerance": 15,
+    "color_tolerance": 0,
 
     // === DETECTION AREA SETTINGS ===
     // Search area radius around crosshair (pixels)
@@ -25,19 +25,19 @@
     // fov_x: horizontal detection range, fov_y: vertical detection range
     // Smaller values = faster performance, larger = wider detection
     // Recommended: 30-60 for most games
-    "fov_x": 25,
-    "fov_y": 25,
+    "fov_x": 209,
+    "fov_y": 50,
 
     // === MOTION ENGINE SETTINGS ===
     // 1 Euro Filter Settings
     // motion_min_cutoff: Stabilization. Lower = More stable when slow. Rec: 0.001-0.1
-    "motion_min_cutoff": 0.0010000000474974513,
+    "motion_min_cutoff": 0.99,
     // motion_beta: Responsiveness. Higher = Faster reaction. Rec: 0.001-0.1
-    "motion_beta": 0.4059999883174896,
+    "motion_beta": 0.05,
 
     // Prediction Status
     // prediction_scale: Velocity prediction multiplier. 0.0 = Off.
-    "prediction_scale": 0.10000000149011612,
+    "prediction_scale": 0.0,
 
     // === TARGETING SETTINGS ===
     // Target tracking point on detected objects
