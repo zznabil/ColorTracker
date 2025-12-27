@@ -55,6 +55,16 @@ class DetectionSystem:
         self._last_target_color = None
         self._last_color_tolerance = None
 
+        # Caching for FOV boundaries
+        self._scan_left: int = 0
+        self._scan_top: int = 0
+        self._scan_right: int = 0
+        self._scan_bottom: int = 0
+        self._last_fov_x: int | None = None
+        self._last_fov_y: int | None = None
+        self._last_screen_width: int | None = None
+        self._last_screen_height: int | None = None
+
     def _get_sct(self) -> Any:
         """
         Get thread-local MSS instance
@@ -100,27 +110,42 @@ class DetectionSystem:
             self._last_target_color = current_color
             self._last_color_tolerance = current_tolerance
 
+    def _update_fov_cache(self) -> None:
+        """
+        Updates cached FOV boundaries if config (screen size or FOV) has changed.
+        Eliminates redundant arithmetic in the hot path.
+        """
+        current_fov_x: int = self.config.fov_x
+        current_fov_y: int = self.config.fov_y
+        current_w: int = self.config.screen_width
+        current_h: int = self.config.screen_height
+
+        if (
+            current_fov_x != self._last_fov_x
+            or current_fov_y != self._last_fov_y
+            or current_w != self._last_screen_width
+            or current_h != self._last_screen_height
+        ):
+            center_x = current_w // 2
+            center_y = current_h // 2
+
+            # Calculate and clamp boundaries once
+            self._scan_left = max(0, center_x - current_fov_x)
+            self._scan_top = max(0, center_y - current_fov_y)
+            self._scan_right = min(current_w, center_x + current_fov_x)
+            self._scan_bottom = min(current_h, center_y + current_fov_y)
+
+            self._last_fov_x = current_fov_x
+            self._last_fov_y = current_fov_y
+            self._last_screen_width = current_w
+            self._last_screen_height = current_h
+
     def find_target(self) -> tuple[bool, int, int]:
         """
         Search for target pixel color on screen
         """
-        # Get screen center coordinates
-        center_x: int = self.config.screen_width // 2
-        center_y: int = self.config.screen_height // 2
-
-        # Calculate FOV boundaries
-        scan_left: int = center_x - self.config.fov_x
-        scan_top: int = center_y - self.config.fov_y
-        scan_right: int = center_x + self.config.fov_x
-        scan_bottom: int = center_y + self.config.fov_y
-
-        # Ensure boundaries are within screen
-        scan_left = max(0, scan_left)
-        scan_top = max(0, scan_top)
-        scan_right = min(self.config.screen_width, scan_right)
-        scan_bottom = min(self.config.screen_height, scan_bottom)
-
-        # Update color bounds cache
+        # Update caches if needed
+        self._update_fov_cache()
         self._update_color_bounds()
 
         # First try local search if we found a target in the previous frame
@@ -130,7 +155,9 @@ class DetectionSystem:
                 return result
 
         # If local search failed or no previous target, do full FOV search
-        return self._full_search(scan_left, scan_top, scan_right, scan_bottom)
+        return self._full_search(
+            self._scan_left, self._scan_top, self._scan_right, self._scan_bottom
+        )
 
     def _capture_and_process_frame(self, area: dict) -> tuple[bool, Any]:
         """
