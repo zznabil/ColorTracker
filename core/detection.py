@@ -125,6 +125,55 @@ class DetectionSystem:
         # If local search failed or no previous target, do full FOV search
         return self._full_search(scan_left, scan_top, scan_right, scan_bottom)
 
+    def _detect_in_area(self, area: dict) -> tuple[bool, int, int]:
+        """
+        Helper method to perform detection within a specific screen area.
+
+        Args:
+            area: Dictionary defining the capture area (left, top, width, height)
+
+        Returns:
+            Tuple containing (found, screen_x, screen_y)
+        """
+        try:
+            # Use thread-local MSS instance to prevent threading conflicts
+            sct = self._get_sct()
+            sct_img = sct.grab(area)
+            # OPTIMIZATION: Use frombuffer to avoid memory copy
+            img_bgra = np.frombuffer(sct_img.bgra, dtype=np.uint8).reshape((sct_img.height, sct_img.width, 4))
+            if img_bgra is None or img_bgra.size == 0 or img_bgra.ndim != 3 or img_bgra.shape[2] != 4:
+                return False, 0, 0
+        except Exception:
+            # Handle screen capture errors gracefully
+            return False, 0, 0
+
+        # OPTIMIZATION: Removed cv2.cvtColor(img_bgra, cv2.COLOR_BGRA2BGR)
+        # We now perform color matching directly on BGRA data.
+        # This saves O(N) allocation and CPU cycles per frame.
+
+        # Use cached bounds
+        if self._lower_bound is None or self._upper_bound is None:
+            self._update_color_bounds()
+
+        # Create mask of pixels within color range
+        mask = cv2.inRange(img_bgra, self._lower_bound, self._upper_bound)  # type: ignore
+
+        # OPTIMIZATION: Use minMaxLoc instead of findNonZero
+        # findNonZero allocates memory for ALL matching points (O(N))
+        # minMaxLoc finds the max value (255 if match exists) and its location in O(1) memory
+        _, max_val, _, max_loc = cv2.minMaxLoc(mask)
+
+        if max_val > 0:
+            match_x, match_y = max_loc
+
+            # Convert back to screen coordinates
+            screen_x = int(match_x + area["left"])
+            screen_y = int(match_y + area["top"])
+
+            return True, screen_x, screen_y
+
+        return False, 0, 0
+
     def _local_search(self) -> tuple[bool, int, int]:
         """
         Perform a local search around the last known target position
@@ -158,36 +207,9 @@ class DetectionSystem:
 
         local_area = {"left": local_left, "top": local_top, "width": width, "height": height}
 
-        try:
-            sct = self._get_sct()
-            sct_img = sct.grab(local_area)
-            # OPTIMIZATION: Use frombuffer to avoid memory copy
-            img_bgra = np.frombuffer(sct_img.bgra, dtype=np.uint8).reshape((sct_img.height, sct_img.width, 4))
-            if img_bgra is None or img_bgra.size == 0 or img_bgra.ndim != 3 or img_bgra.shape[2] != 4:
-                return False, 0, 0
-        except Exception:
-            return False, 0, 0
+        found, screen_x, screen_y = self._detect_in_area(local_area)
 
-        # OPTIMIZATION: Removed cv2.cvtColor(img_bgra, cv2.COLOR_BGRA2BGR)
-        # We now perform color matching directly on BGRA data.
-        # This saves O(N) allocation and CPU cycles per frame.
-
-        # Use cached bounds
-        if self._lower_bound is None or self._upper_bound is None:
-            self._update_color_bounds()
-
-        mask = cv2.inRange(img_bgra, self._lower_bound, self._upper_bound)  # type: ignore
-
-        # OPTIMIZATION: Use minMaxLoc instead of findNonZero
-        # findNonZero allocates memory for ALL matching points (O(N))
-        # minMaxLoc finds the max value (255 if match exists) and its location in O(1) memory
-        _, max_val, _, max_loc = cv2.minMaxLoc(mask)
-
-        if max_val > 0:
-            match_x, match_y = max_loc
-            screen_x: int = int(match_x + local_left)
-            screen_y: int = int(match_y + local_top)
-
+        if found:
             # --- FOV Restriction Check ---
             # Ensure the target found in local search is still within the global FOV bounds
             center_x: int = self.config.screen_width // 2
@@ -245,38 +267,9 @@ class DetectionSystem:
         # Create capture area dictionary
         full_area = {"left": left, "top": top, "width": width, "height": height}
 
-        try:
-            # Use thread-local MSS instance to prevent threading conflicts
-            sct = self._get_sct()
-            sct_img = sct.grab(full_area)
-            # OPTIMIZATION: Use frombuffer to avoid memory copy
-            img_bgra = np.frombuffer(sct_img.bgra, dtype=np.uint8).reshape((sct_img.height, sct_img.width, 4))
-            if img_bgra is None or img_bgra.size == 0 or img_bgra.ndim != 3 or img_bgra.shape[2] != 4:
-                return False, 0, 0
-        except Exception:
-            # Handle screen capture errors gracefully
-            return False, 0, 0
+        found, screen_x, screen_y = self._detect_in_area(full_area)
 
-        # OPTIMIZATION: Removed cv2.cvtColor(img_bgra, cv2.COLOR_BGRA2BGR)
-        # We now perform color matching directly on BGRA data.
-
-        # Use cached bounds
-        if self._lower_bound is None or self._upper_bound is None:
-            self._update_color_bounds()
-
-        # Create mask of pixels within color range
-        mask = cv2.inRange(img_bgra, self._lower_bound, self._upper_bound)  # type: ignore
-
-        # OPTIMIZATION: Use minMaxLoc instead of findNonZero
-        _, max_val, _, max_loc = cv2.minMaxLoc(mask)
-
-        if max_val > 0:
-            match_x, match_y = max_loc
-
-            # Convert back to screen coordinates
-            screen_x = match_x + left
-            screen_y = match_y + top
-
+        if found:
             # Update target position
             self.target_x = screen_x
             self.target_y = screen_y
