@@ -6,12 +6,18 @@ Low-Level Movement System Module
 Handles mouse movement using Windows API calls for game compatibility.
 This implementation uses SendInput which is more likely to work in games
 than high-level libraries like pyautogui or pynput.
+
+OPTIMIZATIONS (V3.2.2):
+- Pre-allocated `ctypes` structures (`INPUT`, `MOUSEINPUT`) to eliminate allocation in hot path.
+- Cached `user32` interface to avoid repeated `getattr` and `hasattr` checks.
+- Thread-safe structure modification using `threading.Lock`.
 """
 
 import ctypes
 import sys
+import threading
 import time
-from typing import Any
+from typing import Any, Protocol, runtime_checkable
 
 # Conditionally import Windows-specific libraries or mock them
 if sys.platform == "win32":
@@ -92,6 +98,15 @@ class INPUT(ctypes.Structure):
     _fields_ = [("type", wintypes.DWORD), ("ii", _INPUT)]  # type: ignore
 
 
+@runtime_checkable
+class User32Protocol(Protocol):
+    """Protocol for User32 interface to ensure type safety"""
+
+    def GetSystemMetrics(self, index: int) -> int: ...
+    def GetCursorPos(self, point_ref: Any) -> int: ...
+    def SendInput(self, nInputs: int, pInputs: Any, cbSize: int) -> int: ...
+
+
 class LowLevelMovementSystem:
     """Handles low-level mouse movement using Windows API for game compatibility"""
 
@@ -103,32 +118,43 @@ class LowLevelMovementSystem:
             config: Configuration object with movement settings
         """
         self.config = config
+        self._lock = threading.Lock()
 
         # Movement settings
-        # Dynamic access to config is used instead of caching
-        # self.smoothing and self.aim_point are accessed from self.config directly
-
-        # Ultra-responsive mode settings
         self.ultra_responsive_mode = getattr(config, "ultra_responsive_mode", False)
         self.zero_latency_mode = getattr(config, "zero_latency_mode", False)
+
+        # Cache User32 interface
+        self._user32 = self._get_user32()
+
+        # Pre-allocate INPUT structure for reuse (Optimization)
+        # We initialize it once and modify fields in the hot path.
+        self._input_structure = INPUT()
+        self._input_structure.type = INPUT_MOUSE
+        # Initialize default values (0/None is default in ctypes but being explicit)
+        self._input_structure.ii.mi.mouseData = 0
+        self._input_structure.ii.mi.time = 0
+        self._input_structure.ii.mi.dwExtraInfo = None
+
+        # Cache sizeof for SendInput
+        self._sizeof_input = ctypes.sizeof(INPUT)
 
         # Get screen dimensions for absolute positioning
         self.screen_width = 1920
         self.screen_height = 1080
 
-        # Try to get actual metrics, respecting mocks
+        # Try to get actual metrics
         try:
-            user32 = self._get_user32()
-            if user32:
-                self.screen_width = user32.GetSystemMetrics(0)  # type: ignore
-                self.screen_height = user32.GetSystemMetrics(1)  # type: ignore
+            if self._user32:
+                self.screen_width = self._user32.GetSystemMetrics(0)
+                self.screen_height = self._user32.GetSystemMetrics(1)
         except Exception:
             pass
 
         # Aim offset based on aim point
         self.aim_offset_y = 0
 
-    def _get_user32(self):
+    def _get_user32(self) -> Any:
         """Helper to get the correct user32 instance (real or mocked)"""
         # First check if ctypes.windll exists and has user32 (this catches the test mocks)
         if hasattr(ctypes, "windll") and hasattr(ctypes.windll, "user32"):
@@ -147,68 +173,67 @@ class LowLevelMovementSystem:
         Returns:
             Tuple of (x, y) coordinates
         """
-        user32 = self._get_user32()
-        if not user32:
+        if not self._user32:
             return 0, 0
 
         point = POINT()
         try:
-            user32.GetCursorPos(ctypes.byref(point))  # type: ignore
+            self._user32.GetCursorPos(ctypes.byref(point))
         except Exception:
             pass
         return point.x, point.y
 
     def move_mouse_relative(self, dx: int, dy: int) -> bool:
         """
-        Move mouse by relative offset using SendInput (low-level)
+        Move mouse by relative offset using SendInput (low-level).
+        Uses pre-allocated structure and thread locking for high performance and safety.
         """
-        user32 = self._get_user32()
-        if not user32:
+        if not self._user32:
             return True
 
-        mouse_input = MOUSEINPUT(dx=dx, dy=dy, mouseData=0, dwFlags=MOUSEEVENTF_MOVE, time=0, dwExtraInfo=None)
+        with self._lock:
+            # Modify pre-allocated structure in place
+            # Accessing .ii.mi gives us access to the MOUSEINPUT union member
+            self._input_structure.ii.mi.dx = dx
+            self._input_structure.ii.mi.dy = dy
+            self._input_structure.ii.mi.dwFlags = MOUSEEVENTF_MOVE
 
-        input_struct = INPUT(type=INPUT_MOUSE, ii=INPUT._INPUT(mi=mouse_input))
-
-        # Send the input using Windows API with safety check
-        try:
-            result = user32.SendInput(1, ctypes.byref(input_struct), ctypes.sizeof(INPUT))  # type: ignore
-            return result == 1
-        except Exception:
-            return False
+            # Send the input using Windows API with safety check
+            try:
+                result = self._user32.SendInput(
+                    1, ctypes.byref(self._input_structure), self._sizeof_input
+                )
+                return result == 1
+            except Exception:
+                return False
 
     def move_mouse_absolute(self, x: int, y: int) -> bool:
         """
         Move mouse to absolute position using SendInput (low-level)
         Using round() for better precision and (width-1) for correct mapping.
         """
-        user32 = self._get_user32()
-        if not user32:
+        if not self._user32:
             return True
 
         # Normalize coordinates to 0-65535 range
         # We subtract 1 from screen dimensions because pixel coordinates are 0-indexed
-        # e.g. x=1919 should map to 65535 on a 1920-wide screen
         normalized_x = max(0, min(65535, int(round((x * 65535) / (self.screen_width - 1)))))
         normalized_y = max(0, min(65535, int(round((y * 65535) / (self.screen_height - 1)))))
 
-        mouse_input = MOUSEINPUT(
-            dx=normalized_x,
-            dy=normalized_y,
-            mouseData=0,
-            dwFlags=MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE,
-            time=0,
-            dwExtraInfo=None,
-        )
+        with self._lock:
+            # Modify pre-allocated structure in place
+            self._input_structure.ii.mi.dx = normalized_x
+            self._input_structure.ii.mi.dy = normalized_y
+            self._input_structure.ii.mi.dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE
 
-        input_struct = INPUT(type=INPUT_MOUSE, ii=INPUT._INPUT(mi=mouse_input))
-
-        # Send the input using Windows API with safety check
-        try:
-            result = user32.SendInput(1, ctypes.byref(input_struct), ctypes.sizeof(INPUT))
-            return result == 1
-        except Exception:
-            return False
+            # Send the input using Windows API with safety check
+            try:
+                result = self._user32.SendInput(
+                    1, ctypes.byref(self._input_structure), self._sizeof_input
+                )
+                return result == 1
+            except Exception:
+                return False
 
     def move_to_target(self, target_x: int, target_y: int) -> None:
         """
