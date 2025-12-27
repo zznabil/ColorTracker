@@ -86,9 +86,16 @@ class Config:
             return value
 
         schema = self.DEFAULT_CONFIG[key]
-        expected_type = schema["type"]
 
-        # 1. Type Correction with Guard Clauses
+        value = self._repair_type(key, value, schema)
+        value = self._clamp_value(value, schema)
+        value = self._validate_option(key, value, schema)
+
+        return value
+
+    def _repair_type(self, key: str, value: Any, schema: dict[str, Any]) -> Any:
+        """Attempts to coerce value to the expected type defined in schema."""
+        expected_type = schema["type"]
         try:
             if expected_type is bool:
                 if isinstance(value, str):
@@ -96,28 +103,33 @@ class Config:
                 return bool(value)
 
             if expected_type is int and not isinstance(value, int):
-                value = int(float(value))
+                return int(float(value))
             elif expected_type is float and not isinstance(value, float):
-                value = float(value)
+                return float(value)
             elif expected_type is str and not isinstance(value, str):
-                value = str(value)
+                return str(value)
+
+            return value
 
         except (ValueError, TypeError):
             print(f"Config Repair: Invalid type for '{key}' (expected {expected_type.__name__}). Resetting to default.")
             return schema["default"]
 
-        # 2. Range Validation (Clamping)
+    def _clamp_value(self, value: Any, schema: dict[str, Any]) -> Any:
+        """Clamps numeric values within min/max ranges if defined."""
+        expected_type = schema["type"]
         if expected_type in (int, float):
             if "min" in schema:
                 value = max(schema["min"], value)
             if "max" in schema:
                 value = min(schema["max"], value)
+        return value
 
-        # 3. Option Validation
+    def _validate_option(self, key: str, value: Any, schema: dict[str, Any]) -> Any:
+        """Ensures value is within the allowed options if defined."""
         if "options" in schema and value not in schema["options"]:
             print(f"Config Repair: '{key}' ({value}) not a valid option. Resetting to default.")
             return schema["default"]
-
         return value
 
     def load(self):
