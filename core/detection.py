@@ -30,6 +30,12 @@ class DetectionSystem:
     _upper_bound: NDArray[np.uint8] | None
     _last_target_color: int | None
     _last_color_tolerance: int | None
+    # Cached scan area: (left, top, right, bottom)
+    _scan_area: tuple[int, int, int, int] | None
+    _last_screen_width: int | None
+    _last_screen_height: int | None
+    _last_fov_x: int | None
+    _last_fov_y: int | None
 
     def __init__(self, config: Any) -> None:
         """
@@ -49,11 +55,17 @@ class DetectionSystem:
         self.target_y = 0
         self.target_found_last_frame = False
 
-        # Caching for color bounds to avoid re-calculation per frame
+        # Caching for color bounds and spatial settings to avoid re-calculation per frame
         self._lower_bound = None
         self._upper_bound = None
         self._last_target_color = None
         self._last_color_tolerance = None
+
+        self._scan_area = None
+        self._last_screen_width = None
+        self._last_screen_height = None
+        self._last_fov_x = None
+        self._last_fov_y = None
 
     def _get_sct(self) -> Any:
         """
@@ -68,11 +80,12 @@ class DetectionSystem:
             self._local.sct = mss.mss()
         return self._local.sct
 
-    def _update_color_bounds(self) -> None:
+    def _update_cached_config(self) -> None:
         """
-        Updates the cached color bounds if config has changed.
-        This avoids re-calculating bounds and re-converting hex to BGR every frame.
+        Updates cached configuration values (color bounds, scan area) if changed.
+        This minimizes per-frame overhead by avoiding redundant calculations and conversions.
         """
+        # 1. Update Color Bounds
         current_color: int = self.config.target_color
         current_tolerance: int = self.config.color_tolerance
 
@@ -100,28 +113,41 @@ class DetectionSystem:
             self._last_target_color = current_color
             self._last_color_tolerance = current_tolerance
 
+        # 2. Update Spatial/FOV Bounds
+        # We only recalculate if dimensions or FOV settings change
+        sw: int = self.config.screen_width
+        sh: int = self.config.screen_height
+        fov_x: int = self.config.fov_x
+        fov_y: int = self.config.fov_y
+
+        if (
+            self._scan_area is None
+            or sw != self._last_screen_width
+            or sh != self._last_screen_height
+            or fov_x != self._last_fov_x
+            or fov_y != self._last_fov_y
+        ):
+            center_x = sw // 2
+            center_y = sh // 2
+
+            scan_left = max(0, center_x - fov_x)
+            scan_top = max(0, center_y - fov_y)
+            scan_right = min(sw, center_x + fov_x)
+            scan_bottom = min(sh, center_y + fov_y)
+
+            self._scan_area = (scan_left, scan_top, scan_right, scan_bottom)
+
+            self._last_screen_width = sw
+            self._last_screen_height = sh
+            self._last_fov_x = fov_x
+            self._last_fov_y = fov_y
+
     def find_target(self) -> tuple[bool, int, int]:
         """
         Search for target pixel color on screen
         """
-        # Get screen center coordinates
-        center_x: int = self.config.screen_width // 2
-        center_y: int = self.config.screen_height // 2
-
-        # Calculate FOV boundaries
-        scan_left: int = center_x - self.config.fov_x
-        scan_top: int = center_y - self.config.fov_y
-        scan_right: int = center_x + self.config.fov_x
-        scan_bottom: int = center_y + self.config.fov_y
-
-        # Ensure boundaries are within screen
-        scan_left = max(0, scan_left)
-        scan_top = max(0, scan_top)
-        scan_right = min(self.config.screen_width, scan_right)
-        scan_bottom = min(self.config.screen_height, scan_bottom)
-
-        # Update color bounds cache
-        self._update_color_bounds()
+        # Update configuration cache (color bounds, scan area)
+        self._update_cached_config()
 
         # First try local search if we found a target in the previous frame
         if self.target_found_last_frame:
@@ -130,6 +156,9 @@ class DetectionSystem:
                 return result
 
         # If local search failed or no previous target, do full FOV search
+        # We can safely assert self._scan_area is not None because _update_cached_config is called above
+        scan_left, scan_top, scan_right, scan_bottom = self._scan_area  # type: ignore
+
         return self._full_search(scan_left, scan_top, scan_right, scan_bottom)
 
     def _capture_and_process_frame(self, area: dict) -> tuple[bool, Any]:
@@ -188,7 +217,7 @@ class DetectionSystem:
 
         # Use cached bounds
         if self._lower_bound is None or self._upper_bound is None:
-            self._update_color_bounds()
+            self._update_cached_config()
 
         mask = cv2.inRange(img_bgra, self._lower_bound, self._upper_bound)  # type: ignore
         _, max_val, _, max_loc = cv2.minMaxLoc(mask)
@@ -248,7 +277,7 @@ class DetectionSystem:
 
         # Use cached bounds
         if self._lower_bound is None or self._upper_bound is None:
-            self._update_color_bounds()
+            self._update_cached_config()
 
         # Create mask of pixels within color range
         mask = cv2.inRange(img_bgra, self._lower_bound, self._upper_bound)  # type: ignore
