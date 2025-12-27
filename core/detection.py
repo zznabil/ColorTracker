@@ -3,8 +3,11 @@
 """
 Detection System Module
 
-Handles pixel search for target detection based on color.
-Optimization: Uses cv2.minMaxLoc instead of cv2.findNonZero for O(1) memory allocation.
+Handles high-precision pixel search for target detection based on color.
+OPTIMIZATIONS:
+- Uses `cv2.minMaxLoc` for O(1) memory allocation during peak search.
+- Zero-copy buffer architecture via `np.frombuffer` for ultra-low latency.
+- Thread-local MSS instances for concurrent screen capture safety.
 """
 
 import threading

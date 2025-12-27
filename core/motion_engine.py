@@ -2,9 +2,10 @@
 Motion Engine Module
 
 Unified system for coordinate smoothing and movement prediction.
-Implements the 1 Euro Filter algorithm for adaptive filtering:
-- Low jitter at low speeds (high smoothing)
-- Low latency at high speeds (low smoothing)
+OPTIMIZATIONS (V3.2.1):
+- Implements the 1 Euro Filter algorithm with inlined math for speed.
+- Utilizes `__slots__` for minimal memory overhead and fast attribute access.
+- Predictive lookahead logic to compensate for display and filter lag.
 """
 
 import math
@@ -16,7 +17,13 @@ class OneEuroFilter:
     """
     1 Euro Filter implementation.
     Adaptive low-pass filter minimizing jitter and lag.
+
+    OPTIMIZATION:
+    - Uses __slots__ for reduced memory footprint and faster attribute access.
+    - Inlines smoothing calculations to avoid method call overhead in hot path.
     """
+
+    __slots__ = ("min_cutoff", "beta", "d_cutoff", "value_prev", "deriv_prev", "t_prev")
 
     def __init__(self, t0: float, x0: float, min_cutoff: float = 1.0, beta: float = 0.0, d_cutoff: float = 1.0):
         self.min_cutoff = float(min_cutoff)
@@ -40,17 +47,23 @@ class OneEuroFilter:
         if t_e <= 0:
             return self.value_prev
 
-        # Calculate the filtered derivative of the signal
-        a_d = self.smoothing_factor(t_e, self.d_cutoff)
+        # 1. Calculate the filtered derivative of the signal
+        # Inline smoothing_factor(t_e, self.d_cutoff)
+        r_d = 6.28318530718 * self.d_cutoff * t_e  # 2 * pi approx
+        a_d = r_d / (r_d + 1)
         dx = (x - self.value_prev) / t_e
-        dx_hat = self.exponential_smoothing(a_d, dx, self.deriv_prev)
+        # Inline exponential_smoothing(a_d, dx, self.deriv_prev)
+        dx_hat = a_d * dx + (1 - a_d) * self.deriv_prev
 
-        # Calculate the filtered signal
+        # 2. Calculate the filtered signal
         cutoff = self.min_cutoff + self.beta * abs(dx_hat)
-        a = self.smoothing_factor(t_e, cutoff)
-        x_hat = self.exponential_smoothing(a, x, self.value_prev)
+        # Inline smoothing_factor(t_e, cutoff)
+        r = 6.28318530718 * cutoff * t_e
+        a = r / (r + 1)
+        # Inline exponential_smoothing(a, x, self.value_prev)
+        x_hat = a * x + (1 - a) * self.value_prev
 
-        # Update state
+        # 3. Update state
         self.value_prev = x_hat
         self.deriv_prev = dx_hat
         self.t_prev = t

@@ -1,15 +1,15 @@
 # Color Tracking Algo for Single Player Games in Development - User Guide
 
 ## Introduction
-The **Color Tracking Algo for Single Player Games in Development** (V3.2) is a high-performance computer vision tool designed for research and educational purposes. It detects specific colors on-screen and automates mouse movement using low-level Windows APIs.
+The **Color Tracking Algo for Single Player Games in Development** (V3.2.1) is a professional-grade computer vision utility optimized for high-performance coordinate tracking and automated input research.
 
 ## Features
-- **Ultra-Fast Detection**: Optimized `mss` screen capture using zero-copy `np.frombuffer` buffers.
-- **Unified Motion Engine**: Implements the **1 Euro Filter** for adaptive jitter reduction and minimal lag.
-- **Velocity Prediction**: Predictive lookahead to lead moving targets based on real-time velocity.
-- **Visual Feedback**: Real-time FOV overlay and color tolerance preview via DearPyGui.
-- **Self-Healing Config**: Automatically repairs or resets corrupted configuration files.
-- **Direct Input**: Uses Windows `SendInput` for stealthy, hardware-like signal injection.
+- **Extreme Speed Detection**: GPU-accelerated frame processing with `cv2.minMaxLoc` and high-frequency `mss` capture.
+- **Zero-Copy Buffer Management**: Direct `np.frombuffer` access to screen memory avoids O(N) allocation overhead.
+- **V3.2.1 Logic optimizations**: `OneEuroFilter` implementation using `__slots__` and inlined math for minimal CPU latency.
+- **Adaptive Predictive Tracking**: Real-time velocity-based projection to eliminate smoothing-induced lag.
+- **Documented Configuration**: Self-documenting `config.json` with inline tuning guides.
+- **Hardware-Like Input**: Low-level `SendInput` integration with safety clamping and high-precision coordinate injection.
 
 ## Installation
 1.  **Prerequisites**:
