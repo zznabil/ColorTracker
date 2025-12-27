@@ -30,6 +30,8 @@ class DetectionSystem:
     _upper_bound: NDArray[np.uint8] | None
     _last_target_color: int | None
     _last_color_tolerance: int | None
+    _scan_area: tuple[int, int, int, int] | None
+    _last_fov_config: tuple[int, int, int, int] | None
 
     def __init__(self, config: Any) -> None:
         """
@@ -54,6 +56,10 @@ class DetectionSystem:
         self._upper_bound = None
         self._last_target_color = None
         self._last_color_tolerance = None
+
+        # Caching for FOV bounds
+        self._scan_area = None
+        self._last_fov_config = None
 
     def _get_sct(self) -> Any:
         """
@@ -100,25 +106,47 @@ class DetectionSystem:
             self._last_target_color = current_color
             self._last_color_tolerance = current_tolerance
 
+    def _update_fov_cache(self) -> None:
+        """
+        Updates the cached FOV boundaries if config has changed.
+        Recalculating these every frame is wasteful arithmetic.
+        """
+        # Current config snapshot
+        current_fov_config = (
+            self.config.fov_x,
+            self.config.fov_y,
+            self.config.screen_width,
+            self.config.screen_height,
+        )
+
+        if self._scan_area is None or current_fov_config != self._last_fov_config:
+            # Get screen center coordinates
+            center_x: int = self.config.screen_width // 2
+            center_y: int = self.config.screen_height // 2
+
+            # Calculate FOV boundaries
+            scan_left: int = center_x - self.config.fov_x
+            scan_top: int = center_y - self.config.fov_y
+            scan_right: int = center_x + self.config.fov_x
+            scan_bottom: int = center_y + self.config.fov_y
+
+            # Ensure boundaries are within screen
+            scan_left = max(0, scan_left)
+            scan_top = max(0, scan_top)
+            scan_right = min(self.config.screen_width, scan_right)
+            scan_bottom = min(self.config.screen_height, scan_bottom)
+
+            self._scan_area = (scan_left, scan_top, scan_right, scan_bottom)
+            self._last_fov_config = current_fov_config
+
     def find_target(self) -> tuple[bool, int, int]:
         """
         Search for target pixel color on screen
         """
-        # Get screen center coordinates
-        center_x: int = self.config.screen_width // 2
-        center_y: int = self.config.screen_height // 2
-
-        # Calculate FOV boundaries
-        scan_left: int = center_x - self.config.fov_x
-        scan_top: int = center_y - self.config.fov_y
-        scan_right: int = center_x + self.config.fov_x
-        scan_bottom: int = center_y + self.config.fov_y
-
-        # Ensure boundaries are within screen
-        scan_left = max(0, scan_left)
-        scan_top = max(0, scan_top)
-        scan_right = min(self.config.screen_width, scan_right)
-        scan_bottom = min(self.config.screen_height, scan_bottom)
+        # Update FOV cache (O(1) if no config change)
+        self._update_fov_cache()
+        # We know _scan_area is not None after update
+        scan_left, scan_top, scan_right, scan_bottom = self._scan_area  # type: ignore
 
         # Update color bounds cache
         self._update_color_bounds()
