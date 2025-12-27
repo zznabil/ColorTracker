@@ -40,3 +40,33 @@ def test_config_self_healing(temp_config_file):
     assert config.motion_min_cutoff == 0.001  # -500 should clamp to min
     assert config.target_fps == 1000  # 9999 should clamp to max
     assert config.aim_point == 1  # Invalid option should reset to default (Body=1)
+
+
+def test_profile_management():
+    """Test profile saving, loading, and deletion"""
+    config = Config()
+
+    # Ensure clean state
+    test_profile = "test_profile_pytest"
+    config.delete_profile(test_profile)
+
+    # 1. Save Profile
+    config.fov_x = 123
+    assert config.save_profile(test_profile)
+    assert os.path.exists(os.path.join(config.profiles_dir, f"{test_profile}.json"))
+    assert config.current_profile_name == test_profile
+
+    # 2. Modify and Load Profile
+    config.fov_x = 50
+    assert config.load_profile(test_profile)
+    assert config.fov_x == 123
+    assert config.current_profile_name == test_profile
+
+    # 3. List Profiles
+    profiles = config.list_profiles()
+    assert test_profile in profiles
+
+    # 4. Delete Profile
+    assert config.delete_profile(test_profile)
+    assert not os.path.exists(os.path.join(config.profiles_dir, f"{test_profile}.json"))
+    assert config.current_profile_name is None

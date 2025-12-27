@@ -1,0 +1,21 @@
+{
+    "screen_width": 2560,
+    "screen_height": 1440,
+    "target_color": 16733020,
+    "color_tolerance": 0,
+    "search_area": 100,
+    "fov_x": 123,
+    "fov_y": 25,
+    "aim_point": "Body",
+    "head_offset": 20,
+    "leg_offset": 30,
+    "motion_min_cutoff": 0.001,
+    "motion_beta": 0.4059999883174896,
+    "prediction_scale": 0.0,
+    "start_key": "page_up",
+    "stop_key": "page_down",
+    "target_fps": 240,
+    "enabled": true,
+    "debug_mode": false,
+    "//": "Profile: test_profile_pytest"
+}
