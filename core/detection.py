@@ -77,28 +77,30 @@ class DetectionSystem:
         current_tolerance: int = self.config.color_tolerance
 
         if (
-            self._lower_bound is None
-            or current_color != self._last_target_color
-            or current_tolerance != self._last_color_tolerance
+            self._lower_bound is not None
+            and current_color == self._last_target_color
+            and current_tolerance == self._last_color_tolerance
         ):
-            target_bgr = self._hex_to_bgr(current_color)
+            return
 
-            # Convert to 4-channel BGRA bounds (B, G, R, A)
-            if current_tolerance == 0:
-                self._lower_bound = np.array([target_bgr[0], target_bgr[1], target_bgr[2], 0], dtype=np.uint8)
-                self._upper_bound = np.array([target_bgr[0], target_bgr[1], target_bgr[2], 255], dtype=np.uint8)
-            else:
-                # The gain factor (2.5) results in a max reach of 250 at 100 tolerance.
-                # This covers almost the entire 0-255 spectrum if needed.
-                gain = 2.5
-                lower_bgr = [max(0, int(c - current_tolerance * gain)) for c in target_bgr]
-                upper_bgr = [min(255, int(c + current_tolerance * gain)) for c in target_bgr]
+        target_bgr = self._hex_to_bgr(current_color)
 
-                self._lower_bound = np.array([lower_bgr[0], lower_bgr[1], lower_bgr[2], 0], dtype=np.uint8)
-                self._upper_bound = np.array([upper_bgr[0], upper_bgr[1], upper_bgr[2], 255], dtype=np.uint8)
+        # Convert to 4-channel BGRA bounds (B, G, R, A)
+        if current_tolerance == 0:
+            self._lower_bound = np.array([target_bgr[0], target_bgr[1], target_bgr[2], 0], dtype=np.uint8)
+            self._upper_bound = np.array([target_bgr[0], target_bgr[1], target_bgr[2], 255], dtype=np.uint8)
+        else:
+            # The gain factor (2.5) results in a max reach of 250 at 100 tolerance.
+            # This covers almost the entire 0-255 spectrum if needed.
+            gain = 2.5
+            lower_bgr = [max(0, int(c - current_tolerance * gain)) for c in target_bgr]
+            upper_bgr = [min(255, int(c + current_tolerance * gain)) for c in target_bgr]
 
-            self._last_target_color = current_color
-            self._last_color_tolerance = current_tolerance
+            self._lower_bound = np.array([lower_bgr[0], lower_bgr[1], lower_bgr[2], 0], dtype=np.uint8)
+            self._upper_bound = np.array([upper_bgr[0], upper_bgr[1], upper_bgr[2], 255], dtype=np.uint8)
+
+        self._last_target_color = current_color
+        self._last_color_tolerance = current_tolerance
 
     def find_target(self) -> tuple[bool, int, int]:
         """
