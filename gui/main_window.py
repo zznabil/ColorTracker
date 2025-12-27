@@ -450,8 +450,6 @@ def setup_gui(app):
             with dpg.tab(label="System"):
                 dpg.add_spacer(height=5)
 
-                dpg.add_text("PROFILES", color=(201, 0, 141))
-
                 """
                 def refresh_profile_combo():
                     # Disabled
@@ -578,9 +576,16 @@ def setup_gui(app):
                 dpg.add_separator()
                 dpg.add_spacer(height=10)
 
+                # Helper to center modals
+                def center_modal(tag, width, height):
+                    vp_width = dpg.get_viewport_width()
+                    vp_height = dpg.get_viewport_height()
+                    dpg.set_item_pos(tag, [(vp_width - width) // 2, (vp_height - height) // 2])
+                    dpg.show_item(tag)
+
                 reset_btn = dpg.add_button(
                     label="RESET ALL SETTINGS",
-                    callback=lambda: dpg.show_item("reset_confirmation_modal"),
+                    callback=lambda: center_modal("reset_confirmation_modal", 260, 100),
                     width=-1,
                     height=30,
                 )
@@ -751,7 +756,6 @@ def setup_gui(app):
         no_title_bar=True,
         width=260,
         height=100,
-        pos=[60, 200],
     ):
         dpg.add_spacer(height=5)
         dpg.add_text("Reset all settings to factory defaults?\nThis cannot be undone.", wrap=240)
