@@ -128,6 +128,13 @@ class LowLevelMovementSystem:
         # Aim offset based on aim point
         self.aim_offset_y = 0
 
+        # Optimization: Pre-allocate reusable INPUT structure
+        # This eliminates allocation overhead in the hot path (algo loop)
+        # NOTE: This is safe because this class is primarily used by a single thread (algo_loop)
+        self._cached_input = INPUT()
+        self._cached_input.type = INPUT_MOUSE
+        # Note: self._cached_input.ii.mi is the MOUSEINPUT structure we will update
+
     def _get_user32(self):
         """Helper to get the correct user32 instance (real or mocked)"""
         # First check if ctypes.windll exists and has user32 (this catches the test mocks)
@@ -161,18 +168,25 @@ class LowLevelMovementSystem:
     def move_mouse_relative(self, dx: int, dy: int) -> bool:
         """
         Move mouse by relative offset using SendInput (low-level)
+        OPTIMIZATION: Reuses pre-allocated ctypes structure to avoid GC pressure.
         """
         user32 = self._get_user32()
         if not user32:
             return True
 
-        mouse_input = MOUSEINPUT(dx=dx, dy=dy, mouseData=0, dwFlags=MOUSEEVENTF_MOVE, time=0, dwExtraInfo=None)
-
-        input_struct = INPUT(type=INPUT_MOUSE, ii=INPUT._INPUT(mi=mouse_input))
+        # Update the cached structure directly
+        mi = self._cached_input.ii.mi
+        mi.dx = dx
+        mi.dy = dy
+        mi.mouseData = 0
+        mi.dwFlags = MOUSEEVENTF_MOVE
+        mi.time = 0
+        mi.dwExtraInfo = None  # type: ignore
 
         # Send the input using Windows API with safety check
         try:
-            result = user32.SendInput(1, ctypes.byref(input_struct), ctypes.sizeof(INPUT))  # type: ignore
+            # Pass byref to the cached structure
+            result = user32.SendInput(1, ctypes.byref(self._cached_input), ctypes.sizeof(INPUT))  # type: ignore
             return result == 1
         except Exception:
             return False
@@ -181,6 +195,7 @@ class LowLevelMovementSystem:
         """
         Move mouse to absolute position using SendInput (low-level)
         Using round() for better precision and (width-1) for correct mapping.
+        OPTIMIZATION: Reuses pre-allocated ctypes structure.
         """
         user32 = self._get_user32()
         if not user32:
@@ -192,20 +207,18 @@ class LowLevelMovementSystem:
         normalized_x = max(0, min(65535, int(round((x * 65535) / (self.screen_width - 1)))))
         normalized_y = max(0, min(65535, int(round((y * 65535) / (self.screen_height - 1)))))
 
-        mouse_input = MOUSEINPUT(
-            dx=normalized_x,
-            dy=normalized_y,
-            mouseData=0,
-            dwFlags=MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE,
-            time=0,
-            dwExtraInfo=None,
-        )
-
-        input_struct = INPUT(type=INPUT_MOUSE, ii=INPUT._INPUT(mi=mouse_input))
+        # Update the cached structure directly
+        mi = self._cached_input.ii.mi
+        mi.dx = normalized_x
+        mi.dy = normalized_y
+        mi.mouseData = 0
+        mi.dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE
+        mi.time = 0
+        mi.dwExtraInfo = None  # type: ignore
 
         # Send the input using Windows API with safety check
         try:
-            result = user32.SendInput(1, ctypes.byref(input_struct), ctypes.sizeof(INPUT))
+            result = user32.SendInput(1, ctypes.byref(self._cached_input), ctypes.sizeof(INPUT))
             return result == 1
         except Exception:
             return False
