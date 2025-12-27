@@ -55,6 +55,10 @@ class Logger:
             "fps_tracking": True,
             "file_operations": True,
         }
+
+        # Internal state for debug console
+        self.debug_console_visible = False
+
         # Create logger
         self.logger = logging.getLogger("ColorTrackingAlgo")
         self.logger.setLevel(log_level)

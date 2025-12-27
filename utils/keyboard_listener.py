@@ -120,7 +120,10 @@ class KeyboardListener:
             return
 
         if key_name in self.callbacks and "press" in self.callbacks[key_name]:
-            self.callbacks[key_name]["press"]()
+            try:
+                self.callbacks[key_name]["press"]()
+            except Exception as e:
+                print(f"Error in hotkey callback (press): {e}")
 
     def _on_key_release(self, key):
         """
@@ -136,7 +139,10 @@ class KeyboardListener:
         key_name = self._get_key_name(key)
 
         if key_name in self.callbacks and "release" in self.callbacks[key_name]:
-            self.callbacks[key_name]["release"]()
+            try:
+                self.callbacks[key_name]["release"]()
+            except Exception as e:
+                print(f"Error in hotkey callback (release): {e}")
 
     def _get_key_name(self, key):
         """

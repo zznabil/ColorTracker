@@ -78,17 +78,18 @@ class DetectionSystem:
             target_bgr = self._hex_to_bgr(current_color)
 
             # Convert to 4-channel BGRA bounds (B, G, R, A)
-            # Alpha is set to 0-255 to match any alpha value
             if current_tolerance == 0:
-                self._lower_bound = np.array([*target_bgr, 0], dtype=np.uint8)
-                self._upper_bound = np.array([*target_bgr, 255], dtype=np.uint8)
+                self._lower_bound = np.array([target_bgr[0], target_bgr[1], target_bgr[2], 0], dtype=np.uint8)
+                self._upper_bound = np.array([target_bgr[0], target_bgr[1], target_bgr[2], 255], dtype=np.uint8)
             else:
-                brightness_factor = current_tolerance * 2.5
-                lower_bgr = [max(0, c - brightness_factor) for c in target_bgr]
-                upper_bgr = [min(255, c + brightness_factor) for c in target_bgr]
+                # The gain factor (2.5) results in a max reach of 250 at 100 tolerance.
+                # This covers almost the entire 0-255 spectrum if needed.
+                gain = 2.5
+                lower_bgr = [max(0, int(c - current_tolerance * gain)) for c in target_bgr]
+                upper_bgr = [min(255, int(c + current_tolerance * gain)) for c in target_bgr]
 
-                self._lower_bound = np.array([*lower_bgr, 0], dtype=np.uint8)
-                self._upper_bound = np.array([*upper_bgr, 255], dtype=np.uint8)
+                self._lower_bound = np.array([lower_bgr[0], lower_bgr[1], lower_bgr[2], 0], dtype=np.uint8)
+                self._upper_bound = np.array([upper_bgr[0], upper_bgr[1], upper_bgr[2], 255], dtype=np.uint8)
 
             self._last_target_color = current_color
             self._last_color_tolerance = current_tolerance
@@ -125,85 +126,81 @@ class DetectionSystem:
         # If local search failed or no previous target, do full FOV search
         return self._full_search(scan_left, scan_top, scan_right, scan_bottom)
 
+    def _capture_and_process_frame(self, area: dict) -> tuple[bool, Any]:
+        """
+        Capture a frame from the screen and convert it to a NumPy array.
+
+        Args:
+            area: Dictionary with 'left', 'top', 'width', 'height' keys.
+
+        Returns:
+            Tuple of (success, image_data)
+        """
+        try:
+            sct = self._get_sct()
+            sct_img = sct.grab(area)
+            # Use frombuffer to avoid memory copy
+            img_bgra = np.frombuffer(sct_img.bgra, dtype=np.uint8).reshape((sct_img.height, sct_img.width, 4))
+
+            if img_bgra.size == 0 or img_bgra.ndim != 3 or img_bgra.shape[2] != 4:
+                return False, None
+
+            return True, img_bgra
+        except Exception:
+            return False, None
+
     def _local_search(self) -> tuple[bool, int, int]:
         """
-        Perform a local search around the last known target position
+        Perform a local search around the last known target position.
         """
         # Calculate local search area with bounds checking
         search_area: int = self.config.search_area
-        local_left: int = max(0, self.target_x - search_area)
-        local_top: int = max(0, self.target_y - search_area)
-        local_right: int = min(self.config.screen_width, self.target_x + search_area)
-        local_bottom: int = min(self.config.screen_height, self.target_y + search_area)
+        local_left = max(0, self.target_x - search_area)
+        local_top = max(0, self.target_y - search_area)
+        local_right = min(self.config.screen_width, self.target_x + search_area)
+        local_bottom = min(self.config.screen_height, self.target_y + search_area)
 
-        # Calculate dimensions and validate them
-        width: int = local_right - local_left
-        height: int = local_bottom - local_top
+        # Calculate dimensions and validate
+        width = local_right - local_left
+        height = local_bottom - local_top
 
         if width <= 0 or height <= 0:
             return False, 0, 0
 
+        # Optimization: Guard against excessively large search areas
         if width > 1000 or height > 1000:
-            max_size = 500
-            if width > max_size:
-                excess = (width - max_size) // 2
-                local_left += excess
-                local_right -= excess
-                width = local_right - local_left
-            if height > max_size:
-                excess = (height - max_size) // 2
-                local_top += excess
-                local_bottom -= excess
-                height = local_bottom - local_top
+            local_left, local_right, local_top, local_bottom = self._clamp_search_area(
+                local_left, local_right, local_top, local_bottom, max_size=500
+            )
+            width, height = local_right - local_left, local_bottom - local_top
 
         local_area = {"left": local_left, "top": local_top, "width": width, "height": height}
 
-        try:
-            sct = self._get_sct()
-            sct_img = sct.grab(local_area)
-            # OPTIMIZATION: Use frombuffer to avoid memory copy
-            img_bgra = np.frombuffer(sct_img.bgra, dtype=np.uint8).reshape((sct_img.height, sct_img.width, 4))
-            if img_bgra is None or img_bgra.size == 0 or img_bgra.ndim != 3 or img_bgra.shape[2] != 4:
-                return False, 0, 0
-        except Exception:
+        success, img_bgra = self._capture_and_process_frame(local_area)
+        if not success:
             return False, 0, 0
-
-        # OPTIMIZATION: Removed cv2.cvtColor(img_bgra, cv2.COLOR_BGRA2BGR)
-        # We now perform color matching directly on BGRA data.
-        # This saves O(N) allocation and CPU cycles per frame.
 
         # Use cached bounds
         if self._lower_bound is None or self._upper_bound is None:
             self._update_color_bounds()
 
         mask = cv2.inRange(img_bgra, self._lower_bound, self._upper_bound)  # type: ignore
-
-        # OPTIMIZATION: Use minMaxLoc instead of findNonZero
-        # findNonZero allocates memory for ALL matching points (O(N))
-        # minMaxLoc finds the max value (255 if match exists) and its location in O(1) memory
         _, max_val, _, max_loc = cv2.minMaxLoc(mask)
 
-        if max_val > 0:
-            match_x, match_y = max_loc
-            screen_x: int = int(match_x + local_left)
-            screen_y: int = int(match_y + local_top)
+        if max_val <= 0:
+            return False, 0, 0
 
-            # --- FOV Restriction Check ---
-            # Ensure the target found in local search is still within the global FOV bounds
-            center_x: int = self.config.screen_width // 2
-            center_y: int = self.config.screen_height // 2
+        screen_x, screen_y = int(max_loc[0] + local_left), int(max_loc[1] + local_top)
 
-            if abs(screen_x - center_x) > self.config.fov_x or abs(screen_y - center_y) > self.config.fov_y:
-                self.target_found_last_frame = False
-                return False, 0, 0
-            # -----------------------------
+        # FOV Restriction Check
+        center_x, center_y = self.config.screen_width // 2, self.config.screen_height // 2
+        if abs(screen_x - center_x) > self.config.fov_x or abs(screen_y - center_y) > self.config.fov_y:
+            self.target_found_last_frame = False
+            return False, 0, 0
 
-            self.target_x = screen_x
-            self.target_y = screen_y
-            self.target_found_last_frame = True
-            return True, screen_x, screen_y
-
-        return False, 0, 0
+        self.target_x, self.target_y = screen_x, screen_y
+        self.target_found_last_frame = True
+        return True, screen_x, screen_y
 
     def _full_search(self, left: int, top: int, right: int, bottom: int) -> tuple[bool, int, int]:
         """
@@ -228,33 +225,16 @@ class DetectionSystem:
             # Invalid dimensions - return no target found
             return False, 0, 0
 
-        if width > 2000 or height > 2000:
-            # Area too large - clamp to reasonable size
-            max_size = 1500
-            if width > max_size:
-                excess = (width - max_size) // 2
-                left += excess
-                right -= excess
-                width = right - left
-            if height > max_size:
-                excess = (height - max_size) // 2
-                top += excess
-                bottom -= excess
-                height = bottom - top
+        # Optimization: Clamp very large search areas
+        left, right, top, bottom = self._clamp_search_area(left, right, top, bottom, max_size=1500)
+        width = right - left
+        height = bottom - top
 
         # Create capture area dictionary
         full_area = {"left": left, "top": top, "width": width, "height": height}
 
-        try:
-            # Use thread-local MSS instance to prevent threading conflicts
-            sct = self._get_sct()
-            sct_img = sct.grab(full_area)
-            # OPTIMIZATION: Use frombuffer to avoid memory copy
-            img_bgra = np.frombuffer(sct_img.bgra, dtype=np.uint8).reshape((sct_img.height, sct_img.width, 4))
-            if img_bgra is None or img_bgra.size == 0 or img_bgra.ndim != 3 or img_bgra.shape[2] != 4:
-                return False, 0, 0
-        except Exception:
-            # Handle screen capture errors gracefully
+        success, img_bgra = self._capture_and_process_frame(full_area)
+        if not success:
             return False, 0, 0
 
         # OPTIMIZATION: Removed cv2.cvtColor(img_bgra, cv2.COLOR_BGRA2BGR)
@@ -270,23 +250,23 @@ class DetectionSystem:
         # OPTIMIZATION: Use minMaxLoc instead of findNonZero
         _, max_val, _, max_loc = cv2.minMaxLoc(mask)
 
-        if max_val > 0:
-            match_x, match_y = max_loc
+        if max_val <= 0:
+            # No match found in full search
+            self.target_found_last_frame = False
+            return False, 0, 0
 
-            # Convert back to screen coordinates
-            screen_x = match_x + left
-            screen_y = match_y + top
+        match_x, match_y = max_loc
 
-            # Update target position
-            self.target_x = screen_x
-            self.target_y = screen_y
-            self.target_found_last_frame = True
+        # Convert back to screen coordinates
+        screen_x = match_x + left
+        screen_y = match_y + top
 
-            return True, screen_x, screen_y
+        # Update target position
+        self.target_x = screen_x
+        self.target_y = screen_y
+        self.target_found_last_frame = True
 
-        # No match found in full search
-        self.target_found_last_frame = False
-        return False, 0, 0
+        return True, screen_x, screen_y
 
     def _hex_to_bgr(self, hex_color: int) -> tuple[int, int, int]:
         """
@@ -305,3 +285,37 @@ class DetectionSystem:
 
         # Return as BGR (OpenCV format)
         return (b, g, r)
+
+    def _capture_to_numpy(self, area: dict[str, int]) -> NDArray[np.uint8] | None:
+        """
+        Captures a screen area and returns it as a numpy array.
+        Optimization: Uses frombuffer to avoid memory copy.
+        """
+        sct = self._get_sct()
+        sct_img = sct.grab(area)
+        img = np.frombuffer(sct_img.bgra, dtype=np.uint8).reshape((sct_img.height, sct_img.width, 4))
+        if img.size == 0 or img.ndim != 3:
+            return None
+        return img
+
+    def _clamp_search_area(
+        self, left: int, right: int, top: int, bottom: int, max_size: int
+    ) -> tuple[int, int, int, int]:
+        """
+        Clamps a search area symmetrically to a maximum size if it exceeds it.
+        Helper for DRY consolidation.
+        """
+        width = right - left
+        height = bottom - top
+
+        # Only clamp if the area is significantly oversized
+        if width > max_size:
+            excess = (width - max_size) // 2
+            left += excess
+            right -= excess
+        if height > max_size:
+            excess = (height - max_size) // 2
+            top += excess
+            bottom -= excess
+
+        return left, right, top, bottom

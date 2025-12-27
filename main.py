@@ -15,7 +15,6 @@ from typing import Any
 
 import dearpygui.dearpygui as dpg
 
-# Import core modules
 from core.detection import DetectionSystem
 from core.low_level_movement import LowLevelMovementSystem
 from core.motion_engine import MotionEngine
@@ -25,6 +24,12 @@ from utils.keyboard_listener import KeyboardListener
 from utils.logger import Logger
 from utils.performance_monitor import PerformanceMonitor
 from utils.screen_info import ScreenInfo
+
+# Make the application DPI aware to fix coordinate scaling issues on high-DPI monitors
+try:
+    ctypes.windll.user32.SetProcessDPIAware()
+except Exception:
+    pass
 
 
 class ColorTrackerAlgo:
@@ -48,13 +53,40 @@ class ColorTrackerAlgo:
             # Fallback for older versions
             pass
 
-        # Create logger with optimized settings
-        self.logger = Logger(log_level=logging.DEBUG, log_to_file=True)
-        self.logger.info("ColorTracker Algorithm V3 starting...")
-        self.logger.debug("Debug logging enabled - all operations will be logged verbosely")
+        # Create logger with optimized settings and startup safety
+        try:
+            self.logger = Logger(log_level=logging.DEBUG, log_to_file=True)
+            self.logger.info("ColorTracker Algorithm V3 starting...")
+            self.logger.debug("Debug logging enabled - all operations will be logged verbosely")
+            self.logger.info("Debug console enabled - Press F12 to toggle debug console")
+        except Exception as e:
+            print(f"CRITICAL: Failed to initialize Logger. {e}")
 
-        # Log debug console availability
-        self.logger.info("Debug console enabled - Press F12 to toggle debug console")
+            # Fallback mock logger if file permission fails
+            class MockLogger:
+                def info(self, m):
+                    print(f"[INFO] {m}")
+
+                def error(self, m):
+                    print(f"[ERROR] {m}")
+
+                def debug(self, m):
+                    pass
+
+                def warning(self, m):
+                    print(f"[WARN] {m}")
+
+                def critical(self, m):
+                    print(f"[CRITICAL] {m}")
+
+                @property
+                def debug_console_enabled(self):
+                    return False
+
+                def toggle_debug_console(self):
+                    return False
+
+            self.logger = MockLogger()
 
         # Load configuration
         self.config = Config()
@@ -339,6 +371,9 @@ class ColorTrackerAlgo:
                 # Calculate precise sleep time
                 sleep_time = target_frame_time - actual_frame_time
 
+                # Record performance metrics for every frame (fix for 0 FPS stats)
+                perf_monitor.record_frame(actual_frame_time, missed=(sleep_time <= 0))
+
                 if sleep_time > 0:
                     # Use sleep for longer periods, but with high precision
                     if sleep_time > 0.001:  # More than 1ms
@@ -351,10 +386,7 @@ class ColorTrackerAlgo:
                         # Minimal CPU usage - just yield to OS scheduler
                         if not self.running:
                             break
-                else:
-                    # Frame took too long - log missed frame
-                    # Don't sleep, immediately start next frame to catch up
-                    perf_monitor.record_frame(actual_frame_time, missed=True)
+                # No else block needed for record_frame anymore
 
         except Exception as fatal_error:
             # Fatal errors should always be logged
@@ -459,11 +491,21 @@ class ColorTrackerAlgo:
 
 
 if __name__ == "__main__":
+    app = None
     try:
         app = ColorTrackerAlgo()
         app.run()
+    except KeyboardInterrupt:
+        print("\nShutdown requested by user (Ctrl+C). Saving and exiting...")
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"Critical Error: {e}")
         import traceback
 
         traceback.print_exc()
+    finally:
+        if app and hasattr(app, "config"):
+            try:
+                app.config.save()
+                print("Final configuration saved successfully.")
+            except Exception as e:
+                print(f"Failed to save final configuration: {e}")

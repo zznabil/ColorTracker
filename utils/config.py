@@ -67,7 +67,9 @@ class Config:
             setattr(self, key, schema["default"])
 
         # Internal state
-        self.config_file = "config.json"
+        # USE ABSOLUTE PATH TO PREVENT SHADOWING IN DIFFERENT CWD
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        self.config_file = os.path.join(base_dir, "config.json")
         self._last_save_time = 0
         self._save_debounce_ms = 500
         self._save_timer = None
@@ -78,10 +80,7 @@ class Config:
 
     def validate(self, key: str, value: Any) -> Any:
         """
-        Validates and repairs a specific configuration value
-
-        Returns:
-            The validated (and potentially corrected) value
+        Validates and repairs a specific configuration value using a declarative approach.
         """
         if key not in self.DEFAULT_CONFIG:
             return value
@@ -89,32 +88,32 @@ class Config:
         schema = self.DEFAULT_CONFIG[key]
         expected_type = schema["type"]
 
-        # 1. Type Correction
+        # 1. Type Correction with Guard Clauses
         try:
             if expected_type is bool:
                 if isinstance(value, str):
-                    value = value.lower() in ("true", "1", "yes", "y", "on")
-                else:
-                    value = bool(value)
-            elif expected_type is int:
+                    return value.lower() in ("true", "1", "yes", "y", "on")
+                return bool(value)
+
+            if expected_type is int and not isinstance(value, int):
                 value = int(float(value))
-            elif expected_type is float:
+            elif expected_type is float and not isinstance(value, float):
                 value = float(value)
-            elif expected_type is str:
+            elif expected_type is str and not isinstance(value, str):
                 value = str(value)
+
         except (ValueError, TypeError):
             print(f"Config Repair: Invalid type for '{key}' (expected {expected_type.__name__}). Resetting to default.")
             return schema["default"]
 
-        # 2. Range/Option Validation
+        # 2. Range Validation (Clamping)
         if expected_type in (int, float):
-            if "min" in schema and value < schema["min"]:
-                print(f"Config Repair: '{key}' ({value}) below minimum. Clamping to {schema['min']}.")
-                value = schema["min"]
-            if "max" in schema and value > schema["max"]:
-                print(f"Config Repair: '{key}' ({value}) above maximum. Clamping to {schema['max']}.")
-                value = schema["max"]
+            if "min" in schema:
+                value = max(schema["min"], value)
+            if "max" in schema:
+                value = min(schema["max"], value)
 
+        # 3. Option Validation
         if "options" in schema and value not in schema["options"]:
             print(f"Config Repair: '{key}' ({value}) not a valid option. Resetting to default.")
             return schema["default"]
@@ -133,6 +132,9 @@ class Config:
             with open(self.config_file, encoding="utf-8") as f:
                 content = f.read()
 
+            if not content.strip():
+                raise ValueError("Empty configuration file")
+
             # Strip comments
             import re
 
@@ -141,24 +143,37 @@ class Config:
 
             config_data = json.loads(content)
 
-            # Validate and apply each key
+            # --- LEGACY KEY MAPPING ---
+            # Smoothing (V2) -> Motion Min Cutoff & Motion Beta (V3)
+            if "smoothing" in config_data:
+                s = float(config_data["smoothing"])
+                # Heuristic mapping: higher smoothing = lower cutoff and lower beta
+                # Smoothing 50.0 is quite high for V3 defaults
+                config_data["motion_min_cutoff"] = max(0.001, 0.05 / (s / 5.0 + 1.0))
+                config_data["motion_beta"] = max(0.001, 0.05 / (s / 5.0 + 1.0))
+
+            # Prediction Multiplier (V2/Dev) -> Prediction Scale (V3)
+            if "prediction_multiplier" in config_data:
+                config_data["prediction_scale"] = float(config_data["prediction_multiplier"])
+
+            # Validate and apply each key from DEFAULT_SCHEMA
+            updated_count = 0
             for key in self.DEFAULT_CONFIG.keys():
                 if key in config_data:
-                    # Special handling for enum maps (legacy support)
                     value = config_data[key]
+                    # Special handling for enum maps
                     if key == "aim_point" and isinstance(value, str):
                         aim_point_map = {"Head": 0, "Body": 1, "Legs": 2, "Chest": 1, "Center": 1}
                         value = aim_point_map.get(value, 1)
 
-                    # Validate and repair
                     validated_value = self.validate(key, value)
                     setattr(self, key, validated_value)
+                    updated_count += 1
                 else:
-                    # Self-healing: Key missing in file, use default
-                    print(f"Config Repair: Missing key '{key}' in {self.config_file}. Using default.")
-                    setattr(self, key, self.DEFAULT_CONFIG[key]["default"])
+                    # Missing key: load current value (which is default from __init__)
+                    pass
 
-            print("Configuration successfully loaded and validated.")
+            print(f"Configuration loaded and validated ({updated_count} keys applied from {self.config_file}).")
         except Exception as e:
             print(f"Critical Error loading {self.config_file}: {e}. Falling back to safe defaults.")
             # Self-healing: Reset to defaults on critical failure
@@ -167,116 +182,37 @@ class Config:
 
     def save(self):
         """
-        Save current configuration to file with detailed comments preserved
+        Save current configuration to file using robust ATOMIC JSON serialization
         """
-        # Cancel any pending save timer since we are saving now
         if self._save_timer:
             self._save_timer.cancel()
             self._save_timer = None
 
         try:
             with self._lock:
-                # Create a dictionary of all configuration attributes
                 config_data = {}
-                for key, value in self.__dict__.items():
-                    # Skip the config_file attribute and internal attributes
-                    if key not in ["config_file", "_last_save_time", "_save_debounce_ms", "_save_timer", "_lock"]:
-                        config_data[key] = value
+                for key in self.DEFAULT_CONFIG.keys():
+                    if hasattr(self, key):
+                        config_data[key] = getattr(self, key)
 
-                # Build the complete JSON content as a single string to avoid file handle issues
-                json_content = "{\n"
-            json_content += "    // === DISPLAY CONFIGURATION ===\n"
-            json_content += "    // Screen resolution settings - MUST match your actual monitor resolution\n"
-            json_content += f'    "screen_width": {config_data.get("screen_width", 1920)},     // Width in pixels (common: 1920, 2560, 3840)\n'
-            json_content += f'    "screen_height": {config_data.get("screen_height", 1080)},    // Height in pixels (common: 1080, 1440, 2160)\n'
-            json_content += "\n"
+                # ATOMIC SAVE: Write to temp file then rename
+                temp_file = f"{self.config_file}.tmp"
+                with open(temp_file, "w", encoding="utf-8") as f:
+                    json.dump(config_data, f, indent=4, sort_keys=True)
 
-            json_content += "    // === COLOR DETECTION SETTINGS ===\n"
-            json_content += "    // Target color to detect (RGB value as integer)\n"
-            json_content += "    // Use color picker in GUI to set this value automatically\n"
-            json_content += "    // Common target colors: Purple ~16733797, Red ~16711680, Pink ~16761035\n"
-            json_content += f'    "target_color": {config_data.get("target_color", 16733797)},\n'
-            json_content += "\n"
-            json_content += "    // Color matching tolerance (0-100)\n"
-            json_content += "    // Lower = more precise matching, Higher = more flexible matching\n"
-            json_content += "    // Recommended: 10-20 for good lighting, 25-50 for variable lighting\n"
-            json_content += f'    "color_tolerance": {config_data.get("color_tolerance", 15)},\n'
-            json_content += "\n"
+                # Close file before replace (Windows requirement)
+                os.replace(temp_file, self.config_file)
 
-            json_content += "    // === DETECTION AREA SETTINGS ===\n"
-            json_content += "    // Search area radius around crosshair (pixels)\n"
-            json_content += "    // Larger = wider detection but slower performance\n"
-            json_content += "    // Recommended: 50-150 depending on game and screen resolution\n"
-            json_content += f'    "search_area": {config_data.get("search_area", 100)},\n'
-            json_content += "\n"
-            json_content += "    // Field of view for target detection (pixels from center)\n"
-            json_content += "    // fov_x: horizontal detection range, fov_y: vertical detection range\n"
-            json_content += "    // Smaller values = faster performance, larger = wider detection\n"
-            json_content += "    // Recommended: 30-60 for most games\n"
-            json_content += f'    "fov_x": {config_data.get("fov_x", 41)},\n'
-            json_content += f'    "fov_y": {config_data.get("fov_y", 41)},\n'
-            json_content += "\n"
-
-            json_content += "    // === MOTION ENGINE SETTINGS ===\n"
-            json_content += "    // 1 Euro Filter Settings\n"
-            json_content += "    // motion_min_cutoff: Stabilization. Lower = More stable when slow. Rec: 0.001-0.1\n"
-            json_content += f'    "motion_min_cutoff": {config_data.get("motion_min_cutoff", 0.05)},\n'
-            json_content += "    // motion_beta: Responsiveness. Higher = Faster reaction. Rec: 0.001-0.1\n"
-            json_content += f'    "motion_beta": {config_data.get("motion_beta", 0.05)},\n'
-            json_content += "\n"
-            json_content += "    // Prediction Status\n"
-            json_content += "    // prediction_scale: Velocity prediction multiplier. 0.0 = Off.\n"
-            json_content += f'    "prediction_scale": {config_data.get("prediction_scale", 1.0)},\n'
-            json_content += "\n"
-            json_content += "    // === TARGETING SETTINGS ===\n"
-            json_content += "    // Target tracking point on detected objects\n"
-            json_content += '    // Options: "Head", "Chest", "Legs", "Center"\n'
-            json_content += "    // Head: Highest damage but smaller target\n"
-            json_content += "    // Chest: Balanced damage and hit probability\n"
-            json_content += "    // Legs: Largest target area but lower damage\n"
-            aim_point_value = config_data.get("aim_point", "Body")
-            if isinstance(aim_point_value, int):
-                aim_point_map = {0: "Head", 1: "Body", 2: "Legs"}
-                aim_point_value = aim_point_map.get(aim_point_value, "Body")
-            json_content += f'    "aim_point": "{aim_point_value}",\n'
-            json_content += "\n"
-            json_content += "    // Pixel offset adjustments for tracking points\n"
-            json_content += "    // head_offset: pixels above detected center for headshots\n"
-            json_content += "    // leg_offset: pixels below detected center for leg shots\n"
-            json_content += "    // Adjust based on game character models and your preference\n"
-            json_content += f'    "head_offset": {config_data.get("head_offset", 20)},\n'
-            json_content += f'    "leg_offset": {config_data.get("leg_offset", 30)},\n'
-            json_content += "\n"
-
-            json_content += "    // === CONTROL SETTINGS ===\n"
-            json_content += "    // Hotkeys for color tracking algo for single player games in development control\n"
-            json_content += "    // Available keys: F1-F12, page_up, page_down, insert, delete, home, end\n"
-            json_content += "    // ctrl+key, alt+key, shift+key combinations also supported\n"
-            json_content += f'    "start_key": "{config_data.get("start_key", "page_up")}",   // Key to activate color tracking algo for single player games in development\n'
-            json_content += f'    "stop_key": "{config_data.get("stop_key", "page_down")}",  // Key to deactivate color tracking algo for single player games in development\n'
-            json_content += "\n"
-
-            json_content += "    // === PERFORMANCE SETTINGS ===\n"
-            json_content += "    // Target frames per second for detection loop\n"
-            json_content += "    // Higher FPS = more responsive but uses more CPU\n"
-            json_content += (
-                "    // Recommended: 60-120 for balanced performance, 240-480 for competitive, 960 for extreme\n"
-            )
-            json_content += f'    "target_fps": {config_data.get("target_fps", 240)},\n'
-            json_content += "\n"
-            json_content += "    // Master enable/disable switch\n"
-            json_content += "    // true: Color Tracking Algo can be activated with start_key\n"
-            json_content += "    // false: Color Tracking Algo completely disabled\n"
-            json_content += f'    "enabled": {str(config_data.get("enabled", True)).lower()}\n'
-            json_content += "}\n"
-
-            # Write all content at once to avoid file handle issues
-            with open(self.config_file, "w", encoding="utf-8") as f:
-                f.write(json_content)
-
-            print(f"Configuration saved to {self.config_file}")
+            print(f"Configuration saved ATOMICALLY to {self.config_file}")
         except Exception as e:
             print(f"Error saving configuration: {e}")
+            # Try to cleanup temp file if it exists
+            temp_file = f"{self.config_file}.tmp"
+            if os.path.exists(temp_file):
+                try:
+                    os.remove(temp_file)
+                except Exception:
+                    pass
 
     def update(self, key: str, value: Any):
         """
