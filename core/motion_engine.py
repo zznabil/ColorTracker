@@ -18,6 +18,8 @@ class OneEuroFilter:
     Adaptive low-pass filter minimizing jitter and lag.
     """
 
+    __slots__ = ("min_cutoff", "beta", "d_cutoff", "x_prev", "dx_prev", "t_prev")
+
     def __init__(self, t0: float, x0: float, min_cutoff: float = 1.0, beta: float = 0.0, d_cutoff: float = 1.0):
         self.min_cutoff = float(min_cutoff)
         self.beta = float(beta)
