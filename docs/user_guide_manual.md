@@ -1,18 +1,19 @@
-# SAI Color Tracking Algorithm V3 - User Guide
+# Color Tracking Algo for Single Player Games in Development - User Guide
 
 ## Introduction
-The SAI Color Tracking Algorithm V3 is a high-performance color detection and tracking tool designed for gaming assistance. It uses advanced computer vision to detect specific colors on screen and automatically moves the mouse cursor to the target.
+The **Color Tracking Algo for Single Player Games in Development** (V3.2) is a high-performance computer vision tool designed for research and educational purposes. It detects specific colors on-screen and automates mouse movement using low-level Windows APIs.
 
 ## Features
-- **Ultra-Fast Detection**: Optimized `mss` screen capture and parallel processing.
-- **Unified Motion Engine**: Implements the **1 Euro Filter** for adaptive jitter reduction and lag minimization.
-- **Velocity Prediction**: Predictive tracking to lead targets based on movement speed.
-- **Visual Feedback**: Real-time FOV overlay and color tolerance preview.
-- **Self-Healing Config**: Automatically repairs corrupted configuration files.
+- **Ultra-Fast Detection**: Optimized `mss` screen capture using zero-copy `np.frombuffer` buffers.
+- **Unified Motion Engine**: Implements the **1 Euro Filter** for adaptive jitter reduction and minimal lag.
+- **Velocity Prediction**: Predictive lookahead to lead moving targets based on real-time velocity.
+- **Visual Feedback**: Real-time FOV overlay and color tolerance preview via DearPyGui.
+- **Self-Healing Config**: Automatically repairs or resets corrupted configuration files.
+- **Direct Input**: Uses Windows `SendInput` for stealthy, hardware-like signal injection.
 
 ## Installation
 1.  **Prerequisites**:
-    *   Windows 10/11
+    *   Windows 10/11 (High-DPI aware)
     *   Python 3.11 or higher
 2.  **Setup**:
     ```bash
@@ -24,78 +25,61 @@ The SAI Color Tracking Algorithm V3 is a high-performance color detection and tr
     ```
 
 ## Configuration (GUI)
-Launch the application to access the GUI.
 
 ### Home Tab
-- **Toggle Tracking**: Main switch to Start/Stop the bot.
-- **Master Enable**: Safety switch. Must be CHECKED for hotkeys to work.
-- **Hotkeys**: Displays current keybinds (Default: PageUp/PageDown).
+- **Toggle Tracking**: Main switch to Start/Stop the algo thread.
+- **Master Enable**: Safety switch. Must be **CHECKED** for hotkeys and tracking to function.
+- **Hotkeys**: Displays current keybinds (Default: PageUp to Start, PageDown to Stop).
 
 ### Aim Tab
 - **Targeting Settings**:
-    *   **Aim At**: Select Body Part (Head, Body, Legs).
+    *   **Aim At**: Select target region (Head, Body, Legs).
 - **Motion Engine (1 Euro Filter)**:
-    *   **Stabilization (Min Cutoff)**: Controls smoothness. Lower values (0.001 - 0.1) reduce jitter but may feel "floaty".
-    *   **Responsiveness (Beta)**: Controls how fast the cursor reacts to sudden changes. Higher values (0.001 - 0.1) reduce lag during fast movement.
+    *   **min_cutoff**: Controls smoothness. Lower values (e.g., 0.01) reduce jitter but increase lag.
+    *   **beta**: Controls responsiveness. Higher values (e.g., 0.05) reduce lag during fast movement.
     *   **Prediction Scale**: Velocity lookahead multiplier. Set to **0.0** to disable prediction.
-- **Micro-Adjustments**:
-    *   **Head Offset**: Pixels to aim *above* the detected center (for headshots).
-    *   **Legs Offset**: Pixels to aim *below* the detected center.
+- **Micro-Adjustments (Logical Offsets)**:
+    *   **Head Offset**: Pixels to aim **ABOVE** the detected center (Negative value in internal logic).
+    *   **Legs Offset**: Pixels to aim **BELOW** the detected center (Positive value in internal logic).
 
 ### Detection Tab
 - **Color Sensing**:
-    *   **Target Color**: Click the color picker to select the enemy outline color.
-    *   **Tolerance**: How strict the color match is. Use the visual preview button to check the range. Snaps to 5-unit increments.
+    *   **Target Color**: Click the color picker to select the specific outline or center color.
+    *   **Tolerance**: How strict the match is (0-255). Snaps to 5-unit increments. Uses a 2.5x gain factor for detection stability.
 - **Search Area (FOV)**:
-    *   **Width/Height**: Size of the detection box in pixels. Smaller is faster. Snaps to 25px increments.
-    *   **Show Visual Search Box**: Toggles a green rectangle overlay showing the detection area.
+    *   **Width/Height**: Detection area size. Smaller areas yield higher FPS. Snaps to 25px increments.
+    *   **Show Visual Search Box**: Toggles the green FOV overlay.
 
 ### System Tab
 - **Performance**:
-    *   **Target FPS**: Sets the detection loop speed. Recommended: 240+ for high performance, 120 for lower CPU usage. Snaps to 120fps increments.
+    *   **Target FPS**: Loop speed (120-960 FPS). Snaps to 120fps increments. Higher FPS requires more CPU/GPU.
 - **Reset**:
-    *   **Reset All Settings**: Reverts configuration to factory defaults.
+    *   **Reset All Settings**: Reverts `config.json` to factory defaults immediately.
 
-## Stats & Debugging
+## Stats & Analytics
 ### Stats Tab
 - **Real-Time Analytics**:
-    *   **FPS**: Current detection loop rate.
-    *   **Latency**: Average processing time per frame (ms).
-    *   **1% Lows**: The lowest FPS recorded (indicator of stutter).
-    *   **Missed Frames**: Count of frames where processing took longer than the target interval.
+    *   **FPS/Latency**: Shows current loop speed and processing delay (ms).
+    *   **1% Lows**: Detects micro-stutters and frame-drops.
+    *   **Missed Frames**: Count of frames failing to meet the target time interval.
 
 ### Debug Console (F12)
-Enabled via `debug_mode: true` in `config.json`. Provides real-time logs for:
-- Performance Stats
-- Detection Events
-- System State Changes
-- Input/Movement Events
+Accessible if `debug_mode` is enabled. Provides clinical logs for detection events, movement injection, and system errors.
 
-## Advanced Configuration (config.json)
-Some settings are only accessible by editing the `config.json` file directly:
-- **`screen_width` / `screen_height`**: **CRITICAL**. Must match your monitor resolution for accurate aiming. Defaults: 1920x1080.
-- **`search_area`**: Radius (in pixels) for the optimized local search. If a target is found, the bot only scans this area around the target in the next frame. Default: 100.
-- **`debug_mode`**: Set to `true` to enable the `F12` debug console hotkey. Default: `false`.
-- **`ultra_responsive_mode`**: (Hidden) Set to `true` to prioritize input speed over stability. May cause jitter.
-- **`zero_latency_mode`**: (Hidden) Set to `true` to bypass some smoothing filters for maximum responsiveness.
+## Advanced Tuning (`config.json`)
+- **`search_area`**: Radius for optimized local search. If a target is locked, the algo only scans this radius around the last known position.
+- **`ultra_responsive_mode`**: Prioritizes input frequency over signal stability.
+- **`zero_latency_mode`**: Bypasses certain smoothing buffers for raw signal throughput.
 
 ## Hotkeys
 - **PageUp**: Start Tracking
 - **PageDown**: Stop Tracking
-- **F12**: Toggle Debug Console (Requires `debug_mode: true` in `config.json`)
+- **F12**: Toggle Debug Console (If enabled)
 
 ## Troubleshooting
-- **Bot not moving?**
-    *   Check "Master Enable" is Checked.
-    *   Verify "Target Color" matches the enemy.
-    *   Ensure game is in "Borderless Window" mode (Fullscreen optimization may block screen capture).
-- **Jittery movement?**
-    *   Lower **Stabilization (Min Cutoff)** in the Aim tab.
-    *   Increase **Tolerance** in Detection tab if the color is flickering.
-- **Laggy tracking?**
-    *   Increase **Responsiveness (Beta)** in the Aim tab.
-    *   Reduce **FOV** size.
-    *   Check **Stats tab** for FPS drops.
+- **No Movement?** Verify "Master Enable" is checked and "Target Color" is accurately picked. Borderless Window mode is required for most games.
+- **Jitter?** Decrease `min_cutoff` or increase `Tolerance`.
+- **Lag?** Increase `beta` or reduce the FOV size.
 
 ## Disclaimer
-This software is for educational and research purposes only. Use in online games may violate Terms of Service.
+This software is for educational, research, and development purposes only. Use in commercial or online environments may violate third-party Terms of Service.

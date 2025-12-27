@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 
 """
-ColorTracker Algorithm V3
+Color Tracking Algo for Single Player Games in Development - V3.2
 
-Main entry point for the ColorTracker Algorithm V3 application.
+Main entry point for the Color Tracking Algo application, orchestrated
+for high-performance detection and responsive UI.
 """
 
 import ctypes
@@ -33,7 +34,7 @@ except Exception:
 
 
 class ColorTrackerAlgo:
-    """Main application class for ColorTracker Algorithm V3 with optimized UI responsiveness"""
+    """Main application class for Color Tracking Algo with optimized performance and responsiveness"""
 
     # Explicitly declare dynamic attributes for static analysis (Pyright)
     status_text: int | str

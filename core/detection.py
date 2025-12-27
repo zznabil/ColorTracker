@@ -17,7 +17,10 @@ from numpy.typing import NDArray
 
 
 class DetectionSystem:
-    """Handles pixel search for target detection based on color"""
+    """
+    High-performance color detection system utilizing optimized screen capture
+    and zero-copy buffer processing for ultra-low latency tracking.
+    """
 
     # Type hints for cached values
     _lower_bound: NDArray[np.uint8] | None
@@ -288,8 +291,10 @@ class DetectionSystem:
 
     def _capture_to_numpy(self, area: dict[str, int]) -> NDArray[np.uint8] | None:
         """
-        Captures a screen area and returns it as a numpy array.
-        Optimization: Uses frombuffer to avoid memory copy.
+        Captures a screen area and returns it as a numpy array using zero-copy optimization.
+
+        Uses np.frombuffer to create a view into the raw BGRA memory, avoiding expensive
+        memory allocation and copy operations during the high-speed detection loop.
         """
         sct = self._get_sct()
         sct_img = sct.grab(area)
