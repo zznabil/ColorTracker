@@ -1,3 +1,4 @@
+import os
 import random
 import threading
 import time
@@ -12,7 +13,7 @@ from utils.config import Config
 
 
 class TestUltraRobustness:
-    @pytest.mark.skip(reason="Threaded config fuzzing is too unstable for CI environment")
+    @pytest.mark.skipif(os.getenv("CI") == "true", reason="Threaded config fuzzing is too unstable for CI environment")
     def test_chaos_monkey_config_threading(self):
         """
         The 'User From Hell' Test:

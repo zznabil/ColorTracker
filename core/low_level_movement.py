@@ -28,6 +28,7 @@ else:
                 return 1920 if index == 0 else 1080
 
             def GetCursorPos(self, point_ref):
+                # Correctly handle Pointer to POINT structures
                 if hasattr(point_ref, "contents"):
                     point_ref.contents.x = 960
                     point_ref.contents.y = 540
@@ -179,13 +180,17 @@ class LowLevelMovementSystem:
     def move_mouse_absolute(self, x: int, y: int) -> bool:
         """
         Move mouse to absolute position using SendInput (low-level)
+        Using round() for better precision and (width-1) for correct mapping.
         """
         user32 = self._get_user32()
         if not user32:
             return True
 
-        normalized_x = max(0, min(65535, int((x * 65535) / self.screen_width)))
-        normalized_y = max(0, min(65535, int((y * 65535) / self.screen_height)))
+        # Normalize coordinates to 0-65535 range
+        # We subtract 1 from screen dimensions because pixel coordinates are 0-indexed
+        # e.g. x=1919 should map to 65535 on a 1920-wide screen
+        normalized_x = max(0, min(65535, int(round((x * 65535) / (self.screen_width - 1)))))
+        normalized_y = max(0, min(65535, int(round((y * 65535) / (self.screen_height - 1)))))
 
         mouse_input = MOUSEINPUT(
             dx=normalized_x,
