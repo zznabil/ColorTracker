@@ -751,13 +751,24 @@ def setup_gui(app):
         no_title_bar=True,
         width=260,
         height=100,
-        pos=[60, 200],
     ):
         dpg.add_spacer(height=5)
         dpg.add_text("Reset all settings to factory defaults?\nThis cannot be undone.", wrap=240)
         dpg.add_spacer(height=10)
         with dpg.group(horizontal=True):
-            dpg.add_button(label="YES, RESET", callback=app.reset_all_settings, width=120, height=25)
+            confirm_reset_btn = dpg.add_button(
+                label="YES, RESET", callback=app.reset_all_settings, width=120, height=25
+            )
+
+            # Define specific destructive theme for the modal button to avoid scoping issues
+            with dpg.theme() as destructive_theme:
+                with dpg.theme_component(dpg.mvButton):
+                    dpg.add_theme_color(dpg.mvThemeCol_Button, (110, 40, 40), category=dpg.mvThemeCat_Core)
+                    dpg.add_theme_color(dpg.mvThemeCol_ButtonHovered, (150, 50, 50), category=dpg.mvThemeCat_Core)
+                    dpg.add_theme_color(dpg.mvThemeCol_ButtonActive, (180, 60, 60), category=dpg.mvThemeCat_Core)
+            dpg.bind_item_theme(confirm_reset_btn, destructive_theme)
+
+            dpg.add_spacer(width=10)
             dpg.add_button(
                 label="CANCEL", callback=lambda: dpg.hide_item("reset_confirmation_modal"), width=120, height=25
             )
