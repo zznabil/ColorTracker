@@ -11,12 +11,19 @@ import math
 import time
 from typing import Any
 
+# Precompute constant for optimization
+PI_2 = 2 * math.pi
+
 
 class OneEuroFilter:
     """
     1 Euro Filter implementation.
     Adaptive low-pass filter minimizing jitter and lag.
+
+    Optimized with __slots__ and inlined math for hot-path performance.
     """
+
+    __slots__ = ('min_cutoff', 'beta', 'd_cutoff', 'x_prev', 'dx_prev', 't_prev')
 
     def __init__(self, t0: float, x0: float, min_cutoff: float = 1.0, beta: float = 0.0, d_cutoff: float = 1.0):
         self.min_cutoff = float(min_cutoff)
@@ -26,29 +33,44 @@ class OneEuroFilter:
         self.dx_prev = 0.0
         self.t_prev = float(t0)
 
-    def smoothing_factor(self, t_e: float, cutoff: float) -> float:
-        r = 2 * math.pi * cutoff * t_e
-        return r / (r + 1)
-
-    def exponential_smoothing(self, a: float, x: float, x_prev: float) -> float:
-        return a * x + (1 - a) * x_prev
-
     def __call__(self, t: float, x: float) -> float:
+        """
+        Filter a value.
+
+        Args:
+            t: Current timestamp
+            x: Value to filter
+
+        Returns:
+            Filtered value
+        """
         t_e = t - self.t_prev
 
         # Improve robustness against duplicate timestamps or time backward jumps
         if t_e <= 0:
             return self.x_prev
 
+        # --- Inline: Smoothing Factor & Exponential Smoothing for Derivative ---
         # Calculate the filtered derivative of the signal
-        a_d = self.smoothing_factor(t_e, self.d_cutoff)
-        dx = (x - self.x_prev) / t_e
-        dx_hat = self.exponential_smoothing(a_d, dx, self.dx_prev)
+        # a_d = self.smoothing_factor(t_e, self.d_cutoff)
+        r_d = PI_2 * self.d_cutoff * t_e
+        a_d = r_d / (r_d + 1)
 
+        dx = (x - self.x_prev) / t_e
+
+        # dx_hat = self.exponential_smoothing(a_d, dx, self.dx_prev)
+        dx_hat = a_d * dx + (1 - a_d) * self.dx_prev
+
+        # --- Inline: Smoothing Factor & Exponential Smoothing for Signal ---
         # Calculate the filtered signal
         cutoff = self.min_cutoff + self.beta * abs(dx_hat)
-        a = self.smoothing_factor(t_e, cutoff)
-        x_hat = self.exponential_smoothing(a, x, self.x_prev)
+
+        # a = self.smoothing_factor(t_e, cutoff)
+        r = PI_2 * cutoff * t_e
+        a = r / (r + 1)
+
+        # x_hat = self.exponential_smoothing(a, x, self.x_prev)
+        x_hat = a * x + (1 - a) * self.x_prev
 
         # Update state
         self.x_prev = x_hat

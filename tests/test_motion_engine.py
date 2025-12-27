@@ -50,6 +50,10 @@ def test_static_input_convergence(motion_engine):
 
 def test_motion_smoothing(motion_engine):
     """Test that moving input is smoothed (output starts behind input)"""
+    # Disable prediction for this test to isolate smoothing
+    motion_engine.config.prediction_scale = 0.0
+    motion_engine.update_config()
+
     # Initialize at 0,0
     motion_engine.process(0, 0, 0.016)
 
