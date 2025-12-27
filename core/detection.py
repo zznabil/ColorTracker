@@ -80,15 +80,15 @@ class DetectionSystem:
             # Convert to 4-channel BGRA bounds (B, G, R, A)
             # Alpha is set to 0-255 to match any alpha value
             if current_tolerance == 0:
-                self._lower_bound = np.array([*target_bgr, 0], dtype=np.uint8)
-                self._upper_bound = np.array([*target_bgr, 255], dtype=np.uint8)
+                lower_bgr = target_bgr
+                upper_bgr = target_bgr
             else:
                 brightness_factor = current_tolerance * 2.5
                 lower_bgr = [max(0, c - brightness_factor) for c in target_bgr]
                 upper_bgr = [min(255, c + brightness_factor) for c in target_bgr]
 
-                self._lower_bound = np.array([*lower_bgr, 0], dtype=np.uint8)
-                self._upper_bound = np.array([*upper_bgr, 255], dtype=np.uint8)
+            self._lower_bound = np.array([*lower_bgr, 0], dtype=np.uint8)
+            self._upper_bound = np.array([*upper_bgr, 255], dtype=np.uint8)
 
             self._last_target_color = current_color
             self._last_color_tolerance = current_tolerance
@@ -183,27 +183,27 @@ class DetectionSystem:
         # minMaxLoc finds the max value (255 if match exists) and its location in O(1) memory
         _, max_val, _, max_loc = cv2.minMaxLoc(mask)
 
-        if max_val > 0:
-            match_x, match_y = max_loc
-            screen_x: int = int(match_x + local_left)
-            screen_y: int = int(match_y + local_top)
+        if max_val <= 0:
+            return False, 0, 0
 
-            # --- FOV Restriction Check ---
-            # Ensure the target found in local search is still within the global FOV bounds
-            center_x: int = self.config.screen_width // 2
-            center_y: int = self.config.screen_height // 2
+        match_x, match_y = max_loc
+        screen_x: int = int(match_x + local_left)
+        screen_y: int = int(match_y + local_top)
 
-            if abs(screen_x - center_x) > self.config.fov_x or abs(screen_y - center_y) > self.config.fov_y:
-                self.target_found_last_frame = False
-                return False, 0, 0
-            # -----------------------------
+        # --- FOV Restriction Check ---
+        # Ensure the target found in local search is still within the global FOV bounds
+        center_x: int = self.config.screen_width // 2
+        center_y: int = self.config.screen_height // 2
 
-            self.target_x = screen_x
-            self.target_y = screen_y
-            self.target_found_last_frame = True
-            return True, screen_x, screen_y
+        if abs(screen_x - center_x) > self.config.fov_x or abs(screen_y - center_y) > self.config.fov_y:
+            self.target_found_last_frame = False
+            return False, 0, 0
+        # -----------------------------
 
-        return False, 0, 0
+        self.target_x = screen_x
+        self.target_y = screen_y
+        self.target_found_last_frame = True
+        return True, screen_x, screen_y
 
     def _full_search(self, left: int, top: int, right: int, bottom: int) -> tuple[bool, int, int]:
         """

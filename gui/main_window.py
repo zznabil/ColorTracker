@@ -135,21 +135,12 @@ def setup_gui(app):
         else:
             dpg.hide_item("fov_overlay")
 
-    def on_fov_x_changed(sender, a):
+    def on_fov_changed(sender, a, user_data):
         # Immediate value snapping with visual feedback
         snapped = max(25, min(250, round(a / 25) * 25))
         if abs(a - snapped) > 0.1:  # Only update if value changed significantly
             dpg.set_value(sender, snapped)
-        app.config.update("fov_x", snapped)
-        if getattr(app, "fov_overlay_enabled", False):
-            update_fov_overlay()
-
-    def on_fov_y_changed(sender, a):
-        # Immediate value snapping with visual feedback
-        snapped = max(25, min(250, round(a / 25) * 25))
-        if abs(a - snapped) > 0.1:  # Only update if value changed significantly
-            dpg.set_value(sender, snapped)
-        app.config.update("fov_y", snapped)
+        app.config.update(user_data, snapped)
         if getattr(app, "fov_overlay_enabled", False):
             update_fov_overlay()
 
@@ -421,7 +412,8 @@ def setup_gui(app):
                         default_value=app.config.fov_x,
                         min_value=25,
                         max_value=250,
-                        callback=on_fov_x_changed,
+                        callback=on_fov_changed,
+                        user_data="fov_x",
                         width=-1,
                     )
                     with dpg.tooltip(app.fov_x_slider):
@@ -434,7 +426,8 @@ def setup_gui(app):
                         default_value=app.config.fov_y,
                         min_value=25,
                         max_value=250,
-                        callback=on_fov_y_changed,
+                        callback=on_fov_changed,
+                        user_data="fov_y",
                         width=-1,
                     )
                     with dpg.tooltip(app.fov_y_slider):
