@@ -132,7 +132,7 @@ class DetectionSystem:
         # If local search failed or no previous target, do full FOV search
         return self._full_search(scan_left, scan_top, scan_right, scan_bottom)
 
-    def _capture_and_process_frame(self, area: dict) -> tuple[bool, Any]:
+    def _capture_and_process_frame(self, area: dict) -> tuple[bool, NDArray[np.uint8] | None]:
         """
         Capture a frame from the screen and convert it to a NumPy array.
 
@@ -154,6 +154,25 @@ class DetectionSystem:
             return True, img_bgra
         except Exception:
             return False, None
+
+    def _perform_detection(
+        self, img_bgra: NDArray[np.uint8], offset_x: int, offset_y: int
+    ) -> tuple[bool, int, int]:
+        """
+        Core detection logic: mask creation, finding max value, and coordinate conversion.
+        """
+        # Use cached bounds
+        if self._lower_bound is None or self._upper_bound is None:
+            self._update_color_bounds()
+
+        mask = cv2.inRange(img_bgra, self._lower_bound, self._upper_bound)  # type: ignore
+        _, max_val, _, max_loc = cv2.minMaxLoc(mask)
+
+        if max_val <= 0:
+            return False, 0, 0
+
+        screen_x, screen_y = int(max_loc[0] + offset_x), int(max_loc[1] + offset_y)
+        return True, screen_x, screen_y
 
     def _local_search(self) -> tuple[bool, int, int]:
         """
@@ -183,20 +202,12 @@ class DetectionSystem:
         local_area = {"left": local_left, "top": local_top, "width": width, "height": height}
 
         success, img_bgra = self._capture_and_process_frame(local_area)
-        if not success:
+        if not success or img_bgra is None:
             return False, 0, 0
 
-        # Use cached bounds
-        if self._lower_bound is None or self._upper_bound is None:
-            self._update_color_bounds()
-
-        mask = cv2.inRange(img_bgra, self._lower_bound, self._upper_bound)  # type: ignore
-        _, max_val, _, max_loc = cv2.minMaxLoc(mask)
-
-        if max_val <= 0:
+        found, screen_x, screen_y = self._perform_detection(img_bgra, local_left, local_top)
+        if not found:
             return False, 0, 0
-
-        screen_x, screen_y = int(max_loc[0] + local_left), int(max_loc[1] + local_top)
 
         # FOV Restriction Check
         center_x, center_y = self.config.screen_width // 2, self.config.screen_height // 2
@@ -240,32 +251,15 @@ class DetectionSystem:
         full_area = {"left": left, "top": top, "width": width, "height": height}
 
         success, img_bgra = self._capture_and_process_frame(full_area)
-        if not success:
+        if not success or img_bgra is None:
             return False, 0, 0
 
-        # OPTIMIZATION: Removed cv2.cvtColor(img_bgra, cv2.COLOR_BGRA2BGR)
-        # We now perform color matching directly on BGRA data.
+        found, screen_x, screen_y = self._perform_detection(img_bgra, left, top)
 
-        # Use cached bounds
-        if self._lower_bound is None or self._upper_bound is None:
-            self._update_color_bounds()
-
-        # Create mask of pixels within color range
-        mask = cv2.inRange(img_bgra, self._lower_bound, self._upper_bound)  # type: ignore
-
-        # OPTIMIZATION: Use minMaxLoc instead of findNonZero
-        _, max_val, _, max_loc = cv2.minMaxLoc(mask)
-
-        if max_val <= 0:
+        if not found:
             # No match found in full search
             self.target_found_last_frame = False
             return False, 0, 0
-
-        match_x, match_y = max_loc
-
-        # Convert back to screen coordinates
-        screen_x = match_x + left
-        screen_y = match_y + top
 
         # Update target position
         self.target_x = screen_x
