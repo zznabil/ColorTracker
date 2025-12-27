@@ -16,7 +16,13 @@ class OneEuroFilter:
     """
     1 Euro Filter implementation.
     Adaptive low-pass filter minimizing jitter and lag.
+
+    OPTIMIZATION:
+    - Uses __slots__ for reduced memory footprint and faster attribute access.
+    - Inlines smoothing calculations to avoid method call overhead in hot path.
     """
+
+    __slots__ = ("min_cutoff", "beta", "d_cutoff", "x_prev", "dx_prev", "t_prev")
 
     def __init__(self, t0: float, x0: float, min_cutoff: float = 1.0, beta: float = 0.0, d_cutoff: float = 1.0):
         self.min_cutoff = float(min_cutoff)
@@ -26,13 +32,6 @@ class OneEuroFilter:
         self.dx_prev = 0.0
         self.t_prev = float(t0)
 
-    def smoothing_factor(self, t_e: float, cutoff: float) -> float:
-        r = 2 * math.pi * cutoff * t_e
-        return r / (r + 1)
-
-    def exponential_smoothing(self, a: float, x: float, x_prev: float) -> float:
-        return a * x + (1 - a) * x_prev
-
     def __call__(self, t: float, x: float) -> float:
         t_e = t - self.t_prev
 
@@ -41,14 +40,24 @@ class OneEuroFilter:
             return self.x_prev
 
         # Calculate the filtered derivative of the signal
-        a_d = self.smoothing_factor(t_e, self.d_cutoff)
+        # Inline smoothing_factor(t_e, self.d_cutoff)
+        r_d = 6.28318530718 * self.d_cutoff * t_e  # 2 * pi approx
+        a_d = r_d / (r_d + 1)
+
         dx = (x - self.x_prev) / t_e
-        dx_hat = self.exponential_smoothing(a_d, dx, self.dx_prev)
+
+        # Inline exponential_smoothing(a_d, dx, self.dx_prev)
+        dx_hat = a_d * dx + (1 - a_d) * self.dx_prev
 
         # Calculate the filtered signal
         cutoff = self.min_cutoff + self.beta * abs(dx_hat)
-        a = self.smoothing_factor(t_e, cutoff)
-        x_hat = self.exponential_smoothing(a, x, self.x_prev)
+
+        # Inline smoothing_factor(t_e, cutoff)
+        r = 6.28318530718 * cutoff * t_e
+        a = r / (r + 1)
+
+        # Inline exponential_smoothing(a, x, self.x_prev)
+        x_hat = a * x + (1 - a) * self.x_prev
 
         # Update state
         self.x_prev = x_hat

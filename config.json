@@ -13,7 +13,7 @@
     // Color matching tolerance (0-100)
     // Lower = more precise matching, Higher = more flexible matching
     // Recommended: 10-20 for good lighting, 25-50 for variable lighting
-    "color_tolerance": 15,
+    "color_tolerance": 0,
 
     // === DETECTION AREA SETTINGS ===
     // Search area radius around crosshair (pixels)
@@ -25,19 +25,19 @@
     // fov_x: horizontal detection range, fov_y: vertical detection range
     // Smaller values = faster performance, larger = wider detection
     // Recommended: 30-60 for most games
-    "fov_x": 25,
+    "fov_x": 209,
     "fov_y": 25,
 
     // === MOTION ENGINE SETTINGS ===
     // 1 Euro Filter Settings
     // motion_min_cutoff: Stabilization. Lower = More stable when slow. Rec: 0.001-0.1
-    "motion_min_cutoff": 0.0010000000474974513,
+    "motion_min_cutoff": 0.99,
     // motion_beta: Responsiveness. Higher = Faster reaction. Rec: 0.001-0.1
     "motion_beta": 0.4059999883174896,
 
     // Prediction Status
     // prediction_scale: Velocity prediction multiplier. 0.0 = Off.
-    "prediction_scale": 0.10000000149011612,
+    "prediction_scale": 0.0,
 
     // === TARGETING SETTINGS ===
     // Target tracking point on detected objects
@@ -70,5 +70,5 @@
     // Master enable/disable switch
     // true: Color Tracking Algo can be activated with start_key
     // false: Color Tracking Algo completely disabled
-    "enabled": true
+    "enabled": false
 }
