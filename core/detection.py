@@ -132,7 +132,7 @@ class DetectionSystem:
         # If local search failed or no previous target, do full FOV search
         return self._full_search(scan_left, scan_top, scan_right, scan_bottom)
 
-    def _capture_and_process_frame(self, area: dict) -> tuple[bool, Any]:
+    def _capture_and_process_frame(self, area: dict[str, int]) -> tuple[bool, NDArray[np.uint8] | None]:
         """
         Capture a frame from the screen and convert it to a NumPy array.
 
@@ -291,20 +291,6 @@ class DetectionSystem:
 
         # Return as BGR (OpenCV format)
         return (b, g, r)
-
-    def _capture_to_numpy(self, area: dict[str, int]) -> NDArray[np.uint8] | None:
-        """
-        Captures a screen area and returns it as a numpy array using zero-copy optimization.
-
-        Uses np.frombuffer to create a view into the raw BGRA memory, avoiding expensive
-        memory allocation and copy operations during the high-speed detection loop.
-        """
-        sct = self._get_sct()
-        sct_img = sct.grab(area)
-        img = np.frombuffer(sct_img.bgra, dtype=np.uint8).reshape((sct_img.height, sct_img.width, 4))
-        if img.size == 0 or img.ndim != 3:
-            return None
-        return img
 
     def _clamp_search_area(
         self, left: int, right: int, top: int, bottom: int, max_size: int
