@@ -93,7 +93,11 @@ class INPUT(ctypes.Structure):
 
 
 class LowLevelMovementSystem:
-    """Handles low-level mouse movement using Windows API for game compatibility"""
+    """
+    [Archetype A: The Sage - Logic/Precision]
+    Handles low-level mouse movement using Windows API (SendInput) with
+    pre-allocated structure reuse for zero-allocation interaction.
+    """
 
     def __init__(self, config: Any) -> None:
         """
@@ -127,6 +131,10 @@ class LowLevelMovementSystem:
 
         # Aim offset based on aim point
         self.aim_offset_y = 0
+
+        # Optimization: Cache INPUT structure to avoid reallocation
+        self._mouse_input = MOUSEINPUT()
+        self._input_structure = INPUT(type=INPUT_MOUSE, ii=INPUT._INPUT(mi=self._mouse_input))
 
     def _get_user32(self):
         """Helper to get the correct user32 instance (real or mocked)"""
@@ -166,13 +174,18 @@ class LowLevelMovementSystem:
         if not user32:
             return True
 
-        mouse_input = MOUSEINPUT(dx=dx, dy=dy, mouseData=0, dwFlags=MOUSEEVENTF_MOVE, time=0, dwExtraInfo=None)
-
-        input_struct = INPUT(type=INPUT_MOUSE, ii=INPUT._INPUT(mi=mouse_input))
+        # Optimization: Reuse cached structure by updating fields directly
+        # Note: We must update the structure inside the union, not a separate MOUSEINPUT object
+        self._input_structure.ii.mi.dx = dx
+        self._input_structure.ii.mi.dy = dy
+        self._input_structure.ii.mi.mouseData = 0
+        self._input_structure.ii.mi.dwFlags = MOUSEEVENTF_MOVE
+        self._input_structure.ii.mi.time = 0
+        self._input_structure.ii.mi.dwExtraInfo = None
 
         # Send the input using Windows API with safety check
         try:
-            result = user32.SendInput(1, ctypes.byref(input_struct), ctypes.sizeof(INPUT))  # type: ignore
+            result = user32.SendInput(1, ctypes.byref(self._input_structure), ctypes.sizeof(INPUT))  # type: ignore
             return result == 1
         except Exception:
             return False
@@ -192,20 +205,17 @@ class LowLevelMovementSystem:
         normalized_x = max(0, min(65535, int(round((x * 65535) / (self.screen_width - 1)))))
         normalized_y = max(0, min(65535, int(round((y * 65535) / (self.screen_height - 1)))))
 
-        mouse_input = MOUSEINPUT(
-            dx=normalized_x,
-            dy=normalized_y,
-            mouseData=0,
-            dwFlags=MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE,
-            time=0,
-            dwExtraInfo=None,
-        )
-
-        input_struct = INPUT(type=INPUT_MOUSE, ii=INPUT._INPUT(mi=mouse_input))
+        # Optimization: Reuse cached structure by updating fields directly
+        self._input_structure.ii.mi.dx = normalized_x
+        self._input_structure.ii.mi.dy = normalized_y
+        self._input_structure.ii.mi.mouseData = 0
+        self._input_structure.ii.mi.dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE
+        self._input_structure.ii.mi.time = 0
+        self._input_structure.ii.mi.dwExtraInfo = None
 
         # Send the input using Windows API with safety check
         try:
-            result = user32.SendInput(1, ctypes.byref(input_struct), ctypes.sizeof(INPUT))
+            result = user32.SendInput(1, ctypes.byref(self._input_structure), ctypes.sizeof(INPUT))
             return result == 1
         except Exception:
             return False

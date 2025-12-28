@@ -15,6 +15,7 @@ from typing import Any
 
 class OneEuroFilter:
     """
+    [Archetype A: The Sage - Logic/Precision]
     1 Euro Filter implementation.
     Adaptive low-pass filter minimizing jitter and lag.
 
@@ -73,6 +74,7 @@ class OneEuroFilter:
 
 class MotionEngine:
     """
+    [Archetype A: The Sage - Logic/Precision]
     Unified Motion Engine handling smoothing and prediction.
     """
 

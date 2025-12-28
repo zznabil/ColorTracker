@@ -1,12 +1,13 @@
-# Color Tracking Algo for Single Player Games in Development - User Guide
+# Color Tracking Algo for Single Player Games in Development - V3.2.3 User Guide
 
 ## Introduction
 The **Color Tracking Algo for Single Player Games in Development** (V3.2.1) is a professional-grade computer vision utility optimized for high-performance coordinate tracking and automated input research.
 
 ## Features
-- **Extreme Speed Detection**: GPU-accelerated frame processing with `cv2.minMaxLoc` and high-frequency `mss` capture.
+- **Extreme Speed Detection**: GPU-accelerated frame processing with cached FOV geometry and `mss` capture.
 - **Zero-Copy Buffer Management**: Direct `np.frombuffer` access to screen memory avoids O(N) allocation overhead.
-- **V3.2.1 Logic optimizations**: `OneEuroFilter` implementation using `__slots__` and inlined math for minimal CPU latency.
+- **Allocation-Free Interaction**: Reuses `ctypes` input structures to prevent memory allocation churn during tracking.
+- **V3.2.3 Logic optimizations**: `OneEuroFilter` implementation using `__slots__` and inlined math for minimal CPU latency.
 - **Adaptive Predictive Tracking**: Real-time velocity-based projection to eliminate smoothing-induced lag.
 - **Documented Configuration**: Self-documenting `config.json` with inline tuning guides.
 - **Hardware-Like Input**: Low-level `SendInput` integration with safety clamping and high-precision coordinate injection.
@@ -38,9 +39,9 @@ The **Color Tracking Algo for Single Player Games in Development** (V3.2.1) is a
     *   **min_cutoff**: Controls smoothness. Lower values (e.g., 0.01) reduce jitter but increase lag.
     *   **beta**: Controls responsiveness. Higher values (e.g., 0.05) reduce lag during fast movement.
     *   **Prediction Scale**: Velocity lookahead multiplier. Set to **0.0** to disable prediction.
-- **Micro-Adjustments (Logical Offsets)**:
-    *   **Head Offset**: Pixels to aim **ABOVE** the detected center (Negative value in internal logic).
-    *   **Legs Offset**: Pixels to aim **BELOW** the detected center (Positive value in internal logic).
+- **Micro-Adjustments (Spatial Correction)**:
+    *   **Head Offset**: Distance (pixels) to aim **ABOVE** the detected center. Internally processed as a negative subtraction.
+    *   **Legs Offset**: Distance (pixels) to aim **BELOW** the detected center. Internally processed as a positive addition.
 
 ### Detection Tab
 - **Color Sensing**:
@@ -66,10 +67,18 @@ The **Color Tracking Algo for Single Player Games in Development** (V3.2.1) is a
 ### Debug Console (F12)
 Accessible if `debug_mode` is enabled. Provides clinical logs for detection events, movement injection, and system errors.
 
-## Advanced Tuning (`config.json`)
-- **`search_area`**: Radius for optimized local search. If a target is locked, the algo only scans this radius around the last known position.
-- **`ultra_responsive_mode`**: Prioritizes input frequency over signal stability.
-- **`zero_latency_mode`**: Bypasses certain smoothing buffers for raw signal throughput.
+## 🧠 Advanced Physics Tuning (`config.json`)
+The **1 Euro Filter** manages the tradeoff between jitter and lag using two main parameters:
+- **`motion_min_cutoff` ($f_{c_{min}}$)**: The minimum cutoff frequency. A lower value (0.01-0.1) creates a "heavy" feel with zero jitter at rest.
+- **`motion_beta` ($\beta$)**: The velocity relationship. A higher value (0.05-0.5) allows the cutoff frequency to increase rapidly with speed, eliminating lag during fast tracking.
+- **`ultra_responsive_mode`**: Prioritizes raw throughput for high-refresh monitors.
+- **`zero_latency_mode`**: Surgical bypass of non-essential smoothing buffers.
+
+## 👮 The Policeman (Verification Loop)
+To ensure the algo is running at peak performance and adheres to the architectural standards, execute the following from the project root:
+1. **Linting**: `python -m ruff check .`
+2. **Type Safety**: `python -m pyright .`
+3. **Logic Integrity**: `python -m pytest`
 
 ## Hotkeys
 - **PageUp**: Start Tracking

@@ -21,6 +21,7 @@ from numpy.typing import NDArray
 
 class DetectionSystem:
     """
+    [Archetype A: The Sage - Logic/Data]
     High-performance color detection system utilizing optimized screen capture
     and zero-copy buffer processing for ultra-low latency tracking.
     """
@@ -54,6 +55,14 @@ class DetectionSystem:
         self._upper_bound = None
         self._last_target_color = None
         self._last_color_tolerance = None
+
+        # Caching for FOV calculations to avoid redundant arithmetic (GEM: From Session 9278)
+        self._center_x = 0
+        self._center_y = 0
+        self._fov_x = 0
+        self._fov_y = 0
+        self._scan_area = None
+        self._last_fov_config = None
 
     def _get_sct(self) -> Any:
         """
@@ -98,27 +107,45 @@ class DetectionSystem:
                 self._upper_bound = np.array([upper_bgr[0], upper_bgr[1], upper_bgr[2], 255], dtype=np.uint8)
 
             self._last_target_color = current_color
+            self._last_target_color = current_color
             self._last_color_tolerance = current_tolerance
+
+    def _update_fov_cache(self) -> None:
+        """
+        Updates cached FOV and screen dimension values to avoid redundant arithmetic per frame.
+        Optimization: Reduces ~20 attribute lookups and arithmetic operations per frame in hot path.
+        """
+        current_config = (
+            self.config.screen_width,
+            self.config.screen_height,
+            self.config.fov_x,
+            self.config.fov_y,
+        )
+
+        if self._last_fov_config == current_config and self._scan_area is not None:
+            return
+
+        w, h, fov_x, fov_y = current_config
+        self._center_x = w // 2
+        self._center_y = h // 2
+        self._fov_x = fov_x
+        self._fov_y = fov_y
+
+        # Calculate FOV boundaries for full search
+        scan_left = max(0, self._center_x - fov_x)
+        scan_top = max(0, self._center_y - fov_y)
+        scan_right = min(w, self._center_x + fov_x)
+        scan_bottom = min(h, self._center_y + fov_y)
+
+        self._scan_area = (scan_left, scan_top, scan_right, scan_bottom)
+        self._last_fov_config = current_config
 
     def find_target(self) -> tuple[bool, int, int]:
         """
         Search for target pixel color on screen
         """
-        # Get screen center coordinates
-        center_x: int = self.config.screen_width // 2
-        center_y: int = self.config.screen_height // 2
-
-        # Calculate FOV boundaries
-        scan_left: int = center_x - self.config.fov_x
-        scan_top: int = center_y - self.config.fov_y
-        scan_right: int = center_x + self.config.fov_x
-        scan_bottom: int = center_y + self.config.fov_y
-
-        # Ensure boundaries are within screen
-        scan_left = max(0, scan_left)
-        scan_top = max(0, scan_top)
-        scan_right = min(self.config.screen_width, scan_right)
-        scan_bottom = min(self.config.screen_height, scan_bottom)
+        # Update FOV cache (GEM: Optimization)
+        self._update_fov_cache()
 
         # Update color bounds cache
         self._update_color_bounds()
@@ -130,6 +157,11 @@ class DetectionSystem:
                 return result
 
         # If local search failed or no previous target, do full FOV search
+        # Using cached scan area
+        if self._scan_area is None:
+            return False, 0, 0
+
+        scan_left, scan_top, scan_right, scan_bottom = self._scan_area
         return self._full_search(scan_left, scan_top, scan_right, scan_bottom)
 
     def _capture_and_process_frame(self, area: dict) -> tuple[bool, Any]:
@@ -199,8 +231,8 @@ class DetectionSystem:
         screen_x, screen_y = int(max_loc[0] + local_left), int(max_loc[1] + local_top)
 
         # FOV Restriction Check
-        center_x, center_y = self.config.screen_width // 2, self.config.screen_height // 2
-        if abs(screen_x - center_x) > self.config.fov_x or abs(screen_y - center_y) > self.config.fov_y:
+        # Use cached values to avoid redundant calculations and attribute access
+        if abs(screen_x - self._center_x) > self._fov_x or abs(screen_y - self._center_y) > self._fov_y:
             self.target_found_last_frame = False
             return False, 0, 0
 

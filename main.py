@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-Color Tracking Algo for Single Player Games in Development - V3.2
+Color Tracking Algo for Single Player Games in Development - V3.2.3
 
 Main entry point for the Color Tracking Algo application, orchestrated
 for high-performance detection and responsive UI.
@@ -34,7 +34,10 @@ except Exception:
 
 
 class ColorTrackerAlgo:
-    """Main application class for Color Tracking Algo with optimized performance and responsiveness"""
+    """
+    [The Orchestrator]
+    Main application class for Color Tracking Algo with optimized performance and responsiveness.
+    """
 
     # Explicitly declare dynamic attributes for static analysis (Pyright)
     status_text: int | str

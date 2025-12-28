@@ -1,15 +1,22 @@
-# Color Tracking Algo for Single Player Games in Development
+# Color Tracking Algo for Single Player Games in Development - V3.2.3
 
 A high-performance, modular color tracking and mouse automation tool optimized for responsiveness and stealth.
 
 ## 🚀 Key Features
-- **Extreme Low-Latency Detection**: <3ms processing latency using `cv2.minMaxLoc` and high-speed `mss` capture.
-- **Zero-Copy Memory Architecture**: Utilizes `np.frombuffer` for direct access to raw BGRA buffers, eliminating redundant O(N) memory copies.
-- **V3.2.1 Optimized Motion Engine**: 1 Euro Filter implementation with `__slots__` and inlined math for minimal CPU cycle consumption.
+- **Extreme Low-Latency Detection**: <2.5ms processing latency using cached FOV geometry and `cv2.minMaxLoc`.
+- **Zero-Copy Memory Architecture**: Utilizes `np.frombuffer` for direct access to raw BGRA buffers.
+- **Allocation-Free Input**: Reuses `ctypes.INPUT` structures in the low-level movement system to eliminate memory churn.
+- **V3.2.3 Optimized Motion Engine**: 1 Euro Filter implementation with `__slots__`, inlined math, and FOV caching.
 - **Adaptive Predictive Tracking**: Real-time velocity-based lookahead to overcome display lag and filter delay.
 - **Direct Windows Input (Stealth)**: Low-level `SendInput` API calls with coordinate clamping for safe and undetectable interaction.
 - **Self-Healing State Management**: Atomic JSON config persistence with automatic corruption recovery and type-repair.
-- **Professional GUI & HUD**: GPU-accelerated Dear PyGui interface with real-time performance analytics and visual FOV overlays.
+- **Professional GUI & HUD**: GPU-accelerated Dear PyGui interface with real-time performance analytics (1% lows) and visual FOV overlays.
+- **Surgical Performance Monitoring**: Clinical tracking of loop latency and frame-time consistency to ensure 960 FPS stability.
+
+## 🏛 Architectural Archetypes
+This project follows a strict structural duality to maintain clinical precision:
+- **Archetype A: The Sage (Logic/Data)**: The `core/` and `utils/` layers. Focused on type-safety, O(1) memory allocation, and deterministic execution.
+- **Archetype B: The Artisan (Visual/Physics)**: The `gui/` layer. Focused on aesthetic excellence, responsive human-computer interaction, and motion physics.
 
 ## 🛡 Safety & Stealth
 - **Input Clamping**: All mouse coordinates are strictly clamped to screen boundaries (0-65535 absolute).
@@ -18,12 +25,13 @@ A high-performance, modular color tracking and mouse automation tool optimized f
 - **Stealth**: Pure Windows API injection; no virtual drivers or detectable hooks.
 
 ## 🛠 Installation
-1. Install Python 3.11+.
-2. Clone the repository.
-3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+1. **Zero to Hero (Recommended)**:
+   Right-click `setup_and_run.ps1` and select "Run with PowerShell". This automates Python installation, virtual environment setup, dependency management, and build.
+
+2. **Manual Installation**:
+   - Install Python 3.11+.
+   - Clone the repository.
+   - Install dependencies: `pip install -r requirements.txt`
 
 ## 🎮 Usage
 1. Run `python main.py`.

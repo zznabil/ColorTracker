@@ -14,7 +14,10 @@ from typing import Any
 
 
 class Config:
-    """Handles loading and saving configuration settings with self-healing capabilities"""
+    """
+    [Archetype A: The Sage - Logic/Data]
+    Handles loading and saving configuration settings with self-healing capabilities
+    """
 
     # Type Hints for attributes
     screen_width: int

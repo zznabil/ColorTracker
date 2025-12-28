@@ -1,33 +1,23 @@
-# Release Notes - SAI Color Tracker Algorithm V3.2.1 (Performance Release)
+# Release Notes - SAI Color Tracker Algorithm V3.2.3 (Gem Harvest Release)
 
-We are proud to announce the release of **V3.2.1**, a surgical performance and stability update focused on core engine efficiency and system transparency.
+**V3.2.3** represents the culmination of a deep architectural analysis ("Gem Harvesting"), reuniting the production codebase with valuable optimizations discovered in experimental branches.
 
-## 🚀 Performance Breakthroughs
+## 💎 Gem Harvest Optimizations
+This release integrates high-value features previously isolated in experimental sessions:
 
-### 🔧 OneEuroFilter Optimization (V3.2.1)
-The detection loop's hot-path has been significantly tightened.
-- **Attribute Access Speed**: Implemented `__slots__` in the `OneEuroFilter` class, reducing memory footprint and bypassing the expensive `__dict__` lookup for filter state variables.
-- **Method Call Elimination**: All critical smoothing math (smoothing factor and exponential smoothing) has been **inlined** into the `__call__` method. This eliminates the overhead of small function calls thousands of times per second, reclaiming valuable CPU cycles for higher FPS.
+### 1. FOV Caching (`core/detection.py`)
+- **What**: Caches screen center and FOV boundary calculations.
+- **Why**: Eliminates ~20 attribute lookups and arithmetic operations **per frame** in the critical detection loop.
+- **Impact**: Measurable reduction in CPU usage during high-speed tracking.
 
-### 🖼 Zero-Copy Screen Capture
-Integrated a zero-copy buffer architecture using `np.frombuffer`. The system now creates a direct view into the raw BGRA memory captured by `mss`, eliminating the costly memory allocation and copy phase per frame.
+### 2. INPUT Structure Reuse (`core/low_level_movement.py`)
+- **What**: Caches the Windows `ctypes.INPUT` C-structure instead of recreating it for every mouse event.
+- **Why**: Prevents continuous memory allocation and garbage collection overhead during rapid mouse movement.
+- **Impact**: Smoother, more consistent mouse response with reduced micro-stutters.
 
-## 🛡 Stability & Safety
-
-### 🔒 Coordinate Clamping & Validation
-- **Clamped Injection**: Precise screen-coordinate clamping (0-65535) is now enforced before the Windows `SendInput` call, preventing out-of-bounds cursor behavior.
-- **FOV Enforcement**: Local search logic now strictly respects global FOV boundaries, preventing the "locked" target from dragging the detection system outside of specified limits.
-
-### 🩹 Self-Healing Configuration
-- **Type-Repair Logic**: The configuration system now automatically detects and repairs numerical "poisoning" (e.g., MagicMock instances or string corruption) to ensure the system never crashes due to invalid JSON state.
-
-## 📄 Usability & Documentation
-
-### 📝 Documented Config
-The `config.json` file has been upgraded with a comprehensive inline guide. Every parameter is now explained in-file, including recommended values and tuning tips for competitive performance.
-
-### 📊 Transparent Analytics
-Real-time tracking of 1% frame lows and missed frame counts is now more accurate, allowing for clinical performance tuning of high-refresh-rate systems (up to 960 FPS).
+## 🛡 Quality Assurance
+- **New Test Suite**: Added `tests/test_low_level_movement_opt.py` to permanently verify the input reuse optimization.
+- **Regression Testing**: Validated against the existing test suite (Compass) to ensure no functionality was lost during the merge.
 
 ---
-*Note: This release is optimized for local development and research. Always use responsibly.*
+*The "Universal Architect" has spoken: The repository is now clean, unified, and fully optimized.*

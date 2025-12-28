@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.2.3] - 2025-12-28
+### Optimized (Gem Harvest)
+- **FOV Caching**: Implemented `_update_fov_cache` in detection system to reduce hot-path overhead.
+- **Input Structure Reuse**: Cached `ctypes.INPUT` structures in low-level movement system to prevent allocation churn.
+### Added
+- **Optimization Tests**: Added dedicated test suite for low-level movement performance integrity.
+
+## [3.2.2] - 2025-12-28
+### Added
+- **Architectural Overhaul**: Formalized Archetype A (The Sage) and Archetype B (The Artisan) design patterns in documentation.
+- **Zero to Hero Guide**: Added `docs/setup.md` for automated PowerShell deployment.
+- **Low-Level Specifications**: Documented `__slots__` and mathematical inlining performance gains.
+
 ## [3.2.1] - 2025-12-27
 ### Added
 - **Documented Configuration**: Root `config.json` now contains inline comments for every parameter.
