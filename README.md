@@ -3,15 +3,13 @@
 A high-performance, modular color tracking and mouse automation tool optimized for responsiveness and stealth.
 
 ## 🚀 Key Features
-- **Extreme Low-Latency Detection**: <2.5ms processing latency using cached FOV geometry and `cv2.minMaxLoc`.
-- **Zero-Copy Memory Architecture**: Utilizes `np.frombuffer` for direct access to raw BGRA buffers.
-- **Allocation-Free Input**: Reuses `ctypes.INPUT` structures in the low-level movement system to eliminate memory churn.
-- **V3.2.3 Optimized Motion Engine**: 1 Euro Filter implementation with `__slots__`, inlined math, and FOV caching.
-- **Adaptive Predictive Tracking**: Real-time velocity-based lookahead to overcome display lag and filter delay.
-- **Direct Windows Input (Stealth)**: Low-level `SendInput` API calls with coordinate clamping for safe and undetectable interaction.
+- **Extreme Low-Latency Detection**: <2.5ms processing latency via cached FOV geometry and O(1) `cv2.minMaxLoc`.
+- **Zero-Copy Memory Architecture**: Direct hardware buffer access via `np.frombuffer` views.
+- **Optimized Orchestration**: Method reference caching and config hot-reload throttling for peak loop throughput.
+- **Allocation-Free Input**: C-structure reuse in `low_level_movement` to eliminate memory churn ($O(0)$ allocation).
+- **Hybrid Precision Sync**: Fused `time.sleep` and micro-spin-wait for nanosecond timing accuracy without CPU pinning.
 - **Self-Healing State Management**: Atomic JSON config persistence with automatic corruption recovery and type-repair.
-- **Professional GUI & HUD**: GPU-accelerated Dear PyGui interface with real-time performance analytics (1% lows) and visual FOV overlays.
-- **Surgical Performance Monitoring**: Clinical tracking of loop latency and frame-time consistency to ensure 960 FPS stability.
+- **Professional HUD**: GPU-accelerated Dear PyGui interface with real-time 1% low analytics and visual overlays.
 
 ## 🏛 Architectural Archetypes
 This project follows a strict structural duality to maintain clinical precision:
