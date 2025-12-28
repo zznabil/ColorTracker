@@ -46,13 +46,13 @@ class Config:
         "target_color": {"type": int, "default": 0xC9008D},
         "color_tolerance": {"type": int, "default": 10, "min": 0, "max": 100},
         "search_area": {"type": int, "default": 100, "min": 10, "max": 1000},
-        "fov_x": {"type": int, "default": 50, "min": 10, "max": 500},
-        "fov_y": {"type": int, "default": 50, "min": 10, "max": 500},
+        "fov_x": {"type": int, "default": 50, "min": 5, "max": 500},
+        "fov_y": {"type": int, "default": 50, "min": 5, "max": 500},
         "aim_point": {"type": int, "default": 1, "min": 0, "max": 2},
         "head_offset": {"type": int, "default": 20, "min": 0, "max": 200},
         "leg_offset": {"type": int, "default": 30, "min": 0, "max": 200},
-        "motion_min_cutoff": {"type": float, "default": 0.05, "min": 0.001, "max": 1.0},
-        "motion_beta": {"type": float, "default": 0.05, "min": 0.001, "max": 1.0},
+        "motion_min_cutoff": {"type": float, "default": 0.5, "min": 0.01, "max": 25.0},
+        "motion_beta": {"type": float, "default": 0.005, "min": 0.0001, "max": 0.3},
         "prediction_scale": {"type": float, "default": 1.0, "min": 0.0, "max": 10.0},
         "start_key": {"type": str, "default": "page_up"},
         "stop_key": {"type": str, "default": "page_down"},
@@ -71,7 +71,9 @@ class Config:
 
         # Internal state
         # USE ABSOLUTE PATH TO PREVENT SHADOWING IN DIFFERENT CWD
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        from utils.paths import get_app_dir
+
+        base_dir = get_app_dir()
         self.config_file = os.path.join(base_dir, "config.json")
         self._last_save_time = 0
         self._save_debounce_ms = 500

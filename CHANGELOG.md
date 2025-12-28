@@ -8,6 +8,12 @@ All notable changes to this project will be documented in this file.
 - **Input Structure Reuse**: Cached `ctypes.INPUT` structures in low-level movement system to prevent allocation churn.
 ### Added
 - **Optimization Tests**: Added dedicated test suite for low-level movement performance integrity.
+- **Motion Engine Recalibration**: 
+  - Validated scientific ranges for `beta` (0.0001-0.1) and `min_cutoff` (0.01-5.0).
+  - Resolved "imperceptible stabilization" issue by preventing Nyquist frequency violations.
+- **Limit Expansion (User Requested)**:
+  - Unlocked `min_cutoff` up to **25.0** for raw-like input feel.
+  - Expanded `beta` to **0.3** (Safety Capped) with 0.001 precision snapping.
 
 ## [3.2.2] - 2025-12-28
 ### Added
@@ -18,6 +24,9 @@ All notable changes to this project will be documented in this file.
 ## [3.2.1] - 2025-12-27
 ### Added
 - **Documented Configuration**: Root `config.json` now contains inline comments for every parameter.
+- **Improved FOV Control**:
+  - Reduced FOV lower limit from 25 to 5 for experimental ultra-local tracking.
+  - Implemented 5-unit incremental snapping for granular detection area tuning.
 - **New Task Management**: Integrated `taskmaster` for granular development tracking.
 
 ### Optimized

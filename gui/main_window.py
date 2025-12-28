@@ -138,7 +138,7 @@ def setup_gui(app):
 
     def on_fov_changed(sender, a, user_data):
         # Immediate value snapping with visual feedback
-        snapped = max(25, min(250, round(a / 25) * 25))
+        snapped = max(5, min(250, round(a / 5) * 5))
         if abs(a - snapped) > 0.1:
             dpg.set_value(sender, snapped)
         app.config.update(user_data, snapped)
@@ -284,23 +284,29 @@ def setup_gui(app):
                         app.min_cutoff_slider = dpg.add_slider_float(
                             label="",
                             default_value=app.config.motion_min_cutoff,
-                            min_value=0.001,
-                            max_value=1.0,
-                            callback=lambda s, a: [dpg.set_value(s, a), app.config.update("motion_min_cutoff", a)][-1],
+                            min_value=0.01,
+                            max_value=25.0,
+                            callback=lambda s, a: [
+                                dpg.set_value(s, round(a * 10) / 10),
+                                app.config.update("motion_min_cutoff", round(a * 10) / 10),
+                            ][-1],
                             width=-1,
-                            format="%.3f",
+                            format="%.2f",
                         )
                     with dpg.tooltip(app.min_cutoff_slider):
-                        dpg.add_text("Lower = More stable cursor (less jitter) when moving slowly. Rec: 0.001-0.1")
+                        dpg.add_text("Lower = Heavy Smoothing (Laggy), Higher = Raw Input (Responsive). Rec: 0.1 - 1.0")
 
                     with dpg.group(horizontal=True):
                         dpg.add_text("Responsiveness:")
                         app.beta_slider = dpg.add_slider_float(
                             label="",
                             default_value=app.config.motion_beta,
-                            min_value=0.001,
-                            max_value=1.0,
-                            callback=lambda s, a: [dpg.set_value(s, a), app.config.update("motion_beta", a)][-1],
+                            min_value=0.0001,
+                            max_value=0.3,
+                            callback=lambda s, a: [
+                                dpg.set_value(s, round(a * 1000) / 1000),
+                                app.config.update("motion_beta", round(a * 1000) / 1000),
+                            ][-1],
                             width=-1,
                             format="%.3f",
                         )
@@ -470,7 +476,7 @@ def setup_gui(app):
                         app.fov_x_slider = dpg.add_slider_int(
                             label="",
                             default_value=app.config.fov_x,
-                            min_value=25,
+                            min_value=5,
                             max_value=250,
                             callback=on_fov_changed,
                             user_data="fov_x",
@@ -482,7 +488,7 @@ def setup_gui(app):
                         app.fov_y_slider = dpg.add_slider_int(
                             label="",
                             default_value=app.config.fov_y,
-                            min_value=25,
+                            min_value=5,
                             max_value=250,
                             callback=on_fov_changed,
                             user_data="fov_y",

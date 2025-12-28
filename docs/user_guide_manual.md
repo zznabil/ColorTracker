@@ -48,7 +48,7 @@ The **Color Tracking Algo for Single Player Games in Development** (V3.2.1) is a
     *   **Target Color**: Click the color picker to select the specific outline or center color.
     *   **Tolerance**: How strict the match is (0-255). Snaps to 5-unit increments. Uses a 2.5x gain factor for detection stability.
 - **Search Area (FOV)**:
-    *   **Width/Height**: Detection area size. Smaller areas yield higher FPS. Snaps to 25px increments.
+    *   **Width/Height**: Detection area size. Smaller areas yield higher FPS. Snaps to 5px increments. Lower limit 5px.
     *   **Show Visual Search Box**: Toggles the green FOV overlay.
 
 ### System Tab

@@ -78,8 +78,8 @@ class MotionEngine:
     Unified Motion Engine handling smoothing and prediction.
     """
 
-    _min_cutoff: float = 0.1
-    _beta: float = 0.1
+    _min_cutoff: float = 0.5
+    _beta: float = 0.005
     _prediction_scale: float = 1.0
     _screen_width: float = 1920.0
     _screen_height: float = 1080.0
@@ -107,17 +107,17 @@ class MotionEngine:
 
     def update_config(self) -> None:
         """Update cached config values if changed"""
-        self._min_cutoff = self._get_config_float("motion_min_cutoff", 0.05)
-        self._beta = self._get_config_float("motion_beta", 0.05)
+        self._min_cutoff = self._get_config_float("motion_min_cutoff", 0.5)
+        self._beta = self._get_config_float("motion_beta", 0.005)
         self._prediction_scale = self._get_config_float("prediction_scale", 1.0)
         self._screen_width = self._get_config_float("screen_width", 1920.0)
         self._screen_height = self._get_config_float("screen_height", 1080.0)
 
         # Ensure parameters are valid
         if not math.isfinite(self._min_cutoff):
-            self._min_cutoff = 0.05
+            self._min_cutoff = 0.5
         if not math.isfinite(self._beta):
-            self._beta = 0.05
+            self._beta = 0.005
         if not math.isfinite(self._prediction_scale):
             self._prediction_scale = 1.0
 

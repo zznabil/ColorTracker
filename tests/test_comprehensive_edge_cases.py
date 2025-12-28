@@ -52,10 +52,10 @@ class TestConfigBoundaryConditions:
         config = Config()
 
         # Minimum FOV
-        config.update("fov_x", 10)
-        config.update("fov_y", 10)
-        assert config.fov_x == 10
-        assert config.fov_y == 10
+        config.update("fov_x", 5)
+        config.update("fov_y", 5)
+        assert config.fov_x == 5
+        assert config.fov_y == 5
 
         # Maximum FOV
         config.update("fov_x", 500)
@@ -64,10 +64,10 @@ class TestConfigBoundaryConditions:
         assert config.fov_y == 500
 
         # Below minimum (should clamp)
-        config.update("fov_x", 5)
-        config.update("fov_y", 5)
-        assert config.fov_x == 10
-        assert config.fov_y == 10
+        config.update("fov_x", 1)
+        config.update("fov_y", 1)
+        assert config.fov_x == 5
+        assert config.fov_y == 5
 
         # Above maximum (should clamp)
         config.update("fov_x", 1000)
@@ -108,19 +108,19 @@ class TestConfigBoundaryConditions:
         config = Config()
 
         # Minimum smoothing
-        config.update("motion_min_cutoff", 0.001)
-        assert config.motion_min_cutoff == 0.001
+        config.update("motion_min_cutoff", 0.01)
+        assert config.motion_min_cutoff == 0.01
 
         # Maximum smoothing
         config.update("motion_min_cutoff", 1.0)
         assert config.motion_min_cutoff == 1.0
 
         # Out of range values should clamp
-        config.update("motion_min_cutoff", -0.5)
-        assert config.motion_min_cutoff == 0.001
+        config.update("motion_min_cutoff", -500.0)
+        assert config.motion_min_cutoff == 0.01
 
-        config.update("motion_min_cutoff", 1.5)
-        assert config.motion_min_cutoff == 1.0
+        config.update("motion_min_cutoff", 100.0)
+        assert config.motion_min_cutoff == 25.0
 
 
 class TestMotionEngineEdgeCases:

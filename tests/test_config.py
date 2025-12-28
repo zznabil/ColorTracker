@@ -37,6 +37,6 @@ def test_config_self_healing(temp_config_file):
 
     # Checks
     assert config.fov_x == 50  # String should reset to default
-    assert config.motion_min_cutoff == 0.001  # -500 should clamp to min
+    assert config.motion_min_cutoff == 0.01  # -500 should clamp to min
     assert config.target_fps == 1000  # 9999 should clamp to max
     assert config.aim_point == 1  # Invalid option should reset to default (Body=1)

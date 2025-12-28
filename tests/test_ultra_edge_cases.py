@@ -93,6 +93,7 @@ def test_detection_area_clipping_logic(mock_screenshot_factory):
     config.color_tolerance = 10
 
     ds = DetectionSystem(config)
+    ds._update_fov_cache()
 
     with patch.object(ds, "_get_sct") as mock_sct:
         grab_mock = MagicMock()

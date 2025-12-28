@@ -11,8 +11,8 @@ from core.motion_engine import MotionEngine
 
 class MockConfig:
     def __init__(self):
-        self.motion_min_cutoff = 0.05
-        self.motion_beta = 0.05
+        self.motion_min_cutoff = 0.5
+        self.motion_beta = 0.005
         self.prediction_scale = 1.0
 
 
@@ -24,8 +24,8 @@ def motion_engine():
 
 def test_initialization(motion_engine):
     """Test that the engine initializes with correct default values"""
-    assert motion_engine._min_cutoff == 0.05
-    assert motion_engine._beta == 0.05
+    assert motion_engine._min_cutoff == 0.5
+    assert motion_engine._beta == 0.005
     assert motion_engine._prediction_scale == 1.0
     assert motion_engine.x_filter is None
     assert motion_engine.y_filter is None
@@ -134,15 +134,15 @@ def test_robustness_nan(motion_engine):
 
 def test_config_update(motion_engine):
     """Test dynamic config updates"""
-    motion_engine.config.motion_min_cutoff = 0.5
-    motion_engine.config.motion_beta = 0.8
+    motion_engine.config.motion_min_cutoff = 2.0
+    motion_engine.config.motion_beta = 0.08
     motion_engine.config.prediction_scale = 0.0
 
     # Should not update immediately
-    assert motion_engine._min_cutoff == 0.05
+    assert motion_engine._min_cutoff == 0.5
 
     # Update
     motion_engine.update_config()
-    assert motion_engine._min_cutoff == 0.5
-    assert motion_engine._beta == 0.8
+    assert motion_engine._min_cutoff == 2.0
+    assert motion_engine._beta == 0.08
     assert motion_engine._prediction_scale == 0.0

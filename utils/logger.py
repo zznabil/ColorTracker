@@ -76,12 +76,19 @@ class Logger:
 
         # Add file handler with rotation if requested
         if log_to_file:
+            from utils.paths import get_app_dir
+
+            logs_dir = os.path.join(get_app_dir(), "logs")
+
             # Create logs directory if it doesn't exist
-            if not os.path.exists("logs"):
-                os.makedirs("logs")
+            if not os.path.exists(logs_dir):
+                os.makedirs(logs_dir)
 
             # Create rotating file handler to prevent huge log files
-            log_file = f"logs/color tracking algo for single player games in development_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+            log_file = os.path.join(
+                logs_dir,
+                f"color tracking algo for single player games in development_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log",
+            )
             file_handler = RotatingFileHandler(
                 log_file,
                 maxBytes=max_log_size_mb * 1024 * 1024,  # Convert MB to bytes

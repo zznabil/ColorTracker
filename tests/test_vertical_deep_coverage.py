@@ -269,15 +269,16 @@ class TestConfigDeepValidation:
         config = Config()
 
         test_cases = [
-            ("fov_x", -1, 10),  # Clamped to min
+            ("fov_x", -1, 5),  # Clamped to min
             ("fov_x", 1000, 500),  # Clamped to max
-            ("fov_y", -1, 10),
+            ("fov_y", -1, 5),
             ("fov_y", 1000, 500),
-            ("motion_min_cutoff", -10, 0.001),
-            ("motion_min_cutoff", 200, 1.0),
+            ("motion_min_cutoff", -10, 0.01),
+            ("motion_min_cutoff", 200, 25.0),
             ("prediction_scale", -5, 0.0),
             ("color_tolerance", -1, 0),
             ("color_tolerance", 300, 100),
+            ("motion_beta", 1.0, 0.3),
         ]
 
         for field, invalid_value, expected in test_cases:
