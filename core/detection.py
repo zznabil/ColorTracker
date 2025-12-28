@@ -4,10 +4,12 @@
 Detection System Module
 
 Handles high-precision pixel search for target detection based on color.
-OPTIMIZATIONS:
+OPTIMIZATIONS (V3.3.0 ULTRATHINK):
 - Uses `cv2.minMaxLoc` for O(1) memory allocation during peak search.
 - Zero-copy buffer architecture via `np.frombuffer` for ultra-low latency.
 - Thread-local MSS instances for concurrent screen capture safety.
+- Version-based Cache Invalidation (Observer Pattern) for O(1) config checks.
+- Local Variable Caching in hot loops to eliminate attribute lookup overhead.
 """
 
 import threading
@@ -64,6 +66,9 @@ class DetectionSystem:
         self._scan_area = None
         self._last_fov_config = None
 
+        # ULTRATHINK: Version-based cache validation
+        self._last_config_version = -1
+
     def _get_sct(self) -> Any:
         """
         Get thread-local MSS instance
@@ -79,53 +84,43 @@ class DetectionSystem:
 
     def _update_color_bounds(self) -> None:
         """
-        Updates the cached color bounds if config has changed.
-        This avoids re-calculating bounds and re-converting hex to BGR every frame.
+        Updates the cached color bounds.
+        Triggered only when config version changes.
         """
         current_color: int = self.config.target_color
         current_tolerance: int = self.config.color_tolerance
 
-        if (
-            self._lower_bound is None
-            or current_color != self._last_target_color
-            or current_tolerance != self._last_color_tolerance
-        ):
-            target_bgr = self._hex_to_bgr(current_color)
+        target_bgr = self._hex_to_bgr(current_color)
 
-            # Convert to 4-channel BGRA bounds (B, G, R, A)
-            if current_tolerance == 0:
-                self._lower_bound = np.array([target_bgr[0], target_bgr[1], target_bgr[2], 0], dtype=np.uint8)
-                self._upper_bound = np.array([target_bgr[0], target_bgr[1], target_bgr[2], 255], dtype=np.uint8)
-            else:
-                # The gain factor (2.5) results in a max reach of 250 at 100 tolerance.
-                # This covers almost the entire 0-255 spectrum if needed.
-                gain = 2.5
-                lower_bgr = [max(0, int(c - current_tolerance * gain)) for c in target_bgr]
-                upper_bgr = [min(255, int(c + current_tolerance * gain)) for c in target_bgr]
+        # Convert to 4-channel BGRA bounds (B, G, R, A)
+        if current_tolerance == 0:
+            self._lower_bound = np.array([target_bgr[0], target_bgr[1], target_bgr[2], 0], dtype=np.uint8)
+            self._upper_bound = np.array([target_bgr[0], target_bgr[1], target_bgr[2], 255], dtype=np.uint8)
+        else:
+            # The gain factor (2.5) results in a max reach of 250 at 100 tolerance.
+            gain = 2.5
+            lower_bgr = [max(0, int(c - current_tolerance * gain)) for c in target_bgr]
+            upper_bgr = [min(255, int(c + current_tolerance * gain)) for c in target_bgr]
 
-                self._lower_bound = np.array([lower_bgr[0], lower_bgr[1], lower_bgr[2], 0], dtype=np.uint8)
-                self._upper_bound = np.array([upper_bgr[0], upper_bgr[1], upper_bgr[2], 255], dtype=np.uint8)
+            self._lower_bound = np.array([lower_bgr[0], lower_bgr[1], lower_bgr[2], 0], dtype=np.uint8)
+            self._upper_bound = np.array([upper_bgr[0], upper_bgr[1], upper_bgr[2], 255], dtype=np.uint8)
 
-            self._last_target_color = current_color
-            self._last_target_color = current_color
-            self._last_color_tolerance = current_tolerance
+        # Cache update complete
+
 
     def _update_fov_cache(self) -> None:
         """
-        Updates cached FOV and screen dimension values to avoid redundant arithmetic per frame.
-        Optimization: Reduces ~20 attribute lookups and arithmetic operations per frame in hot path.
+        Updates cached FOV and screen dimension values.
+        Triggered only when config version changes.
         """
-        current_config = (
-            self.config.screen_width,
-            self.config.screen_height,
-            self.config.fov_x,
-            self.config.fov_y,
-        )
+        # Cache dimensions locally to avoid config lookups in hot path
+        self._screen_width = self.config.screen_width
+        self._screen_height = self.config.screen_height
 
-        if self._last_fov_config == current_config and self._scan_area is not None:
-            return
+        w, h = self._screen_width, self._screen_height
+        fov_x = self.config.fov_x
+        fov_y = self.config.fov_y
 
-        w, h, fov_x, fov_y = current_config
         self._center_x = w // 2
         self._center_y = h // 2
         self._fov_x = fov_x
@@ -138,17 +133,21 @@ class DetectionSystem:
         scan_bottom = min(h, self._center_y + fov_y)
 
         self._scan_area = (scan_left, scan_top, scan_right, scan_bottom)
-        self._last_fov_config = current_config
+        # _last_fov_config removed as we use versioning now
 
     def find_target(self) -> tuple[bool, int, int]:
         """
         Search for target pixel color on screen
         """
-        # Update FOV cache (GEM: Optimization)
-        self._update_fov_cache()
+        # ULTRATHINK: O(1) Version Check
+        # Use getattr to support mocked config in tests which might not have _version
+        current_version = getattr(self.config, "_version", 0)
 
-        # Update color bounds cache
-        self._update_color_bounds()
+        # Initialize if first run or config changed
+        if current_version != self._last_config_version or self._scan_area is None:
+            self._update_fov_cache()
+            self._update_color_bounds()
+            self._last_config_version = current_version
 
         # First try local search if we found a target in the previous frame
         if self.target_found_last_frame:
@@ -192,11 +191,14 @@ class DetectionSystem:
         Perform a local search around the last known target position.
         """
         # Calculate local search area with bounds checking
-        search_area: int = self.config.search_area
+        # Calculate local search area with bounds checking
+        # Hardcoded optimization margin (user feedback: slider removed)
+        search_area: int = 100
         local_left = max(0, self.target_x - search_area)
         local_top = max(0, self.target_y - search_area)
-        local_right = min(self.config.screen_width, self.target_x + search_area)
-        local_bottom = min(self.config.screen_height, self.target_y + search_area)
+        # Use cached screen dimensions
+        local_right = min(self._screen_width, self.target_x + search_area)
+        local_bottom = min(self._screen_height, self.target_y + search_area)
 
         # Calculate dimensions and validate
         width = local_right - local_left

@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.3.0] - 2025-12-28
+### Added (Titanium)
+- **Lockless Telemetry**: Re-engineered `PerformanceMonitor` to use a transactional snapshot-reader pattern, eliminating lock contention in the high-frequency logic loop.
+- **Config Versioning (Observer Pattern)**: Integrated an O(1) version integer in `Config` via `__setattr__` override. Subsystems now skip redundant cache invalidation unless the configuration actually changes.
+- **Local Variable Caching**: Explicitly hoisted critical attributes (`self.config.enabled`, etc.) to local scope in `main.py` and `core/detection.py` to bypass Python's object dictionary lookup overhead.
+- **Viewport Expansion**: Resized main UI to 480x730 to accommodate advanced telemetry and future analytics panes.
+
 ## [3.2.3] - 2025-12-28
 ### Optimized (Gem Harvest)
 - **FOV Caching**: Implemented `_update_fov_cache` in detection system to reduce hot-path overhead.

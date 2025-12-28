@@ -1,14 +1,15 @@
-# Color Tracking Algo for Single Player Games in Development - V3.2.3 User Guide
+# Color Tracking Algo for Single Player Games in Development - V3.3.0 User Guide
 
 ## Introduction
-The **Color Tracking Algo for Single Player Games in Development** (V3.2.1) is a professional-grade computer vision utility optimized for high-performance coordinate tracking and automated input research.
+The **Color Tracking Algo for Single Player Games in Development** (V3.3.0) is a professional-grade computer vision utility optimized for high-performance coordinate tracking and automated input research.
 
 ## Features
 - **Extreme Speed Detection**: GPU-accelerated frame processing with cached FOV geometry and `mss` capture.
+- **Titanium Class Optimizations**: Lockless telemetry snapshots $O(0 \text{ contention})$ and version-based config propagation.
 - **Orchestration Gems**: Loop-level method caching and config hot-reload throttling for peak 960 FPS throughput.
 - **Zero-Copy Buffer Management**: Direct `np.frombuffer` access to screen memory avoids O(N) allocation overhead.
-- **Allocation-Free Interaction**: Reuses `ctypes` input structures to prevent memory allocation churn during tracking.
-- **Hybrid Precision Sync**: Fused `time.sleep` and micro-spin-wait for nanosecond timing accuracy without CPU pinning.
+- **Allocation-Free Interaction**: Reuses `ctypes` input structures to prevent memory allocation churn.
+- **Hybrid Precision Sync**: Fused `time.sleep` and micro-spin-wait for nanosecond timing accuracy.
 - **Adaptive Predictive Tracking**: Real-time velocity-based projection to eliminate smoothing-induced lag.
 
 ## Installation

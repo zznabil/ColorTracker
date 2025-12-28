@@ -434,3 +434,23 @@ class Logger:
             self.logger.critical(message)
             self._update_debug_console(message, "critical")
         self._log_suppression_summary()
+
+    def install_global_exception_handler(self):
+        """
+        Install a global exception handler to capture unhandled exceptions
+        """
+        import sys
+        import traceback
+
+        def handle_exception(exc_type, exc_value, exc_traceback):
+            if issubclass(exc_type, KeyboardInterrupt):
+                sys.__excepthook__(exc_type, exc_value, exc_traceback)
+                return
+
+            error_msg = "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
+            self.critical(f"Uncaught exception:\n{error_msg}")
+
+            # Also print to stderr for console visibility
+            sys.__stderr__.write(error_msg)
+
+        sys.excepthook = handle_exception

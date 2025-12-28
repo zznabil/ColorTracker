@@ -4,6 +4,10 @@
 Configuration Utility
 
 Handles loading and saving configuration settings.
+OPTIMIZATIONS (V3.3.0 ULTRATHINK):
+- Implements Observer Pattern via `__setattr__` override.
+- Provides O(1) version integer for rapid change detection in hot loops.
+- Atomic file I/O for robust persistence.
 """
 
 import json
@@ -24,7 +28,7 @@ class Config:
     screen_height: int
     target_color: int
     color_tolerance: int
-    search_area: int
+    # search_area removed per user request
     fov_x: int
     fov_y: int
     aim_point: int
@@ -45,7 +49,7 @@ class Config:
         "screen_height": {"type": int, "default": 1080, "min": 480, "max": 4320},
         "target_color": {"type": int, "default": 0xC9008D},
         "color_tolerance": {"type": int, "default": 10, "min": 0, "max": 100},
-        "search_area": {"type": int, "default": 100, "min": 10, "max": 1000},
+        # "search_area": {"type": int, "default": 100, "min": 10, "max": 1000},
         "fov_x": {"type": int, "default": 50, "min": 5, "max": 500},
         "fov_y": {"type": int, "default": 50, "min": 5, "max": 500},
         "aim_point": {"type": int, "default": 1, "min": 0, "max": 2},
@@ -66,6 +70,10 @@ class Config:
         Initialize configuration with default values
         """
         # Apply defaults from schema
+        # Initialize versioning (ULTRATHINK Optimization)
+        # Use super().__setattr__ to bypass the overridden __setattr__ during init
+        super().__setattr__("_version", 0)
+
         for key, schema in self.DEFAULT_CONFIG.items():
             setattr(self, key, schema["default"])
 
@@ -82,6 +90,19 @@ class Config:
 
         # Load and validate saved configuration
         self.load()
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        """
+        Overridden to provide O(1) change detection via versioning.
+        (ULTRATHINK Optimization)
+        """
+        super().__setattr__(name, value)
+        # Increment version only for actual config keys to invalidate caches
+        # Check _version existence to avoid init issues
+        if hasattr(self, "DEFAULT_CONFIG") and name in self.DEFAULT_CONFIG and hasattr(self, "_version"):
+            # Direct modify to avoid recursion loop if _version was in DEFAULT_CONFIG (it's not)
+            # We use super() to set _version to avoid re-triggering logic, though it's safe either way
+            super().__setattr__("_version", self._version + 1)
 
     def validate(self, key: str, value: Any) -> Any:
         """

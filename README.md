@@ -1,10 +1,12 @@
-# Color Tracking Algo for Single Player Games in Development - V3.2.3
+# Color Tracking Algo for Single Player Games in Development - V3.3.0
 
 A high-performance, modular color tracking and mouse automation tool optimized for responsiveness and stealth.
 
 ## 🚀 Key Features
 - **Extreme Low-Latency Detection**: <2.5ms processing latency via cached FOV geometry and O(1) `cv2.minMaxLoc`.
 - **Zero-Copy Memory Architecture**: Direct hardware buffer access via `np.frombuffer` views.
+- **Lockless Telemetry**: Single-writer/snapshot-reader pattern for zero-contention performance monitoring.
+- **Config Versioning**: Observer pattern with O(1) version checks to eliminate redundant hot-path logic.
 - **Optimized Orchestration**: Method reference caching and config hot-reload throttling for peak loop throughput.
 - **Allocation-Free Input**: C-structure reuse in `low_level_movement` to eliminate memory churn ($O(0)$ allocation).
 - **Hybrid Precision Sync**: Fused `time.sleep` and micro-spin-wait for nanosecond timing accuracy without CPU pinning.

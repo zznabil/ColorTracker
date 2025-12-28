@@ -60,6 +60,7 @@ class ColorTrackerAlgo:
         # Create logger with optimized settings and startup safety
         try:
             self.logger = Logger(log_level=logging.DEBUG, log_to_file=True)
+            self.logger.install_global_exception_handler()  # Catch unhandled exceptions
             self.logger.info("ColorTracker Algorithm V3 starting...")
             self.logger.debug("Debug logging enabled - all operations will be logged verbosely")
             self.logger.info("Debug console enabled - Press F12 to toggle debug console")
@@ -433,7 +434,7 @@ class ColorTrackerAlgo:
 
         # Create viewport window with optimized settings
         self.logger.debug("Creating DearPyGUI viewport...")
-        dpg.create_viewport(title="ColorTracker Algorithm V3", width=380, height=520)
+        dpg.create_viewport(title="ColorTracker Algorithm V3", width=480, height=730)
         self.logger.debug("Setting up DearPyGUI context...")
         dpg.setup_dearpygui()
         self.logger.debug("Showing viewport window...")

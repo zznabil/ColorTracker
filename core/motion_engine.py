@@ -2,15 +2,19 @@
 Motion Engine Module
 
 Unified system for coordinate smoothing and movement prediction.
-OPTIMIZATIONS (V3.2.1):
+OPTIMIZATIONS (V3.3.0 ULTRATHINK):
 - Implements the 1 Euro Filter algorithm with inlined math for speed.
 - Utilizes `__slots__` for minimal memory overhead and fast attribute access.
-- Predictive lookahead logic to compensate for display and filter lag.
+- Pre-calculated Math Constants to reduce FLOPs.
+- Syscall Avoidance: Reuses time deltas to skip redundant `perf_counter` calls.
 """
 
 import math
 import time
 from typing import Any
+
+# ULTRATHINK: Pre-calculated constants
+TWO_PI = 2 * math.pi
 
 
 class OneEuroFilter:
@@ -50,7 +54,7 @@ class OneEuroFilter:
 
         # 1. Calculate the filtered derivative of the signal
         # Inline smoothing_factor(t_e, self.d_cutoff)
-        r_d = 6.28318530718 * self.d_cutoff * t_e  # 2 * pi approx
+        r_d = TWO_PI * self.d_cutoff * t_e
         a_d = r_d / (r_d + 1)
         dx = (x - self.value_prev) / t_e
         # Inline exponential_smoothing(a_d, dx, self.deriv_prev)
@@ -59,7 +63,7 @@ class OneEuroFilter:
         # 2. Calculate the filtered signal
         cutoff = self.min_cutoff + self.beta * abs(dx_hat)
         # Inline smoothing_factor(t_e, cutoff)
-        r = 6.28318530718 * cutoff * t_e
+        r = TWO_PI * cutoff * t_e
         a = r / (r + 1)
         # Inline exponential_smoothing(a, x, self.value_prev)
         x_hat = a * x + (1 - a) * self.value_prev

@@ -1,4 +1,4 @@
-# Deep Architectural Blueprint - V3.2.3
+# Deep Architectural Blueprint - V3.3.0
 
 ## Project Overview
 **SAI Color Tracking Algorithm V3** is a modular Python-based real-time computer vision application for color detection and automated mouse movement. It is optimized for responsiveness and stealth, utilizing low-level Windows API for input.
@@ -10,11 +10,11 @@
 - **Persistence**: JSON-based "self-healing" configuration.
 
 ### Archetype A: The Sage (`core/`, `utils/`) - [Logic/Data/Precision]
-- **`core/detection.py`**: Handles thread-safe screen capture using `mss`. Implements `_local_search` and `_full_search` fallback using `cv2.minMaxLoc` for O(1) memory allocation.
-- **`core/motion_engine.py`**: Encapsulates 1 Euro Filter logic. Optimized via `__slots__` and inlined math factorials.
+- **`core/detection.py`**: Handles thread-safe screen capture using `mss`. Implements `_local_search` and `_full_search` fallback using `cv2.minMaxLoc` for O(1) memory allocation. Optimized with Local Variable Caching.
+- **`core/motion_engine.py`**: Encapsulates 1 Euro Filter logic. Optimized via `__slots__` and pre-calculated constants.
 - **`core/low_level_movement.py`**: Surgical Windows `SendInput` wrapper. Ensures clamped coordinate injection.
-- **`utils/config.py`**: Strategic "Self-Healing" configuration with change detection and debounced I/O.
-- **`utils/performance_monitor.py`**: Tracks FPS and 1% lows with microsecond precision.
+- **`utils/config.py`**: Strategic "Self-Healing" configuration with **Observer Pattern** (Versioned State) for O(1) change detection.
+- **`utils/performance_monitor.py`**: **Lockless** architecture using atomic snapshots for thread-safe telemetry without contention.
 
 ### Archetype B: The Artisan (`gui/`) - [Aesthetic/Responsive/Physics]
 - **`gui/main_window.py`**: GPU-accelerated Dear PyGui orchestrator. Manages immediate-mode event loops and visual HUD overlays.
@@ -34,6 +34,9 @@
 ## ⚡ Low-Level Optimizations
 
 ### Archetype A Logic Gems (`core/`)
+- **Config Versioning (Observer)**: `__setattr__` override increments a version counter, allowing consumers to check for updates in O(1) time without object traversal.
+- **Lockless Telemetry**: `PerformanceMonitor` uses single-writer/multiple-reader pattern with atomic `deque` operations and list snapshots, removing all lock contention from the hot path.
+- **Local Variable Caching**: Critical loops cache `self.config` attributes to local variables, avoiding repeated dictionary lookups (O(1) local vs O(1) hash + overhead).
 - **Zero-Copy Architecture**: Uses `np.frombuffer` to create direct views into raw BGRA memory, eliminating per-frame allocation.
 - **Slot-Based State**: `__slots__` in motion engines bypasses `__dict__` overhead for O(1) attribute access.
 - **Input Allocation Churn Reduction**: Caches/reuses `ctypes.INPUT` structures to avoid heap allocation in the movement loop.
@@ -54,9 +57,9 @@
     - **Edge Cases**: `test_ultra_edge_cases.py`, `test_detection_mocked.py`, `test_detection_noise.py`, `test_keyboard_listener_rebinding.py`, `test_paths.py`.
 
 ## Verification Log
-- **Last Verified**: 2025-12-28 17:55 (V3.2.3 Gem Harvest)
+- **Last Verified**: 2025-12-28 (V3.3.0 ULTRATHINK)
 - **Protocol**: ULTRATHINK "Deep Architectural Documentation & Parity"
-- **Status**: ✅ PASSED (Production Grade V3.2.3)
+- **Status**: ✅ PASSED (Production Grade V3.3.0)
 - **Metrics**:
     - **Loop Jitter**: <0.05ms (Hybrid Sync Enabled)
     - **OneEuroFilter Latency**: <0.01ms per update (Inlined Hot Path)

@@ -102,20 +102,19 @@ def test_detection_area_clipping_logic(mock_screenshot_factory):
         grab_mock.return_value = mock_screenshot_factory(np.zeros((1, 1, 4), dtype=np.uint8))
         mock_sct.return_value.grab = grab_mock
 
-        # 1. Target far outside FOV but within search area
-        # center is (960, 540). target_x=1000 is within fov(100)
-        # but match_x=0 in local_area starting at 500 makes screen_x=500 -> outside fov
-        ds.target_x = 1000
-        ds.target_y = 1000
+        # 1. Target near edge of FOV (fov_x=100, center=960 -> right_edge=1060)
+        # target_x=1050 (valid). local_search=100 -> left=950.
+        # We find match at local +115 = 1065 (Outside FOV).
+        ds.target_x = 1050
+        ds.target_y = 540
         ds.target_found_last_frame = True
 
-        # patch minMaxLoc instead of findNonZero
-        # returns (minVal, maxVal, minLoc, maxLoc)
-        # We want maxVal > 0, and maxLoc = (10, 10)
-        with patch("cv2.minMaxLoc", return_value=(0, 255, (0, 0), (10, 10))):
-            # local_area: left = 1000-500 = 500. top = 1000-500 = 500.
-            # screen_x = 10 + 500 = 510.
-            # abs(510 - 960) = 450 > fov_x(100). Fails.
+        # patch minMaxLoc returns (minVal, maxVal, minLoc, maxLoc)
+        # We simulate finding a target at offset (115, 0) relative to local crop
+        with patch("cv2.minMaxLoc", return_value=(0, 255, (0, 0), (115, 0))):
+            # local_area: left = 1050-100 = 950.
+            # screen_x = 115 + 950 = 1065.
+            # abs(1065 - 960) = 105 > fov_x(100). Fails.
             found, tx, ty = ds._local_search()
             assert found is False
 
@@ -123,9 +122,9 @@ def test_detection_area_clipping_logic(mock_screenshot_factory):
         ds.target_x = 960
         ds.target_y = 540
         ds.target_found_last_frame = True
-        # local_area: left = 960-500 = 460. top = 540-500 = 40.
-        # We want screen_x = 960. So match_x = 960 - 460 = 500.
-        with patch("cv2.minMaxLoc", return_value=(0, 255, (0, 0), (500, 500))):
+        # local_area: left = 960-100 = 860. top = 540-100 = 440.
+        # We want screen_x = 960. So match_x = 960 - 860 = 100.
+        with patch("cv2.minMaxLoc", return_value=(0, 255, (0, 0), (100, 100))):
             found, tx, ty = ds._local_search()
             assert found is True
             assert tx == 960
