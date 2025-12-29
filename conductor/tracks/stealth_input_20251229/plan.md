@@ -1,6 +1,6 @@
 # Plan: Deep Stealth - Input Integrity
 
-## Phase 1: Architecture Refactoring [checkpoint: c4af015]
+## Phase 1: Architecture Refactoring
 
 - [x] Task: Refactor LowLevelMovementSystem to Engine Strategy [62ece0c]
     - [ ] Subtask: Create BaseEngine interface and StandardEngine implementation.
@@ -8,7 +8,7 @@
 - [x] Task: Port Standard Logic to Engine A [62ece0c]
     - [ ] Subtask: Migrate existing SendInput logic into a concrete StandardEngine class.
     - [ ] Subtask: Verify all existing movement tests pass with the new architecture.
-- [x] Task: Conductor - User Manual Verification 'Phase 1: Architecture Refactoring' [c4af015]
+- [ ] Task: Conductor - User Manual Verification 'Phase 1: Architecture Refactoring' (Protocol in workflow.md)
 
 ## Phase 2: Stealth Engine Implementation
 
