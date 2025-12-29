@@ -23,7 +23,7 @@ umpy conversion.
     - [ ] Subtask: Write Benchmarks for cv2.inRange vs cv2.minMaxLoc on cropped regions.
     - [ ] Subtask: Refactor core/detection.py to use the fastest identified method for the specific ROI size.
 
-## Phase 3: Input and Synchronization Optimization
+## Phase 3: Input and Synchronization Optimization [checkpoint: 58a438b]
 
 - [x] Task: Optimize Windows API Calls [2f2a8dc]
     - [ ] Subtask: Write Tests for ctypes structure reuse.
@@ -34,7 +34,7 @@ umpy conversion.
 
 ## Phase 4: Verification and Clean-up
 
-- [ ] Task: Final Benchmarking
+- [x] Task: Final Benchmarking [588a70f]
     - [ ] Subtask: Run the same 60-second test from Phase 1.
     - [ ] Subtask: Compare metrics against targets defined in spec.md.
 - [ ] Task: Code Cleanup
