@@ -81,7 +81,8 @@ class DetectionSystem:
         """
         if not hasattr(self._local, "sct"):
             # Create new MSS instance for this thread
-            self._local.sct = mss.mss()
+            # Optimization: Disable cursor capture for better performance
+            self._local.sct = mss.mss(with_cursor=False)
         return self._local.sct
 
     def _update_color_bounds(self) -> None:
@@ -338,20 +339,6 @@ class DetectionSystem:
 
         # Return as BGR (OpenCV format)
         return (b, g, r)
-
-    def _capture_to_numpy(self, area: dict[str, int]) -> NDArray[np.uint8] | None:
-        """
-        Captures a screen area and returns it as a numpy array using zero-copy optimization.
-
-        Uses np.frombuffer to create a view into the raw BGRA memory, avoiding expensive
-        memory allocation and copy operations during the high-speed detection loop.
-        """
-        sct = self._get_sct()
-        sct_img = sct.grab(area)
-        img = np.frombuffer(sct_img.bgra, dtype=np.uint8).reshape((sct_img.height, sct_img.width, 4))
-        if img.size == 0 or img.ndim != 3:
-            return None
-        return img
 
     def _clamp_search_area(
         self, left: int, right: int, top: int, bottom: int, max_size: int
