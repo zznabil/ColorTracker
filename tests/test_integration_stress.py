@@ -1,11 +1,12 @@
 import time
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 
 from core.detection import DetectionSystem
 from core.low_level_movement import LowLevelMovementSystem
 from core.motion_engine import MotionEngine
+
 
 class MockConfig:
     def __init__(self):
@@ -50,7 +51,7 @@ def test_full_pipeline_throughput():
 
                 # 2. Predict if found
                 if found:
-                    px, py = ps.process(tx, ty, 0.0)
+                    px, py = me.process(tx, ty, 0.0)
 
                     # 3. Move
                     ms.aim_at(px, py)

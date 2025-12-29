@@ -384,7 +384,7 @@ class ColorTrackerAlgo:
                 # Use hybrid precision sleep
                 if sleep_time > 0:
                     self._smart_sleep(sleep_time, loop_start_time + target_frame_time)
-                
+
                 # No else block needed for record_frame anymore
 
         except Exception as fatal_error:
@@ -418,10 +418,10 @@ class ColorTrackerAlgo:
     def _smart_sleep(self, duration: float, target_time: float | None = None) -> None:
         """
         Hybrid precise sleep: uses time.sleep for bulk waiting and busy-wait for final precision.
-        
+
         Args:
             duration: Total seconds to sleep.
-            target_time: Absolute timestamp (time.perf_counter) to wake up at. 
+            target_time: Absolute timestamp (time.perf_counter) to wake up at.
                          If None, calculated from current time + duration.
         """
         if duration <= 0:

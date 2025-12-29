@@ -37,7 +37,7 @@ umpy conversion.
 - [x] Task: Final Benchmarking [588a70f]
     - [ ] Subtask: Run the same 60-second test from Phase 1.
     - [ ] Subtask: Compare metrics against targets defined in spec.md.
-- [ ] Task: Code Cleanup
+- [x] Task: Code Cleanup [d34d583]
     - [ ] Subtask: Remove temporary debugging probes (if any) or put them behind a feature flag.
     - [ ] Subtask: Ensure all tests pass and code complies with 
 uff.

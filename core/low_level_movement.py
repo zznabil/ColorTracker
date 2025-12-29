@@ -186,7 +186,7 @@ class LowLevelMovementSystem:
                 user32 = self._get_user32()
                 if user32:
                     send_input = user32.SendInput
-            
+
             if not send_input:
                 return True
 
@@ -220,7 +220,7 @@ class LowLevelMovementSystem:
                 user32 = self._get_user32()
                 if user32:
                     send_input = user32.SendInput
-            
+
             if not send_input:
                 return True
 

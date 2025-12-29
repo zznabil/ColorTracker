@@ -54,7 +54,7 @@ class PerformanceMonitor:
         start_time = self._active_probes.pop(name, None)
         if start_time is None:
             return
-        
+
         duration_ns = time.perf_counter_ns() - start_time
         duration_ms = duration_ns / 1_000_000.0
         self._probe_history[name].append(duration_ms)
@@ -64,7 +64,7 @@ class PerformanceMonitor:
         history = list(self._probe_history.get(name, []))
         if not history:
             return {}
-        
+
         return {
             "avg_ms": sum(history) / len(history),
             "min_ms": min(history),
