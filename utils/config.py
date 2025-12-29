@@ -102,7 +102,8 @@ class Config:
         if hasattr(self, "DEFAULT_CONFIG") and name in self.DEFAULT_CONFIG and hasattr(self, "_version"):
             # Direct modify to avoid recursion loop if _version was in DEFAULT_CONFIG (it's not)
             # We use super() to set _version to avoid re-triggering logic, though it's safe either way
-            super().__setattr__("_version", self._version + 1)
+            current_version = getattr(self, "_version", 0)
+            super().__setattr__("_version", current_version + 1)
 
     def validate(self, key: str, value: Any) -> Any:
         """
