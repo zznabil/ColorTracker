@@ -99,14 +99,16 @@ class LowLevelMovementSystem:
     pre-allocated structure reuse for zero-allocation interaction.
     """
 
-    def __init__(self, config: Any) -> None:
+    def __init__(self, config: Any, perf_monitor: Any) -> None:
         """
         Initialize the low-level movement system
 
         Args:
             config: Configuration object with movement settings
+            perf_monitor: PerformanceMonitor instance for telemetry
         """
         self.config = config
+        self.perf_monitor = perf_monitor
 
         # Movement settings
         # Dynamic access to config is used instead of caching
@@ -170,55 +172,61 @@ class LowLevelMovementSystem:
         """
         Move mouse by relative offset using SendInput (low-level)
         """
-        user32 = self._get_user32()
-        if not user32:
-            return True
-
-        # Optimization: Reuse cached structure by updating fields directly
-        # Note: We must update the structure inside the union, not a separate MOUSEINPUT object
-        self._input_structure.ii.mi.dx = dx
-        self._input_structure.ii.mi.dy = dy
-        self._input_structure.ii.mi.mouseData = 0
-        self._input_structure.ii.mi.dwFlags = MOUSEEVENTF_MOVE
-        self._input_structure.ii.mi.time = 0
-        self._input_structure.ii.mi.dwExtraInfo = None
-
-        # Send the input using Windows API with safety check
+        self.perf_monitor.start_probe("movement_input")
         try:
+            user32 = self._get_user32()
+            if not user32:
+                return True
+
+            # Optimization: Reuse cached structure by updating fields directly
+            # Note: We must update the structure inside the union, not a separate MOUSEINPUT object
+            self._input_structure.ii.mi.dx = dx
+            self._input_structure.ii.mi.dy = dy
+            self._input_structure.ii.mi.mouseData = 0
+            self._input_structure.ii.mi.dwFlags = MOUSEEVENTF_MOVE
+            self._input_structure.ii.mi.time = 0
+            self._input_structure.ii.mi.dwExtraInfo = None
+
+            # Send the input using Windows API with safety check
             result = user32.SendInput(1, ctypes.byref(self._input_structure), ctypes.sizeof(INPUT))  # type: ignore
             return result == 1
         except Exception:
             return False
+        finally:
+            self.perf_monitor.stop_probe("movement_input")
 
     def move_mouse_absolute(self, x: int, y: int) -> bool:
         """
         Move mouse to absolute position using SendInput (low-level)
         Using round() for better precision and (width-1) for correct mapping.
         """
-        user32 = self._get_user32()
-        if not user32:
-            return True
-
-        # Normalize coordinates to 0-65535 range
-        # We subtract 1 from screen dimensions because pixel coordinates are 0-indexed
-        # e.g. x=1919 should map to 65535 on a 1920-wide screen
-        normalized_x = max(0, min(65535, int(round((x * 65535) / (self.screen_width - 1)))))
-        normalized_y = max(0, min(65535, int(round((y * 65535) / (self.screen_height - 1)))))
-
-        # Optimization: Reuse cached structure by updating fields directly
-        self._input_structure.ii.mi.dx = normalized_x
-        self._input_structure.ii.mi.dy = normalized_y
-        self._input_structure.ii.mi.mouseData = 0
-        self._input_structure.ii.mi.dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE
-        self._input_structure.ii.mi.time = 0
-        self._input_structure.ii.mi.dwExtraInfo = None
-
-        # Send the input using Windows API with safety check
+        self.perf_monitor.start_probe("movement_input")
         try:
+            user32 = self._get_user32()
+            if not user32:
+                return True
+
+            # Normalize coordinates to 0-65535 range
+            # We subtract 1 from screen dimensions because pixel coordinates are 0-indexed
+            # e.g. x=1919 should map to 65535 on a 1920-wide screen
+            normalized_x = max(0, min(65535, int(round((x * 65535) / (self.screen_width - 1)))))
+            normalized_y = max(0, min(65535, int(round((y * 65535) / (self.screen_height - 1)))))
+
+            # Optimization: Reuse cached structure by updating fields directly
+            self._input_structure.ii.mi.dx = normalized_x
+            self._input_structure.ii.mi.dy = normalized_y
+            self._input_structure.ii.mi.mouseData = 0
+            self._input_structure.ii.mi.dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE
+            self._input_structure.ii.mi.time = 0
+            self._input_structure.ii.mi.dwExtraInfo = None
+
+            # Send the input using Windows API with safety check
             result = user32.SendInput(1, ctypes.byref(self._input_structure), ctypes.sizeof(INPUT))
             return result == 1
         except Exception:
             return False
+        finally:
+            self.perf_monitor.stop_probe("movement_input")
 
     def move_to_target(self, target_x: int, target_y: int) -> None:
         """

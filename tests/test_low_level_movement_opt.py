@@ -12,7 +12,7 @@ class TestLowLevelMovementOptimization:
         This test expects the optimization to be implemented.
         """
         config = MagicMock()
-        system = LowLevelMovementSystem(config)
+        system = LowLevelMovementSystem(config, MagicMock())
 
         # Initialize the optimization (if not already done in __init__ by the time we run this)
         # But we are testing the class, so we assume we will modify __init__
@@ -52,7 +52,7 @@ class TestLowLevelMovementOptimization:
     def test_absolute_movement_reuse(self):
         """Verify absolute movement also uses the cached structure."""
         config = MagicMock()
-        system = LowLevelMovementSystem(config)
+        system = LowLevelMovementSystem(config, MagicMock())
 
         mock_user32 = MagicMock()
         mock_user32.SendInput.return_value = 1

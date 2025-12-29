@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 import numpy as np
 import pytest
@@ -32,7 +32,7 @@ def mock_detection():
     config.target_color = 0xFF00FF  # Magenta
     config.color_tolerance = 10
 
-    return DetectionSystem(config)
+    return DetectionSystem(config, MagicMock())
 
 
 def test_find_target_success(mock_detection):

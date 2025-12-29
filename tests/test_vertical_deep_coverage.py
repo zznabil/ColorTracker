@@ -133,7 +133,7 @@ class TestDetectionDeepImageProcessing:
         config.target_color = 0xFF0000
         config.color_tolerance = 10
 
-        ds = DetectionSystem(config)
+        ds = DetectionSystem(config, MagicMock())
 
         with patch.object(ds, "_get_sct") as mock_sct:
             # 2D image (grayscale)
@@ -160,7 +160,7 @@ class TestDetectionDeepImageProcessing:
         config.target_color = 0xFF0000  # Red in RGB
         config.color_tolerance = 10
 
-        ds = DetectionSystem(config)
+        ds = DetectionSystem(config, MagicMock())
 
         with patch.object(ds, "_get_sct") as mock_sct:
             # BGRA format (mss returns BGRA)
@@ -184,7 +184,7 @@ class TestDetectionDeepImageProcessing:
         config.target_color = 0xFF0000
         config.color_tolerance = 10
 
-        ds = DetectionSystem(config)
+        ds = DetectionSystem(config, MagicMock())
 
         sct_results = []
         errors = []
@@ -220,7 +220,7 @@ class TestMovementDeepPrecision:
         config = MagicMock()
 
         with patch("ctypes.windll.user32.GetSystemMetrics", side_effect=[1920, 1080]):
-            ms = LowLevelMovementSystem(config)
+            ms = LowLevelMovementSystem(config, MagicMock())
 
             with patch("ctypes.windll.user32.SendInput", return_value=1) as mock_send:
                 # Sub-pixel coordinate (should be rounded)
@@ -233,7 +233,7 @@ class TestMovementDeepPrecision:
         config = MagicMock()
 
         with patch("ctypes.windll.user32.GetSystemMetrics", side_effect=[1920, 1080]):
-            _ms = LowLevelMovementSystem(config)  # Initialize to validate construction
+            _ms = LowLevelMovementSystem(config, MagicMock())  # Initialize to validate construction
 
             # Verify clamping in move_mouse_absolute
             # At x=-100, normalized should clamp to 0
@@ -250,7 +250,7 @@ class TestMovementDeepPrecision:
 
         with patch("ctypes.windll.user32.GetSystemMetrics", side_effect=[1920, 1080]):
             with patch("ctypes.windll.user32.GetCursorPos"):
-                ms = LowLevelMovementSystem(config)
+                ms = LowLevelMovementSystem(config, MagicMock())
 
                 with patch("ctypes.windll.user32.SendInput", return_value=1):
                     # 100 small movements

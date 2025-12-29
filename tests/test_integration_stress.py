@@ -1,5 +1,5 @@
 import time
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 import numpy as np
 
@@ -7,23 +7,18 @@ from core.detection import DetectionSystem
 from core.low_level_movement import LowLevelMovementSystem
 from core.motion_engine import MotionEngine
 
-
 class MockConfig:
     def __init__(self):
         self.screen_width = 1920
         self.screen_height = 1080
         self.fov_x = 100
         self.fov_y = 100
-        self.search_area = 50
         self.target_color = 0xC9008D
         self.color_tolerance = 10
-        self.motion_min_cutoff = 0.5
-        self.motion_beta = 0.05
-        self.prediction_scale = 1.0
-        self.aim_point = 1
-        self.head_offset = 10
-        self.leg_offset = 20
-
+        self.mouse_smoothing = 0.5
+        self.prediction_factor = 1.0
+        self.ultra_responsive_mode = False
+        self.zero_latency_mode = False
 
 def test_full_pipeline_throughput():
     """Stress test the full loop: Detection -> Prediction -> Movement"""
@@ -40,9 +35,9 @@ def test_full_pipeline_throughput():
         sct_instance.grab.return_value = dummy_img
 
         # Initialize systems
-        ds = DetectionSystem(config)
-        ps = MotionEngine(config)
-        ms = LowLevelMovementSystem(config)
+        ds = DetectionSystem(config, MagicMock())
+        me = MotionEngine(config)
+        ms = LowLevelMovementSystem(config, MagicMock())
 
         # Bypass SendInput to avoid actual movement during test
         with patch("ctypes.windll.user32.SendInput", return_value=1):

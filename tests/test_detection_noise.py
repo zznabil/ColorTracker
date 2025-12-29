@@ -27,7 +27,7 @@ class TestDetectionNoiseResilience:
 
     def test_salt_and_pepper_noise_resilience(self, base_config, mock_screenshot_factory):
         """Test detection with high-frequency pixel noise"""
-        ds = DetectionSystem(base_config)
+        ds = DetectionSystem(base_config, MagicMock())
 
         with patch.object(ds, "_get_sct") as mock_sct:
             # Create image with target and noise
@@ -49,7 +49,7 @@ class TestDetectionNoiseResilience:
 
     def test_multiple_competing_clusters(self, base_config, mock_screenshot_factory):
         """Test recovery when multiple similar color clusters are present"""
-        ds = DetectionSystem(base_config)
+        ds = DetectionSystem(base_config, MagicMock())
 
         with patch.object(ds, "_get_sct") as mock_sct:
             img = np.zeros((100, 100, 4), dtype=np.uint8)
@@ -66,7 +66,7 @@ class TestDetectionNoiseResilience:
 
     def test_target_partially_obscured_at_fov_edge(self, base_config, mock_screenshot_factory):
         """Test detection stability when target is clipped at FOV boundaries"""
-        ds = DetectionSystem(base_config)
+        ds = DetectionSystem(base_config, MagicMock())
 
         with patch.object(ds, "_get_sct") as mock_sct:
             img = np.zeros((100, 100, 4), dtype=np.uint8)
@@ -80,7 +80,7 @@ class TestDetectionNoiseResilience:
 
     def test_zero_pixel_found_no_crash(self, base_config, mock_screenshot_factory):
         """Verify no pixels matching color results in False found, not crash"""
-        ds = DetectionSystem(base_config)
+        ds = DetectionSystem(base_config, MagicMock())
 
         with patch.object(ds, "_get_sct") as mock_sct:
             img = np.zeros((100, 100, 4), dtype=np.uint8)  # No red

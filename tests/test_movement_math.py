@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 import pytest
 
@@ -26,7 +26,7 @@ def move_sys():
         # We also need to mock GetSystemMetrics because __init__ uses it
         mock_windll.user32.GetSystemMetrics.side_effect = lambda x: 1920 if x == 0 else 1080
 
-        yield LowLevelMovementSystem(config), mock_send
+        yield LowLevelMovementSystem(config, MagicMock()), mock_send
 
 
 def test_absolute_coord_normalization(move_sys):

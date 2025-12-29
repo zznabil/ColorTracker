@@ -124,7 +124,7 @@ class TestUltraRobustness:
         Simulate mss returning unexpected array shapes or types.
         """
         config = Config()
-        ds = DetectionSystem(config)
+        ds = DetectionSystem(config, MagicMock())
 
         # 1. Simulate empty array (0x0)
         with patch.object(ds, "_get_sct") as mock_sct:

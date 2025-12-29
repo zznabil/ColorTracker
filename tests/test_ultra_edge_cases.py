@@ -48,7 +48,7 @@ def test_movement_normalization_extreme():
     """Verify absolute movement normalization doesn't overflow 65535 and clamps correctly"""
     config = MagicMock()
     with patch("ctypes.windll.user32.GetSystemMetrics", side_effect=[1920, 1080]):
-        mv = LowLevelMovementSystem(config)
+        mv = LowLevelMovementSystem(config, MagicMock())
 
         # Target far outside screen
         x, y = 100000, 100000
@@ -92,7 +92,7 @@ def test_detection_area_clipping_logic(mock_screenshot_factory):
     config.target_color = 0xFFFFFF
     config.color_tolerance = 10
 
-    ds = DetectionSystem(config)
+    ds = DetectionSystem(config, MagicMock())
     ds._update_fov_cache()
 
     with patch.object(ds, "_get_sct") as mock_sct:

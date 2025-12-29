@@ -108,13 +108,13 @@ class ColorTrackerAlgo:
 
         # Initialize systems with optimized settings
         self.logger.debug("Initializing detection system...")
-        self.detection = DetectionSystem(self.config)
+        self.detection = DetectionSystem(self.config, self.perf_monitor)
         self.logger.debug("Initializing unified motion engine...")
         self.motion_engine = MotionEngine(self.config)
 
         # Initialize movement system with optimized settings
         self.logger.debug("Initializing low-level movement system for game compatibility...")
-        self.movement = LowLevelMovementSystem(self.config)
+        self.movement = LowLevelMovementSystem(self.config, self.perf_monitor)
         self.logger.debug("All core systems initialized successfully with low-level mouse input")
 
         # Initialize keyboard listener with optimized settings
@@ -304,6 +304,7 @@ class ColorTrackerAlgo:
         try:
             while self.running:
                 loop_start_time = time.perf_counter()
+                perf_monitor.start_probe("main_loop_active")
                 loop_count += 1
 
                 # Update cached config values periodically (less frequent for performance)
@@ -371,6 +372,7 @@ class ColorTrackerAlgo:
 
                 # Ultra-precise frame timing without busy waiting
                 frame_end_time = time.perf_counter()
+                perf_monitor.stop_probe("main_loop_active")
                 actual_frame_time = frame_end_time - loop_start_time
 
                 # Calculate precise sleep time

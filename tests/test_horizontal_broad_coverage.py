@@ -104,7 +104,7 @@ class TestDetectionSystemBoundaryConditions:
         config.target_color = 0xFF0000
         config.color_tolerance = 10
 
-        ds = DetectionSystem(config)
+        ds = DetectionSystem(config, MagicMock())
 
         with patch.object(ds, "_get_sct") as mock_sct:
             img = np.zeros((20, 20, 4), dtype=np.uint8)
@@ -127,7 +127,7 @@ class TestDetectionSystemBoundaryConditions:
         config.target_color = 0xFF0000
         config.color_tolerance = 10
 
-        ds = DetectionSystem(config)
+        ds = DetectionSystem(config, MagicMock())
 
         with patch.object(ds, "_get_sct") as mock_sct:
             img = np.zeros((550, 550, 4), dtype=np.uint8)
@@ -149,7 +149,7 @@ class TestDetectionSystemBoundaryConditions:
         config.target_color = 0x000000  # Black
         config.color_tolerance = 5
 
-        ds = DetectionSystem(config)
+        ds = DetectionSystem(config, MagicMock())
 
         with patch.object(ds, "_get_sct") as mock_sct:
             img = np.zeros((100, 100, 4), dtype=np.uint8)
@@ -172,7 +172,7 @@ class TestDetectionSystemBoundaryConditions:
         config.target_color = 0xFFFFFF  # White
         config.color_tolerance = 5
 
-        ds = DetectionSystem(config)
+        ds = DetectionSystem(config, MagicMock())
 
         with patch.object(ds, "_get_sct") as mock_sct:
             img = np.ones((100, 100, 4), dtype=np.uint8) * 255
@@ -191,7 +191,7 @@ class TestMovementSystemMathematics:
         config = MagicMock()
 
         with patch("ctypes.windll.user32.GetSystemMetrics", side_effect=[1920, 1080]):
-            _ms = LowLevelMovementSystem(config)  # Initialize to validate construction
+            _ms = LowLevelMovementSystem(config, MagicMock())  # Initialize to validate construction
 
             # Test normalization math: x * 65535 / screen_width
             # At screen center (960, 540)
@@ -212,7 +212,7 @@ class TestMovementSystemMathematics:
         config.leg_offset = 20
 
         with patch("ctypes.windll.user32.GetSystemMetrics", side_effect=[1920, 1080]):
-            ms = LowLevelMovementSystem(config)
+            ms = LowLevelMovementSystem(config, MagicMock())
 
             # Body (aim_point=1) - no offset
             assert ms._apply_aim_offset(500) == 500
@@ -307,7 +307,7 @@ class TestCrossModuleDataFlow:
         config.leg_offset = 20
 
         with patch("ctypes.windll.user32.GetSystemMetrics", side_effect=[1920, 1080]):
-            ms = LowLevelMovementSystem(config)
+            ms = LowLevelMovementSystem(config, MagicMock())
 
             # Simulate prediction output OFF-CENTER (not at 960, 540)
             # Target at (1060, 640) - 100px right and 100px down from center

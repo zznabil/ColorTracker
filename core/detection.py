@@ -34,14 +34,16 @@ class DetectionSystem:
     _last_target_color: int | None
     _last_color_tolerance: int | None
 
-    def __init__(self, config: Any) -> None:
+    def __init__(self, config: Any, perf_monitor: Any) -> None:
         """
         Initialize the detection system
 
         Args:
             config: Configuration object with detection settings
+            perf_monitor: PerformanceMonitor instance for telemetry
         """
         self.config = config
+        self.perf_monitor = perf_monitor
 
         # Initialize thread-local storage for MSS instances
         # This prevents threading issues with screen capture
@@ -173,6 +175,7 @@ class DetectionSystem:
         Returns:
             Tuple of (success, image_data)
         """
+        self.perf_monitor.start_probe("detection_capture")
         try:
             sct = self._get_sct()
             sct_img = sct.grab(area)
@@ -185,6 +188,8 @@ class DetectionSystem:
             return True, img_bgra
         except Exception:
             return False, None
+        finally:
+            self.perf_monitor.stop_probe("detection_capture")
 
     def _local_search(self) -> tuple[bool, int, int]:
         """
@@ -224,8 +229,12 @@ class DetectionSystem:
         if self._lower_bound is None or self._upper_bound is None:
             self._update_color_bounds()
 
-        mask = cv2.inRange(img_bgra, self._lower_bound, self._upper_bound)  # type: ignore
-        _, max_val, _, max_loc = cv2.minMaxLoc(mask)
+        self.perf_monitor.start_probe("detection_process")
+        try:
+            mask = cv2.inRange(img_bgra, self._lower_bound, self._upper_bound)  # type: ignore
+            _, max_val, _, max_loc = cv2.minMaxLoc(mask)
+        finally:
+            self.perf_monitor.stop_probe("detection_process")
 
         if max_val <= 0:
             return False, 0, 0
@@ -284,11 +293,15 @@ class DetectionSystem:
         if self._lower_bound is None or self._upper_bound is None:
             self._update_color_bounds()
 
-        # Create mask of pixels within color range
-        mask = cv2.inRange(img_bgra, self._lower_bound, self._upper_bound)  # type: ignore
+        self.perf_monitor.start_probe("detection_process")
+        try:
+            # Create mask of pixels within color range
+            mask = cv2.inRange(img_bgra, self._lower_bound, self._upper_bound)  # type: ignore
 
-        # OPTIMIZATION: Use minMaxLoc instead of findNonZero
-        _, max_val, _, max_loc = cv2.minMaxLoc(mask)
+            # OPTIMIZATION: Use minMaxLoc instead of findNonZero
+            _, max_val, _, max_loc = cv2.minMaxLoc(mask)
+        finally:
+            self.perf_monitor.stop_probe("detection_process")
 
         if max_val <= 0:
             # No match found in full search

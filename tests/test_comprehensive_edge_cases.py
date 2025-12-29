@@ -249,7 +249,7 @@ class TestDetectionSystemEdgeCases:
         config.target_color = 0xFF0000  # Pure red
         config.color_tolerance = 0  # Exact match only
 
-        ds = DetectionSystem(config)
+        ds = DetectionSystem(config, MagicMock())
 
         with patch.object(ds, "_get_sct") as mock_sct:
             # Create image with exact color match
@@ -275,7 +275,7 @@ class TestDetectionSystemEdgeCases:
         config.target_color = 0x808080  # Gray
         config.color_tolerance = 255  # Accept anything
 
-        ds = DetectionSystem(config)
+        ds = DetectionSystem(config, MagicMock())
 
         with patch.object(ds, "_get_sct") as mock_sct:
             # Create image with any color
@@ -301,7 +301,7 @@ class TestDetectionSystemEdgeCases:
         config.target_color = 0xFF0000
         config.color_tolerance = 10
 
-        ds = DetectionSystem(config)
+        ds = DetectionSystem(config, MagicMock())
 
         with patch.object(ds, "_get_sct") as mock_sct:
             img = np.zeros((1, 1, 4), dtype=np.uint8)
@@ -326,7 +326,7 @@ class TestMovementSystemEdgeCases:
         config = MagicMock()
 
         with patch("ctypes.windll.user32.GetSystemMetrics", side_effect=[1920, 1080]):
-            ms = LowLevelMovementSystem(config)
+            ms = LowLevelMovementSystem(config, MagicMock())
 
             with patch("ctypes.windll.user32.SendInput", return_value=1):
                 # Top-left corner
@@ -349,7 +349,7 @@ class TestMovementSystemEdgeCases:
             mock_windll.user32.GetSystemMetrics.side_effect = lambda idx: 1920 if idx == 0 else 1080
             mock_windll.user32.SendInput.return_value = 1
 
-            ms = LowLevelMovementSystem(config)
+            ms = LowLevelMovementSystem(config, MagicMock())
 
             # Far beyond screen
             ms.move_mouse_absolute(-1000, -1000)
@@ -366,7 +366,7 @@ class TestMovementSystemEdgeCases:
             mock_windll.user32.GetSystemMetrics.side_effect = lambda idx: 1920 if idx == 0 else 1080
             mock_windll.user32.SendInput.return_value = 1
 
-            ms = LowLevelMovementSystem(config)
+            ms = LowLevelMovementSystem(config, MagicMock())
 
             ms.move_mouse_absolute(0, 0)
             assert mock_windll.user32.SendInput.called
