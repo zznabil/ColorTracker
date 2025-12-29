@@ -10,7 +10,7 @@
     - [ ] Subtask: Verify all existing movement tests pass with the new architecture.
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: Architecture Refactoring' (Protocol in workflow.md)
 
-## Phase 2: Stealth Engine Implementation
+## Phase 2: Stealth Engine Implementation [checkpoint: ea90037]
 
 - [x] Task: Implement Logitech Driver Proxy (Engine B) [62ece0c]
     - [x] Subtask: Research DLL entry points for lghub_agent.exe input simulation.
@@ -18,7 +18,7 @@
 - [x] Task: Implement Flag Masking Hook (Engine C) [62ece0c]
     - [x] Subtask: Implement WH_MOUSE_LL hook in Python ctypes.
     - [x] Subtask: Verify flag clearing behavior using a diagnostic hook tool.
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: Stealth Engine Implementation' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 2: Stealth Engine Implementation' [ea90037]
 
 ## Phase 3: GUI & Integration
 
