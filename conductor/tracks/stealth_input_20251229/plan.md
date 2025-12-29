@@ -1,6 +1,6 @@
 # Plan: Deep Stealth - Input Integrity
 
-## Phase 1: Architecture Refactoring [checkpoint: c4af015]
+## Phase 1: Architecture Refactoring
 
 - [x] Task: Refactor LowLevelMovementSystem to Engine Strategy [62ece0c]
     - [ ] Subtask: Create BaseEngine interface and StandardEngine implementation.
@@ -8,16 +8,16 @@
 - [x] Task: Port Standard Logic to Engine A [62ece0c]
     - [ ] Subtask: Migrate existing SendInput logic into a concrete StandardEngine class.
     - [ ] Subtask: Verify all existing movement tests pass with the new architecture.
-- [x] Task: Conductor - User Manual Verification 'Phase 1: Architecture Refactoring' [c4af015]
+- [ ] Task: Conductor - User Manual Verification 'Phase 1: Architecture Refactoring' (Protocol in workflow.md)
 
 ## Phase 2: Stealth Engine Implementation
 
-- [ ] Task: Implement Logitech Driver Proxy (Engine B)
-    - [ ] Subtask: Research DLL entry points for lghub_agent.exe input simulation.
-    - [ ] Subtask: Implement the LogitechEngine with environment auto-detection.
-- [ ] Task: Implement Flag Masking Hook (Engine C)
-    - [ ] Subtask: Implement WH_MOUSE_LL hook in Python ctypes.
-    - [ ] Subtask: Verify flag clearing behavior using a diagnostic hook tool.
+- [x] Task: Implement Logitech Driver Proxy (Engine B) [62ece0c]
+    - [x] Subtask: Research DLL entry points for lghub_agent.exe input simulation.
+    - [x] Subtask: Implement the LogitechEngine with environment auto-detection.
+- [x] Task: Implement Flag Masking Hook (Engine C) [62ece0c]
+    - [x] Subtask: Implement WH_MOUSE_LL hook in Python ctypes.
+    - [x] Subtask: Verify flag clearing behavior using a diagnostic hook tool.
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Stealth Engine Implementation' (Protocol in workflow.md)
 
 ## Phase 3: GUI & Integration

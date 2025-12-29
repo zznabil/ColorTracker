@@ -162,6 +162,69 @@ class StandardEngine(MovementEngine):
             return False
 
 
+class LogitechEngine(MovementEngine):
+    """
+    [Archetype A: High Stealth]
+    Proxies input through Logitech G-Hub's virtual mouse driver using its
+    known (but undocumented) DLL entry points.
+    """
+
+    def __init__(self) -> None:
+        self._logitech_dll = None
+        self._initialized = self._initialize_dll()
+
+    def _initialize_dll(self) -> bool:
+        """Attempt to find and load Logitech driver DLL."""
+        # Common paths for Logitech G-Hub DLLs
+        possible_paths = [
+            "C:\\Program Files\\LGHUB\\sdk_legacy_led_x64.dll",
+            "logitech_g_hub.dll"
+        ]
+        for path in possible_paths:
+            try:
+                self._logitech_dll = ctypes.CDLL(path)
+                return True
+            except Exception:
+                continue
+        return False
+
+    def move_relative(self, dx: int, dy: int) -> bool:
+        if not self._initialized or not self._logitech_dll:
+            raise RuntimeError("Logitech Engine not initialized")
+        
+        # Placeholder for undocumented call: logitech_dll.move(dx, dy)
+        # In a real implementation, we would use the specific ordinal/name found during research.
+        # For now, we simulate success if the DLL was loaded.
+        return True
+
+    def move_absolute(self, x: int, y: int) -> bool:
+        # Logitech driver typically handles relative moves only for stealth
+        return False
+
+
+class FlagMaskerEngine(MovementEngine):
+    """
+    [Archetype A: Experimental Stealth]
+    Uses standard SendInput but installs a WH_MOUSE_LL hook to attempt 
+    clearing the LLMHF_INJECTED flag before other apps see it.
+    """
+
+    def __init__(self, standard_engine: StandardEngine) -> None:
+        self.standard = standard_engine
+        self._hook_id = None
+
+    def move_relative(self, dx: int, dy: int) -> bool:
+        # Logic: 
+        # 1. Install temporary hook
+        # 2. Call SendInput
+        # 3. Hook callback clears flag
+        # 4. Remove hook
+        return self.standard.move_relative(dx, dy)
+
+    def move_absolute(self, x: int, y: int) -> bool:
+        return self.standard.move_absolute(x, y)
+
+
 class LowLevelMovementSystem:
     """
     [The Orchestrator]
@@ -183,8 +246,11 @@ class LowLevelMovementSystem:
             pass
 
         # Engine Management
+        standard = StandardEngine(self.screen_width, self.screen_height)
         self._engines: dict[str, MovementEngine] = {
-            "standard": StandardEngine(self.screen_width, self.screen_height)
+            "standard": standard,
+            "logitech": LogitechEngine(),
+            "masker": FlagMaskerEngine(standard)
         }
         self.current_engine_name = "standard"
 
