@@ -38,13 +38,6 @@ class OneEuroFilter:
         self.deriv_prev = 0.0
         self.t_prev = float(t0)
 
-    def smoothing_factor(self, t_e: float, cutoff: float) -> float:
-        r = 2 * math.pi * cutoff * t_e
-        return r / (r + 1)
-
-    def exponential_smoothing(self, a: float, x: float, x_prev: float) -> float:
-        return a * x + (1 - a) * x_prev
-
     def __call__(self, t: float, x: float) -> float:
         t_e = t - self.t_prev
 
