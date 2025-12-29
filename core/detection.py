@@ -71,6 +71,9 @@ class DetectionSystem:
         # ULTRATHINK: Version-based cache validation
         self._last_config_version = -1
 
+        # Optimization: Pre-allocate capture area dictionaries to avoid per-frame allocation
+        self._capture_area = {"left": 0, "top": 0, "width": 0, "height": 0}
+
     def _get_sct(self) -> Any:
         """
         Get thread-local MSS instance
@@ -220,9 +223,14 @@ class DetectionSystem:
             )
             width, height = local_right - local_left, local_bottom - local_top
 
-        local_area = {"left": local_left, "top": local_top, "width": width, "height": height}
+        # Optimization: Update pre-allocated dict instead of creating new one
+        area = self._capture_area
+        area["left"] = local_left
+        area["top"] = local_top
+        area["width"] = width
+        area["height"] = height
 
-        success, img_bgra = self._capture_and_process_frame(local_area)
+        success, img_bgra = self._capture_and_process_frame(area)
         if not success:
             return False, 0, 0
 
@@ -280,10 +288,14 @@ class DetectionSystem:
         width = right - left
         height = bottom - top
 
-        # Create capture area dictionary
-        full_area = {"left": left, "top": top, "width": width, "height": height}
+        # Optimization: Update pre-allocated dict
+        area = self._capture_area
+        area["left"] = left
+        area["top"] = top
+        area["width"] = width
+        area["height"] = height
 
-        success, img_bgra = self._capture_and_process_frame(full_area)
+        success, img_bgra = self._capture_and_process_frame(area)
         if not success:
             return False, 0, 0
 
