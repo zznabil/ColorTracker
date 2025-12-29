@@ -381,18 +381,10 @@ class ColorTrackerAlgo:
                 # Record performance metrics for every frame (fix for 0 FPS stats)
                 perf_monitor.record_frame(actual_frame_time, missed=(sleep_time <= 0))
 
+                # Use hybrid precision sleep
                 if sleep_time > 0:
-                    # Use sleep for longer periods, but with high precision
-                    if sleep_time > 0.001:  # More than 1ms
-                        # For longer sleeps, use time.sleep() which is more efficient
-                        time.sleep(sleep_time * 0.9)  # Sleep 90% of needed time
-
-                    # High-precision spin wait for the remaining time
-                    target_time = loop_start_time + target_frame_time
-                    while time.perf_counter() < target_time:
-                        # Minimal CPU usage - just yield to OS scheduler
-                        if not self.running:
-                            break
+                    self._smart_sleep(sleep_time, loop_start_time + target_frame_time)
+                
                 # No else block needed for record_frame anymore
 
         except Exception as fatal_error:
@@ -422,6 +414,33 @@ class ColorTrackerAlgo:
         # Use the GUI update method if available
         if hasattr(self, "update_target_status"):
             self.update_target_status(target_found)
+
+    def _smart_sleep(self, duration: float, target_time: float | None = None) -> None:
+        """
+        Hybrid precise sleep: uses time.sleep for bulk waiting and busy-wait for final precision.
+        
+        Args:
+            duration: Total seconds to sleep.
+            target_time: Absolute timestamp (time.perf_counter) to wake up at. 
+                         If None, calculated from current time + duration.
+        """
+        if duration <= 0:
+            return
+
+        if target_time is None:
+            target_time = time.perf_counter() + duration
+
+        # Use sleep for longer periods (bulk wait)
+        if duration > 0.001:  # More than 1ms
+            # Sleep 90% of needed time to avoid oversleeping
+            time.sleep(duration * 0.9)
+
+        # High-precision spin wait for the remaining time
+        while time.perf_counter() < target_time:
+            # Minimal CPU usage - just yield to OS scheduler if needed, but here we spin
+            # Check running flag to allow fast exit
+            if not self.running:
+                break
 
     def run(self):
         """Run the application with optimized UI responsiveness"""
