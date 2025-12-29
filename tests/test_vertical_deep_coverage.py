@@ -219,20 +219,24 @@ class TestMovementDeepPrecision:
         """Test movement with sub-pixel precision"""
         config = MagicMock()
 
-        with patch("ctypes.windll.user32.GetSystemMetrics", side_effect=[1920, 1080]):
+        with patch("ctypes.windll") as mock_windll:
+            mock_windll.user32.GetSystemMetrics.side_effect = lambda x: 1920 if x == 0 else 1080
+            mock_send = mock_windll.user32.SendInput
+            mock_send.return_value = 1
+
             ms = LowLevelMovementSystem(config, MagicMock())
 
-            with patch("ctypes.windll.user32.SendInput", return_value=1) as mock_send:
-                # Sub-pixel coordinate (should be rounded)
-                ms.move_mouse_absolute(960, 540)
+            # Sub-pixel coordinate (should be rounded)
+            ms.move_mouse_absolute(960, 540)
 
-                assert mock_send.called
+            assert mock_send.called
 
     def test_movement_at_screen_edges_wraparound(self):
         """Test movement near screen edges doesn't wraparound"""
         config = MagicMock()
 
-        with patch("ctypes.windll.user32.GetSystemMetrics", side_effect=[1920, 1080]):
+        with patch("ctypes.windll") as mock_windll:
+            mock_windll.user32.GetSystemMetrics.side_effect = lambda x: 1920 if x == 0 else 1080
             _ms = LowLevelMovementSystem(config, MagicMock())  # Initialize to validate construction
 
             # Verify clamping in move_mouse_absolute
@@ -248,17 +252,19 @@ class TestMovementDeepPrecision:
         """Test accumulated relative movements"""
         config = MagicMock()
 
-        with patch("ctypes.windll.user32.GetSystemMetrics", side_effect=[1920, 1080]):
-            with patch("ctypes.windll.user32.GetCursorPos"):
-                ms = LowLevelMovementSystem(config, MagicMock())
+        with patch("ctypes.windll") as mock_windll:
+            mock_windll.user32.GetSystemMetrics.side_effect = lambda x: 1920 if x == 0 else 1080
+            mock_windll.user32.GetCursorPos.return_value = 1
+            mock_send = mock_windll.user32.SendInput
+            mock_send.return_value = 1
 
-                with patch("ctypes.windll.user32.SendInput", return_value=1):
-                    # 100 small movements
-                    for _ in range(100):
-                        ms.move_mouse_relative(1, 1)
+            ms = LowLevelMovementSystem(config, MagicMock())
 
-                # Should have called SendInput 100 times
-                # Movements should accumulate correctly
+            # 100 small movements
+            for _ in range(100):
+                ms.move_mouse_relative(1, 1)
+
+            assert mock_send.call_count == 100
 
 
 class TestConfigDeepValidation:

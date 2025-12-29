@@ -47,15 +47,19 @@ def test_config_json_corruption_recovery():
 def test_movement_normalization_extreme():
     """Verify absolute movement normalization doesn't overflow 65535 and clamps correctly"""
     config = MagicMock()
-    with patch("ctypes.windll.user32.GetSystemMetrics", side_effect=[1920, 1080]):
+    with patch("ctypes.windll") as mock_windll:
+        # Mock GetSystemMetrics for __init__
+        mock_windll.user32.GetSystemMetrics.side_effect = lambda x: 1920 if x == 0 else 1080
+        mock_send = mock_windll.user32.SendInput
+        mock_send.return_value = 1
+
         mv = LowLevelMovementSystem(config, MagicMock())
 
         # Target far outside screen
         x, y = 100000, 100000
 
-        with patch("ctypes.windll.user32.SendInput", return_value=1) as mock_send:
-            mv.move_mouse_absolute(x, y)
-            assert mock_send.called
+        mv.move_mouse_absolute(x, y)
+        assert mock_send.called
 
 
 def test_prediction_temporal_instability():
