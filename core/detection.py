@@ -195,38 +195,30 @@ class DetectionSystem:
         finally:
             self.perf_monitor.stop_probe("detection_capture")
 
-    def _local_search(self) -> tuple[bool, int, int]:
+    def _scan_region(
+        self, left: int, top: int, right: int, bottom: int, max_size: int
+    ) -> tuple[bool, int, int]:
         """
-        Perform a local search around the last known target position.
+        Generic region scanner used by both local and full search.
+        Consolidates capture, processing, and detection logic.
         """
-        # Calculate local search area with bounds checking
-        # Calculate local search area with bounds checking
-        # Hardcoded optimization margin (user feedback: slider removed)
-        search_area: int = 100
-        local_left = max(0, self.target_x - search_area)
-        local_top = max(0, self.target_y - search_area)
-        # Use cached screen dimensions
-        local_right = min(self._screen_width, self.target_x + search_area)
-        local_bottom = min(self._screen_height, self.target_y + search_area)
-
-        # Calculate dimensions and validate
-        width = local_right - local_left
-        height = local_bottom - local_top
+        width = right - left
+        height = bottom - top
 
         if width <= 0 or height <= 0:
             return False, 0, 0
 
-        # Optimization: Guard against excessively large search areas
-        if width > 1000 or height > 1000:
-            local_left, local_right, local_top, local_bottom = self._clamp_search_area(
-                local_left, local_right, local_top, local_bottom, max_size=500
+        # Optimization: Clamp large search areas
+        if width > max_size or height > max_size:
+            left, right, top, bottom = self._clamp_search_area(
+                left, right, top, bottom, max_size=max_size
             )
-            width, height = local_right - local_left, local_bottom - local_top
+            width, height = right - left, bottom - top
 
         # Optimization: Update pre-allocated dict instead of creating new one
         area = self._capture_area
-        area["left"] = local_left
-        area["top"] = local_top
+        area["left"] = left
+        area["top"] = top
         area["width"] = width
         area["height"] = height
 
@@ -248,7 +240,31 @@ class DetectionSystem:
         if max_val <= 0:
             return False, 0, 0
 
-        screen_x, screen_y = int(max_loc[0] + local_left), int(max_loc[1] + local_top)
+        screen_x = int(max_loc[0] + left)
+        screen_y = int(max_loc[1] + top)
+
+        return True, screen_x, screen_y
+
+    def _local_search(self) -> tuple[bool, int, int]:
+        """
+        Perform a local search around the last known target position.
+        """
+        # Calculate local search area with bounds checking
+        # Hardcoded optimization margin (user feedback: slider removed)
+        search_area: int = 100
+        local_left = max(0, self.target_x - search_area)
+        local_top = max(0, self.target_y - search_area)
+        # Use cached screen dimensions
+        local_right = min(self._screen_width, self.target_x + search_area)
+        local_bottom = min(self._screen_height, self.target_y + search_area)
+
+        # Local search uses a smaller max_size (500) than full search (1500)
+        found, screen_x, screen_y = self._scan_region(
+            local_left, local_top, local_right, local_bottom, max_size=500
+        )
+
+        if not found:
+            return False, 0, 0
 
         # FOV Restriction Check
         # Use cached values to avoid redundant calculations and attribute access
@@ -263,69 +279,15 @@ class DetectionSystem:
     def _full_search(self, left: int, top: int, right: int, bottom: int) -> tuple[bool, int, int]:
         """
         Perform a full search within the specified boundaries
-
-        Args:
-            left: Left boundary of search area
-            top: Top boundary of search area
-            right: Right boundary of search area
-            bottom: Bottom boundary of search area
-
-        Returns:
-            Tuple containing target found status and coordinates
         """
-        # Calculate dimensions and validate them
-        width = right - left
-        height = bottom - top
+        found, screen_x, screen_y = self._scan_region(
+            left, top, right, bottom, max_size=1500
+        )
 
-        # Validate area dimensions to prevent buffer overflow
-        # MSS has issues with very large areas or invalid dimensions
-        if width <= 0 or height <= 0:
-            # Invalid dimensions - return no target found
-            return False, 0, 0
-
-        # Optimization: Clamp very large search areas
-        left, right, top, bottom = self._clamp_search_area(left, right, top, bottom, max_size=1500)
-        width = right - left
-        height = bottom - top
-
-        # Optimization: Update pre-allocated dict
-        area = self._capture_area
-        area["left"] = left
-        area["top"] = top
-        area["width"] = width
-        area["height"] = height
-
-        success, img_bgra = self._capture_and_process_frame(area)
-        if not success:
-            return False, 0, 0
-
-        # OPTIMIZATION: Removed cv2.cvtColor(img_bgra, cv2.COLOR_BGRA2BGR)
-        # We now perform color matching directly on BGRA data.
-
-        # Use cached bounds
-        if self._lower_bound is None or self._upper_bound is None:
-            self._update_color_bounds()
-
-        self.perf_monitor.start_probe("detection_process")
-        try:
-            # Create mask of pixels within color range
-            mask = cv2.inRange(img_bgra, self._lower_bound, self._upper_bound)  # type: ignore
-
-            # OPTIMIZATION: Use minMaxLoc instead of findNonZero
-            _, max_val, _, max_loc = cv2.minMaxLoc(mask)
-        finally:
-            self.perf_monitor.stop_probe("detection_process")
-
-        if max_val <= 0:
+        if not found:
             # No match found in full search
             self.target_found_last_frame = False
             return False, 0, 0
-
-        match_x, match_y = max_loc
-
-        # Convert back to screen coordinates
-        screen_x = match_x + left
-        screen_y = match_y + top
 
         # Update target position
         self.target_x = screen_x
