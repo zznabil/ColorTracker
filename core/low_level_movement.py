@@ -156,6 +156,21 @@ class LowLevelMovementSystem:
 
         return None
 
+    def _resolve_send_input(self) -> Any:
+        """
+        Resolve the SendInput function pointer.
+        Returns None if not found.
+        """
+        # Use cached function pointer if available
+        if self._send_input:
+            return self._send_input
+
+        user32 = self._get_user32()
+        if user32:
+            return user32.SendInput
+
+        return None
+
     def get_cursor_position(self) -> tuple[int, int]:
         """
         Get current cursor position using Windows API
@@ -180,13 +195,7 @@ class LowLevelMovementSystem:
         """
         self.perf_monitor.start_probe("movement_input")
         try:
-            # Use cached function pointer if available
-            send_input = self._send_input
-            if not send_input:
-                user32 = self._get_user32()
-                if user32:
-                    send_input = user32.SendInput
-
+            send_input = self._resolve_send_input()
             if not send_input:
                 return True
 
@@ -214,13 +223,7 @@ class LowLevelMovementSystem:
         """
         self.perf_monitor.start_probe("movement_input")
         try:
-            # Use cached function pointer if available
-            send_input = self._send_input
-            if not send_input:
-                user32 = self._get_user32()
-                if user32:
-                    send_input = user32.SendInput
-
+            send_input = self._resolve_send_input()
             if not send_input:
                 return True
 
