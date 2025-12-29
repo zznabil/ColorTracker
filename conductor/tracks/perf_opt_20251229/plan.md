@@ -32,7 +32,7 @@ umpy conversion.
     - [ ] Subtask: Write Tests for timing precision.
     - [ ] Subtask: Replace 	ime.sleep() in main.py with a hybrid sleep/spin-wait loop for precise frame pacing.
 
-## Phase 4: Verification and Clean-up
+## Phase 4: Verification and Clean-up [checkpoint: 30e27b6]
 
 - [x] Task: Final Benchmarking [588a70f]
     - [ ] Subtask: Run the same 60-second test from Phase 1.
