@@ -3,14 +3,14 @@
 """
 Low-Level Movement System Module
 
-Handles mouse movement using Windows API calls for game compatibility.
-This implementation uses SendInput which is more likely to work in games
-than high-level libraries like pyautogui or pynput.
+Handles mouse movement using interchangeable engines.
+Supports standard Windows API (SendInput) and future stealth-focused methods.
 """
 
 import ctypes
 import sys
 import time
+from abc import ABC, abstractmethod
 from typing import Any
 
 # Conditionally import Windows-specific libraries or mock them
@@ -47,12 +47,6 @@ else:
         ULONG = ctypes.c_ulong
 
     wintypes = MockWintypes()  # type: ignore
-
-
-# Check for Windows environment or mocked environment
-def is_windows_or_mocked() -> bool:
-    """Check if we are on Windows or in a mocked environment suitable for movement logic"""
-    return sys.platform == "win32" or hasattr(windll, "user32")
 
 
 # Windows API constants for mouse input
@@ -92,228 +86,200 @@ class INPUT(ctypes.Structure):
     _fields_ = [("type", wintypes.DWORD), ("ii", _INPUT)]  # type: ignore
 
 
-class LowLevelMovementSystem:
+class MovementEngine(ABC):
+    """Abstract Base Class for all movement engines."""
+
+    @abstractmethod
+    def move_relative(self, dx: int, dy: int) -> bool:
+        pass
+
+    @abstractmethod
+    def move_absolute(self, x: int, y: int) -> bool:
+        pass
+
+
+class StandardEngine(MovementEngine):
     """
-    [Archetype A: The Sage - Logic/Precision]
-    Handles low-level mouse movement using Windows API (SendInput) with
-    pre-allocated structure reuse for zero-allocation interaction.
+    [Archetype A: The Sage]
+    Standard implementation using Windows SendInput API.
+    Reuses pre-allocated structures for performance.
     """
 
-    def __init__(self, config: Any, perf_monitor: Any) -> None:
-        """
-        Initialize the low-level movement system
+    def __init__(self, screen_width: int, screen_height: int) -> None:
+        self.screen_width = screen_width
+        self.screen_height = screen_height
 
-        Args:
-            config: Configuration object with movement settings
-            perf_monitor: PerformanceMonitor instance for telemetry
-        """
-        self.config = config
-        self.perf_monitor = perf_monitor
-
-        # Movement settings
-        # Dynamic access to config is used instead of caching
-        # self.smoothing and self.aim_point are accessed from self.config directly
-
-        # Ultra-responsive mode settings
-        self.ultra_responsive_mode = getattr(config, "ultra_responsive_mode", False)
-        self.zero_latency_mode = getattr(config, "zero_latency_mode", False)
-
-        # Get screen dimensions for absolute positioning
-        self.screen_width = 1920
-        self.screen_height = 1080
-
-        # Try to get actual metrics, respecting mocks
-        try:
-            user32 = self._get_user32()
-            if user32:
-                self.screen_width = user32.GetSystemMetrics(0)  # type: ignore
-                self.screen_height = user32.GetSystemMetrics(1)  # type: ignore
-        except Exception:
-            pass
-
-        # Aim offset based on aim point
-        self.aim_offset_y = 0
-
-        # Optimization: Cache INPUT structure to avoid reallocation
+        # Pre-allocate for performance
         self._mouse_input = MOUSEINPUT()
         self._input_structure = INPUT(type=INPUT_MOUSE, ii=INPUT._INPUT(mi=self._mouse_input))
 
-        # Optimization: Cache SendInput function pointer to avoid lookup overhead
-        self._send_input = None
-        user32 = self._get_user32()
-        if user32:
-            self._send_input = user32.SendInput
+        # Cache function pointer
+        self._send_input = self._get_send_input()
 
-    def _get_user32(self):
-        """Helper to get the correct user32 instance (real or mocked)"""
-        # First check if ctypes.windll exists and has user32 (this catches the test mocks)
+    def _get_send_input(self):
+        """Helper to get the correct SendInput function pointer."""
         if hasattr(ctypes, "windll") and hasattr(ctypes.windll, "user32"):
-            return ctypes.windll.user32
-
-        # Fallback to the local module level windll (for non-Windows execution without patching)
+            return ctypes.windll.user32.SendInput
         if windll is not None and hasattr(windll, "user32"):
-            return windll.user32
-
+            return windll.user32.SendInput
         return None
 
-    def get_cursor_position(self) -> tuple[int, int]:
-        """
-        Get current cursor position using Windows API
+    def move_relative(self, dx: int, dy: int) -> bool:
+        if not self._send_input:
+            return True
 
-        Returns:
-            Tuple of (x, y) coordinates
-        """
-        user32 = self._get_user32()
-        if not user32:
-            return 0, 0
+        self._input_structure.ii.mi.dx = dx
+        self._input_structure.ii.mi.dy = dy
+        self._input_structure.ii.mi.mouseData = 0
+        self._input_structure.ii.mi.dwFlags = MOUSEEVENTF_MOVE
+        self._input_structure.ii.mi.time = 0
+        self._input_structure.ii.mi.dwExtraInfo = None
 
-        point = POINT()
         try:
-            user32.GetCursorPos(ctypes.byref(point))  # type: ignore
-        except Exception:
-            pass
-        return point.x, point.y
-
-    def move_mouse_relative(self, dx: int, dy: int) -> bool:
-        """
-        Move mouse by relative offset using SendInput (low-level)
-        """
-        self.perf_monitor.start_probe("movement_input")
-        try:
-            # Use cached function pointer if available
-            send_input = self._send_input
-            if not send_input:
-                user32 = self._get_user32()
-                if user32:
-                    send_input = user32.SendInput
-
-            if not send_input:
-                return True
-
-            # Optimization: Reuse cached structure by updating fields directly
-            # Note: We must update the structure inside the union, not a separate MOUSEINPUT object
-            self._input_structure.ii.mi.dx = dx
-            self._input_structure.ii.mi.dy = dy
-            self._input_structure.ii.mi.mouseData = 0
-            self._input_structure.ii.mi.dwFlags = MOUSEEVENTF_MOVE
-            self._input_structure.ii.mi.time = 0
-            self._input_structure.ii.mi.dwExtraInfo = None
-
-            # Send the input using Windows API with safety check
-            result = send_input(1, ctypes.byref(self._input_structure), ctypes.sizeof(INPUT))  # type: ignore
+            result = self._send_input(1, ctypes.byref(self._input_structure), ctypes.sizeof(INPUT))
             return result == 1
         except Exception:
+            return False
+
+    def move_absolute(self, x: int, y: int) -> bool:
+        if not self._send_input:
+            return True
+
+        normalized_x = max(0, min(65535, int(round((x * 65535) / (self.screen_width - 1)))))
+        normalized_y = max(0, min(65535, int(round((y * 65535) / (self.screen_height - 1)))))
+
+        self._input_structure.ii.mi.dx = normalized_x
+        self._input_structure.ii.mi.dy = normalized_y
+        self._input_structure.ii.mi.mouseData = 0
+        self._input_structure.ii.mi.dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE
+        self._input_structure.ii.mi.time = 0
+        self._input_structure.ii.mi.dwExtraInfo = None
+
+        try:
+            result = self._send_input(1, ctypes.byref(self._input_structure), ctypes.sizeof(INPUT))
+            return result == 1
+        except Exception:
+            return False
+
+
+class LowLevelMovementSystem:
+    """
+    [The Orchestrator]
+    Handles high-level movement logic and manages interchangeable engines.
+    """
+
+    def __init__(self, config: Any, perf_monitor: Any) -> None:
+        self.config = config
+        self.perf_monitor = perf_monitor
+
+        # Get screen dimensions
+        self.screen_width = 1920
+        self.screen_height = 1080
+        try:
+            u32 = getattr(ctypes, "windll", windll).user32
+            self.screen_width = u32.GetSystemMetrics(0)
+            self.screen_height = u32.GetSystemMetrics(1)
+        except Exception:
+            pass
+
+        # Engine Management
+        self._engines: dict[str, MovementEngine] = {
+            "standard": StandardEngine(self.screen_width, self.screen_height)
+        }
+        self.current_engine_name = "standard"
+
+    def register_engine(self, name: str, engine: MovementEngine) -> None:
+        """Register a new movement engine."""
+        self._engines[name] = engine
+
+    def set_engine(self, name: str) -> bool:
+        """Switch to a different movement engine."""
+        if name in self._engines:
+            self.current_engine_name = name
+            return True
+        return False
+
+    def get_cursor_position(self) -> tuple[int, int]:
+        """Get current cursor position using Windows API."""
+        try:
+            u32 = getattr(ctypes, "windll", windll).user32
+            point = POINT()
+            u32.GetCursorPos(ctypes.byref(point))
+            return point.x, point.y
+        except Exception:
+            return 0, 0
+
+    def move_mouse_relative(self, dx: int, dy: int) -> bool:
+        """Delegate relative move to current engine with telemetry and fallback."""
+        self.perf_monitor.start_probe("movement_input")
+        try:
+            success = self._engines[self.current_engine_name].move_relative(dx, dy)
+            if not success and self.current_engine_name != "standard":
+                self._handle_engine_failure()
+                return self._engines["standard"].move_relative(dx, dy)
+            return success
+        except Exception:
+            if self.current_engine_name != "standard":
+                self._handle_engine_failure()
+                return self._engines["standard"].move_relative(dx, dy)
             return False
         finally:
             self.perf_monitor.stop_probe("movement_input")
 
     def move_mouse_absolute(self, x: int, y: int) -> bool:
-        """
-        Move mouse to absolute position using SendInput (low-level)
-        Using round() for better precision and (width-1) for correct mapping.
-        """
+        """Delegate absolute move to current engine with telemetry and fallback."""
         self.perf_monitor.start_probe("movement_input")
         try:
-            # Use cached function pointer if available
-            send_input = self._send_input
-            if not send_input:
-                user32 = self._get_user32()
-                if user32:
-                    send_input = user32.SendInput
-
-            if not send_input:
-                return True
-
-            # Normalize coordinates to 0-65535 range
-            # We subtract 1 from screen dimensions because pixel coordinates are 0-indexed
-            # e.g. x=1919 should map to 65535 on a 1920-wide screen
-            normalized_x = max(0, min(65535, int(round((x * 65535) / (self.screen_width - 1)))))
-            normalized_y = max(0, min(65535, int(round((y * 65535) / (self.screen_height - 1)))))
-
-            # Optimization: Reuse cached structure by updating fields directly
-            self._input_structure.ii.mi.dx = normalized_x
-            self._input_structure.ii.mi.dy = normalized_y
-            self._input_structure.ii.mi.mouseData = 0
-            self._input_structure.ii.mi.dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE
-            self._input_structure.ii.mi.time = 0
-            self._input_structure.ii.mi.dwExtraInfo = None
-
-            # Send the input using Windows API with safety check
-            result = send_input(1, ctypes.byref(self._input_structure), ctypes.sizeof(INPUT))
-            return result == 1
+            success = self._engines[self.current_engine_name].move_absolute(x, y)
+            if not success and self.current_engine_name != "standard":
+                self._handle_engine_failure()
+                return self._engines["standard"].move_absolute(x, y)
+            return success
         except Exception:
+            if self.current_engine_name != "standard":
+                self._handle_engine_failure()
+                return self._engines["standard"].move_absolute(x, y)
             return False
         finally:
             self.perf_monitor.stop_probe("movement_input")
 
+    def _handle_engine_failure(self) -> None:
+        """Log failure and fall back to standard engine."""
+        # Note: Logger is not directly available here, we'll rely on the orchestrator to log if needed,
+        # but we must ensure we switch back to standard.
+        self.current_engine_name = "standard"
+
     def move_to_target(self, target_x: int, target_y: int) -> None:
-        """
-        Move the mouse to center the target on the crosshair (screen center)
-        """
-        adjusted_target_y: int = self._apply_aim_offset(target_y)
-
-        screen_center_x: int = self.screen_width // 2
-        screen_center_y: int = self.screen_height // 2
-
-        distance_x: int = target_x - screen_center_x
-        distance_y: int = adjusted_target_y - screen_center_y
-
-        move_x: int = distance_x
-        move_y: int = distance_y
+        """Centering logic (Logic layer)."""
+        adjusted_target_y = self._apply_aim_offset(target_y)
+        screen_center_x, screen_center_y = self.screen_width // 2, self.screen_height // 2
+        
+        move_x = target_x - screen_center_x
+        move_y = adjusted_target_y - screen_center_y
 
         if move_x != 0 or move_y != 0:
-            success = self.move_mouse_relative(move_x, move_y)
-            if not success:
-                current_x, current_y = self.get_cursor_position()
-                self.move_mouse_absolute(current_x + move_x, current_y + move_y)
+            if not self.move_mouse_relative(move_x, move_y):
+                cx, cy = self.get_cursor_position()
+                self.move_mouse_absolute(cx + move_x, cy + move_y)
 
     def _apply_aim_offset(self, target_y: int) -> int:
-        """
-        Apply vertical offset based on aim point setting
-        """
-        aim_point: int = getattr(self.config, "aim_point", 1)
-
+        aim_point = getattr(self.config, "aim_point", 1)
         if aim_point == 0:
             return target_y - int(getattr(self.config, "head_offset", 10))
-        elif aim_point == 1:
-            return target_y
         elif aim_point == 2:
             return target_y + int(getattr(self.config, "leg_offset", 20))
-        else:
-            return target_y
+        return target_y
 
     def aim_at(self, target_x: int, target_y: int) -> None:
-        """
-        Aim at the specified target coordinates
-        """
         self.move_to_target(target_x, target_y)
 
     def test_movement(self) -> None:
-        """
-        Test the low-level movement system by moving the cursor in a small pattern
-        This can be used to verify that the Windows API calls are working
-        """
-        print("Testing low-level mouse movement...")
-
-        # Get starting position
-        start_x, start_y = self.get_cursor_position()
-        print(f"Starting position: ({start_x}, {start_y})")
-
-        # Test relative movements
-        print("Testing relative movements...")
-        self.move_mouse_relative(50, 0)  # Move right
+        """Test routine."""
+        print("Testing movement system...")
+        sx, sy = self.get_cursor_position()
+        self.move_mouse_relative(50, 0)
         time.sleep(0.1)
-        self.move_mouse_relative(0, 50)  # Move down
+        self.move_mouse_relative(0, 50)
         time.sleep(0.1)
-        self.move_mouse_relative(-50, 0)  # Move left
-        time.sleep(0.1)
-        self.move_mouse_relative(0, -50)  # Move up
-        time.sleep(0.1)
-
-        # Return to starting position using absolute movement
-        print("Returning to starting position...")
-        self.move_mouse_absolute(start_x, start_y)
-
-        final_x, final_y = self.get_cursor_position()
-        print(f"Final position: ({final_x}, {final_y})")
-        print("Low-level movement test completed!")
+        self.move_mouse_absolute(sx, sy)
+        print("Test completed.")

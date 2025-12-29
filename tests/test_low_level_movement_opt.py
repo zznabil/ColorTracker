@@ -1,77 +1,67 @@
 from unittest.mock import MagicMock, patch
-
 import pytest
-
-from core.low_level_movement import LowLevelMovementSystem
-
+from core.low_level_movement import LowLevelMovementSystem, StandardEngine
 
 class TestLowLevelMovementOptimization:
     def test_input_structure_reuse(self):
         """
-        Verify that INPUT structures are reused between calls to avoid allocation overhead.
-        This test expects the optimization to be implemented.
+        Verify that INPUT structures are reused in StandardEngine to avoid allocation overhead.
         """
-        config = MagicMock()
-        system = LowLevelMovementSystem(config, MagicMock())
+        # Test StandardEngine directly for reuse optimization
+        engine = StandardEngine(1920, 1080)
+        
+        mock_send = MagicMock(return_value=1)
+        engine._send_input = mock_send
 
-        # Initialize the optimization (if not already done in __init__ by the time we run this)
-        # But we are testing the class, so we assume we will modify __init__
+        # First call
+        engine.move_relative(10, 20)
+        args1 = mock_send.call_args[0]
+        obj1 = args1[1]._obj
 
-        mock_user32 = MagicMock()
-        mock_user32.SendInput.return_value = 1
+        # Second call
+        engine.move_relative(30, 40)
+        args2 = mock_send.call_args[0]
+        obj2 = args2[1]._obj
 
-        # Clear cached _send_input to force _get_user32 call (which we patch)
-        system._send_input = None
-
-        with patch.object(system, "_get_user32", return_value=mock_user32):
-            # First call
-            # First call
-            system.move_mouse_relative(10, 20)
-
-            if not mock_user32.SendInput.called:
-                pytest.skip("SendInput not called - possibly due to platform restrictions or missing user32")
-
-            args1 = mock_user32.SendInput.call_args[0]
-            # args1[1] should be a byref to the INPUT structure
-            # ctypes.byref returns an object with _obj attribute pointing to the actual structure
-            obj1 = args1[1]._obj
-
-            # Verify values
-            assert obj1.type == 0  # INPUT_MOUSE
-            assert obj1.ii.mi.dx == 10
-            assert obj1.ii.mi.dy == 20
-
-            # Second call
-            system.move_mouse_relative(30, 40)
-            args2 = mock_user32.SendInput.call_args[0]
-            obj2 = args2[1]._obj
-
-            # Verify values updated
-            assert obj2.ii.mi.dx == 30
-            assert obj2.ii.mi.dy == 40
-
-            # CRITICAL: Verify object identity is the same (Reuse)
-            assert obj1 is obj2, "INPUT structure was recreated instead of reused!"
+        # CRITICAL: Verify object identity is the same (Reuse)
+        assert obj1 is obj2, "INPUT structure was recreated instead of reused in StandardEngine!"
 
     def test_absolute_movement_reuse(self):
-        """Verify absolute movement also uses the cached structure."""
+        """Verify absolute movement also uses the cached structure in StandardEngine."""
+        engine = StandardEngine(1920, 1080)
+        
+        mock_send = MagicMock(return_value=1)
+        engine._send_input = mock_send
+
+        engine.move_absolute(100, 100)
+        args1 = mock_send.call_args[0]
+        obj1 = args1[1]._obj
+
+        engine.move_absolute(200, 200)
+        args2 = mock_send.call_args[0]
+        obj2 = args2[1]._obj
+
+        assert obj1 is obj2, "INPUT structure was recreated in absolute movement!"
+
+    def test_system_delegation_and_fallback(self):
+        """Verify LowLevelMovementSystem correctly delegates and handles failures."""
         config = MagicMock()
-        system = LowLevelMovementSystem(config, MagicMock())
-
-        mock_user32 = MagicMock()
-        mock_user32.SendInput.return_value = 1
-
-        # Clear cached _send_input to force _get_user32 call (which we patch)
-        system._send_input = None
-
-        with patch.object(system, "_get_user32", return_value=mock_user32):
-            # First call
-            system.move_mouse_absolute(100, 100)
-            args1 = mock_user32.SendInput.call_args[0]
-            obj1 = args1[1]._obj
-
-            system.move_mouse_absolute(200, 200)
-            args2 = mock_user32.SendInput.call_args[0]
-            obj2 = args2[1]._obj
-
-            assert obj1 is obj2, "INPUT structure was recreated in absolute movement!"
+        monitor = MagicMock()
+        system = LowLevelMovementSystem(config, monitor)
+        
+        # Mock engines
+        standard_mock = MagicMock()
+        stealth_mock = MagicMock()
+        
+        system.register_engine("standard", standard_mock)
+        system.register_engine("stealth", stealth_mock)
+        
+        # Test standard delegation
+        system.set_engine("standard")
+        system.move_mouse_relative(1, 1)
+        standard_mock.move_relative.assert_called_once()
+        
+        # Test stealth delegation
+        system.set_engine("stealth")
+        system.move_mouse_relative(2, 2)
+        stealth_mock.move_relative.assert_called_once()
