@@ -26,6 +26,17 @@ class TestInstrumentationIntegration:
         monitor.start_probe = MagicMock()
         monitor.stop_probe = MagicMock()
 
+        # Mock _get_sct and its returned object
+        mock_sct = MagicMock()
+        detection._get_sct = MagicMock(return_value=mock_sct)
+
+        # Mock the screen shot object returned by grab
+        mock_screenshot = MagicMock()
+        mock_screenshot.bgra = b'\x00' * 4 * 100 * 100  # valid buffer
+        mock_screenshot.width = 100
+        mock_screenshot.height = 100
+        mock_sct.grab.return_value = mock_screenshot
+
         # Call the method we expect to be instrumented
         try:
             # We need to ensure _scan_area is set or find_target returns early
@@ -50,7 +61,11 @@ class TestInstrumentationIntegration:
         monitor = PerformanceMonitor()
 
         # This will fail on init until we fix LowLevelMovementSystem
+        # Using mocks to avoid OS dependency
         movement = LowLevelMovementSystem(config, monitor)
+
+        # Manually mock the _send_input method or helper to prevent errors
+        movement._send_input = MagicMock(return_value=1)
 
         monitor.start_probe = MagicMock()
         monitor.stop_probe = MagicMock()

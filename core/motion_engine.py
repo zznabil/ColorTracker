@@ -38,13 +38,6 @@ class OneEuroFilter:
         self.deriv_prev = 0.0
         self.t_prev = float(t0)
 
-    def smoothing_factor(self, t_e: float, cutoff: float) -> float:
-        r = 2 * math.pi * cutoff * t_e
-        return r / (r + 1)
-
-    def exponential_smoothing(self, a: float, x: float, x_prev: float) -> float:
-        return a * x + (1 - a) * x_prev
-
     def __call__(self, t: float, x: float) -> float:
         t_e = t - self.t_prev
 
@@ -177,7 +170,7 @@ class MotionEngine:
         vel_scale: float = 1.0
         abs_dx: float = abs(dx)
         if abs_dx < 100.0:  # If moving < 100 px/sec
-            vel_scale = max(0.0, abs_dx / 100.0)
+            vel_scale = abs_dx * 0.01
 
         lookahead: float = 0.1 * self._prediction_scale * vel_scale
         pred_x: float = smoothed_x + (dx * lookahead)
@@ -189,10 +182,11 @@ class MotionEngine:
         if not math.isfinite(pred_y):
             pred_y = smoothed_y
 
-        final_x = max(0.0, min(self._screen_width - 1.0, float(pred_x)))
-        final_y = max(0.0, min(self._screen_height - 1.0, float(pred_y)))
+        final_x = max(0.0, min(self._screen_width - 1.0, pred_x))
+        final_y = max(0.0, min(self._screen_height - 1.0, pred_y))
 
-        return int(round(final_x)), int(round(final_y))
+        # OPTIMIZATION: int(x + 0.5) is faster than int(round(x)) for positive numbers
+        return int(final_x + 0.5), int(final_y + 0.5)
 
     def reset(self):
         """Reset filter state"""
