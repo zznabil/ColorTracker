@@ -177,7 +177,8 @@ class MotionEngine:
         vel_scale: float = 1.0
         abs_dx: float = abs(dx)
         if abs_dx < 100.0:  # If moving < 100 px/sec
-            vel_scale = max(0.0, abs_dx / 100.0)
+            # OPTIMIZATION: Removed redundant max(0.0, ...) as abs_dx is always >= 0
+            vel_scale = abs_dx / 100.0
 
         lookahead: float = 0.1 * self._prediction_scale * vel_scale
         pred_x: float = smoothed_x + (dx * lookahead)
@@ -189,10 +190,11 @@ class MotionEngine:
         if not math.isfinite(pred_y):
             pred_y = smoothed_y
 
-        final_x = max(0.0, min(self._screen_width - 1.0, float(pred_x)))
-        final_y = max(0.0, min(self._screen_height - 1.0, float(pred_y)))
+        # OPTIMIZATION: Removed redundant float() casts and optimized rounding (int(x + 0.5))
+        final_x = max(0.0, min(self._screen_width - 1.0, pred_x))
+        final_y = max(0.0, min(self._screen_height - 1.0, pred_y))
 
-        return int(round(final_x)), int(round(final_y))
+        return int(final_x + 0.5), int(final_y + 0.5)
 
     def reset(self):
         """Reset filter state"""
