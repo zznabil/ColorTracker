@@ -15,7 +15,7 @@
 
 ## Phase 2: Detection Loop Optimization
 
-- [ ] Task: Optimize Image Buffer Handling
+- [x] Task: Optimize Image Buffer Handling [934b32d]
     - [ ] Subtask: Write Benchmarks for current mss + 
 umpy conversion.
     - [ ] Subtask: Implement and verify strict zero-copy view creation.
