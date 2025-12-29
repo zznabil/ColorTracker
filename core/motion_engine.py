@@ -175,9 +175,10 @@ class MotionEngine:
 
         # Velocity gate: if moving very slowly, reduce prediction to favor smoothing lag.
         vel_scale: float = 1.0
-        abs_dx: float = abs(dx)
-        if abs_dx < 100.0:  # If moving < 100 px/sec
-            vel_scale = max(0.0, abs_dx / 100.0)
+        # OPTIMIZATION: Use Manhattan distance (abs(dx) + abs(dy)) as fast approximation of speed
+        approx_speed: float = abs(dx) + abs(dy)
+        if approx_speed < 100.0:  # If moving < 100 px/sec
+            vel_scale = max(0.0, approx_speed / 100.0)
 
         lookahead: float = 0.1 * self._prediction_scale * vel_scale
         pred_x: float = smoothed_x + (dx * lookahead)
@@ -189,10 +190,24 @@ class MotionEngine:
         if not math.isfinite(pred_y):
             pred_y = smoothed_y
 
-        final_x = max(0.0, min(self._screen_width - 1.0, float(pred_x)))
-        final_y = max(0.0, min(self._screen_height - 1.0, float(pred_y)))
+        # OPTIMIZATION: Explicit if/else clamping is faster than max(0, min(..., val))
+        # Clamp X
+        if pred_x < 0.0:
+            final_x = 0.0
+        elif pred_x >= self._screen_width:
+            final_x = self._screen_width - 1.0
+        else:
+            final_x = pred_x
 
-        return int(round(final_x)), int(round(final_y))
+        # Clamp Y
+        if pred_y < 0.0:
+            final_y = 0.0
+        elif pred_y >= self._screen_height:
+            final_y = self._screen_height - 1.0
+        else:
+            final_y = pred_y
+
+        return int(final_x + 0.5), int(final_y + 0.5)
 
     def reset(self):
         """Reset filter state"""

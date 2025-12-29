@@ -105,6 +105,33 @@ def test_prediction_logic(motion_engine):
     assert out_x > 20
 
 
+def test_vertical_prediction_fix(motion_engine):
+    """
+    Verify that prediction works for purely vertical movement.
+    Regression test for bug where velocity gate only checked dx.
+    """
+    # Configure engine
+    motion_engine.config.motion_min_cutoff = 0.5
+    motion_engine.config.motion_beta = 0.005
+    motion_engine.config.prediction_scale = 1.0
+    motion_engine.update_config()
+
+    dt = 0.016
+    speed = 200.0
+    start_y = 500.0
+
+    # Warmup
+    for i in range(10):
+        y = start_y + i * speed * dt
+        motion_engine.process(100.0, y, dt)
+
+    target_y = start_y + 10 * speed * dt
+    pred_x, pred_y = motion_engine.process(100.0, target_y, dt)
+
+    # Ensure prediction is active (result > target_y because of lookahead)
+    assert pred_y > target_y, "Prediction should be active for vertical movement"
+
+
 def test_robustness_nan(motion_engine):
     """Test handling of NaN values"""
     motion_engine.process(10, 10, 0.016)
