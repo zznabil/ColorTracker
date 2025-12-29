@@ -1,4 +1,4 @@
-# Color Tracking Algo for Single Player Games in Development - V3.3.0
+# Color Tracking Algo for Single Player Games in Development - V3.3.1
 
 A high-performance, modular color tracking and mouse automation tool optimized for responsiveness and stealth.
 

@@ -8,11 +8,17 @@
         "dist",
         "build"
     ],
-    "pythonVersion": "3.11",
+    "pythonVersion": "3.12",
     "pythonPlatform": "Windows",
     "typeCheckingMode": "basic",
     "reportMissingImports": true,
     "reportMissingTypeStubs": false,
     "reportAttributeAccessIssue": true,
-    "reportArgumentType": true
+    "reportArgumentType": true,
+    "reportUnboundVariable": true,
+    "reportOptionalSubscript": true,
+    "reportOptionalMemberAccess": true,
+    "reportOptionalCall": true,
+    "reportOptionalIterable": true,
+    "reportDuplicateImport": true
 }

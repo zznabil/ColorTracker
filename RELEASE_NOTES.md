@@ -1,25 +1,23 @@
-# Release Notes - SAI Color Tracker Algorithm V3.3.0 (Titanium Release)
+# Release Notes - SAI Color Tracker Algorithm V3.3.1 (Ironclad Release)
 
-**V3.3.0** ("Titanium") introduces deep architectural hardening, focusing on zero-contention telemetry and optimized configuration propagation.
+**V3.3.1** ("Ironclad") focuses on runtime robustness and strict type safety compliance, ensuring the application remains stable across diverse environments.
 
-## 🚀 Titanium Optimizations
+## 🛡 Ironclad Optimizations
 
-### 1. Lockless Telemetry Architecture
-- **What**: Replaced mutex-locked counters with an atomic snapshot pattern.
-- **Impact**: Zero-cost performance monitoring. The UI can now query high-resolution stats without ever pausing the 1000Hz tracking loop.
+### 1. Strict Type Safety (Python 3.12+)
+- **What**: Enforced strict `pyright` compliance across the entire codebase.
+- **Impact**: Zero type errors. Enhanced static analysis reliability for future development.
 
-### 2. Config Versioning (Observer)
-- **What**: The `Config` class now maintains a monotonically increasing version counter.
-- **Impact**: All subsystems (Detection, Motion, Input) perform an O(1) integer comparison to determine if re-initialization is needed, rather than inspecting individual fields.
+### 2. Runtime Robustness (Logger Hardening)
+- **What**: Updated `Logger` to gracefully handle missing `stderr` streams.
+- **Impact**: Prevents critical crashes in "frozen" (PyInstaller) or GUI-only environments where standard output streams may be detached.
 
-### 3. Loop Hoisting & Variable Caching
-- **What**: Explicit local caching of method pointers and configuration primitives.
-- **Impact**: Eliminates thousands of `self.` dictionary lookups per second, maximizing CPU headroom for computer vision tasks.
+### 3. Core Logic Refinements
+- **What**: Fine-tuned `DetectionSystem` and `MotionEngine` for partial Python 3.12 syntax and stricter typing rules.
 
-## 🛡 Verification Status
-- **Static Analysis**: 100% clean report from `Ruff` and `Pyright`.
-- **Logic Integrity**: 103/103 tests passed, including vertical integration and threading safety.
-- **Loop Fidelity**: Jitter reduced to <0.05ms using the Hybrid Timing Synchronizer.
+## 📊 Verification Status
+- **Policeman Status**: 👮 ✅ PASSED (Ruff/Pyright/Pytest - 103/103)
+- **Repo Parity**: `master` and `main` branches are fully synchronized.
 
 ---
-*V3.3.0 - The era of frictionless performance.*
+*V3.3.1 - Precision requires stability.*

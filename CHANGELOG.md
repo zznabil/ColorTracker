@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.3.1] - 2025-12-29
+### Added (Ironclad)
+- **Strict Type Safety**: Enforced Python 3.12+ compliance with `pyright` strict mode enabled (0 errors).
+- **Runtime Robustness**: Hardened `Logger` to handle missing `stderr` streams, preventing crashes in frozen/GUI-only environments.
+
 ## [3.3.0] - 2025-12-28
 ### Added (Titanium)
 - **Lockless Telemetry**: Re-engineered `PerformanceMonitor` to use a transactional snapshot-reader pattern, eliminating lock contention in the high-frequency logic loop.

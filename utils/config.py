@@ -27,6 +27,8 @@ class Config:
     screen_width: int
     screen_height: int
     target_color: int
+    _version: int
+    FOV_COLOR: tuple[int, int, int]
     color_tolerance: int
     # search_area removed per user request
     fov_x: int
