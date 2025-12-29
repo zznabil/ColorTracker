@@ -19,7 +19,7 @@
     - [ ] Subtask: Write Benchmarks for current mss + 
 umpy conversion.
     - [ ] Subtask: Implement and verify strict zero-copy view creation.
-- [ ] Task: Optimize Color Search Logic
+- [x] Task: Optimize Color Search Logic [420e79d]
     - [ ] Subtask: Write Benchmarks for cv2.inRange vs cv2.minMaxLoc on cropped regions.
     - [ ] Subtask: Refactor core/detection.py to use the fastest identified method for the specific ROI size.
 
