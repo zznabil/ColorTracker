@@ -122,12 +122,13 @@ class LowLevelMovementSystem:
 
         # Try to get actual metrics, respecting mocks
         try:
-            user32 = self._get_user32()
-            if user32:
-                self.screen_width = user32.GetSystemMetrics(0)  # type: ignore
-                self.screen_height = user32.GetSystemMetrics(1)  # type: ignore
+            # ULTRATHINK: Cache user32 interface to avoid repeated attribute lookups in hot path
+            self._user32 = self._get_user32()
+            if self._user32:
+                self.screen_width = self._user32.GetSystemMetrics(0)  # type: ignore
+                self.screen_height = self._user32.GetSystemMetrics(1)  # type: ignore
         except Exception:
-            pass
+            self._user32 = None
 
         # Aim offset based on aim point
         self.aim_offset_y = 0
@@ -155,13 +156,12 @@ class LowLevelMovementSystem:
         Returns:
             Tuple of (x, y) coordinates
         """
-        user32 = self._get_user32()
-        if not user32:
+        if not self._user32:
             return 0, 0
 
         point = POINT()
         try:
-            user32.GetCursorPos(ctypes.byref(point))  # type: ignore
+            self._user32.GetCursorPos(ctypes.byref(point))  # type: ignore
         except Exception:
             pass
         return point.x, point.y
@@ -170,8 +170,7 @@ class LowLevelMovementSystem:
         """
         Move mouse by relative offset using SendInput (low-level)
         """
-        user32 = self._get_user32()
-        if not user32:
+        if not self._user32:
             return True
 
         # Optimization: Reuse cached structure by updating fields directly
@@ -185,7 +184,7 @@ class LowLevelMovementSystem:
 
         # Send the input using Windows API with safety check
         try:
-            result = user32.SendInput(1, ctypes.byref(self._input_structure), ctypes.sizeof(INPUT))  # type: ignore
+            result = self._user32.SendInput(1, ctypes.byref(self._input_structure), ctypes.sizeof(INPUT))  # type: ignore
             return result == 1
         except Exception:
             return False
@@ -195,8 +194,7 @@ class LowLevelMovementSystem:
         Move mouse to absolute position using SendInput (low-level)
         Using round() for better precision and (width-1) for correct mapping.
         """
-        user32 = self._get_user32()
-        if not user32:
+        if not self._user32:
             return True
 
         # Normalize coordinates to 0-65535 range
@@ -215,7 +213,7 @@ class LowLevelMovementSystem:
 
         # Send the input using Windows API with safety check
         try:
-            result = user32.SendInput(1, ctypes.byref(self._input_structure), ctypes.sizeof(INPUT))
+            result = self._user32.SendInput(1, ctypes.byref(self._input_structure), ctypes.sizeof(INPUT))
             return result == 1
         except Exception:
             return False
