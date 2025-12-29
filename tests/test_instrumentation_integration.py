@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from core.detection import DetectionSystem
 from core.low_level_movement import LowLevelMovementSystem
@@ -21,18 +21,30 @@ class TestInstrumentationIntegration:
         config.screen_height = 1080
         config.target_color = 0xFF0000
         config.color_tolerance = 10
+        # Mock _version for ULTRATHINK optimization
+        config._version = 1
 
         # Spy on monitor
         monitor.start_probe = MagicMock()
         monitor.stop_probe = MagicMock()
 
-        # Call the method we expect to be instrumented
-        try:
-            # We need to ensure _scan_area is set or find_target returns early
-            detection._scan_area = (0,0,100,100)
-            detection.find_target() # No args, uses self.target_x/y or scan area
-        except Exception:
-            pass
+        # Mock sct to return valid data
+        mock_sct = MagicMock()
+        mock_img = MagicMock()
+        mock_img.bgra = b'\x00' * (100 * 100 * 4) # 100x100 4-channel image
+        mock_img.width = 100
+        mock_img.height = 100
+        mock_sct.grab.return_value = mock_img
+
+        # Patch _get_sct on the instance
+        with patch.object(detection, '_get_sct', return_value=mock_sct):
+            # Call the method we expect to be instrumented
+            try:
+                # We need to ensure _scan_area is set or find_target returns early
+                detection._scan_area = (0,0,100,100)
+                detection.find_target() # No args, uses self.target_x/y or scan area
+            except Exception:
+                pass
 
         # Verify probes were started/stopped
         # We instrumented _capture_and_process_frame ("detection_capture") and _local/_full search ("detection_process")
@@ -42,8 +54,8 @@ class TestInstrumentationIntegration:
 
         # Check specific probe names
         calls = [args[0] for args, _ in monitor.start_probe.call_args_list]
+        assert "detection_capture" in calls
         assert "detection_process" in calls
-        # "detection_capture" might be skipped if exception happens early, but we tried to ensure it runs.
 
     def test_movement_probes(self):
         config = MagicMock(spec=Config)

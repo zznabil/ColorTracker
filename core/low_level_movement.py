@@ -131,6 +131,16 @@ class LowLevelMovementSystem:
         except Exception:
             pass
 
+        # ULTRATHINK OPTIMIZATION: Pre-calculate coordinate scaling factors
+        # Replaces division in hot path with multiplication
+        # Formula: (x * 65535) / (width - 1) -> x * scale
+        try:
+            self._x_scale = 65535.0 / (self.screen_width - 1) if self.screen_width > 1 else 0.0
+            self._y_scale = 65535.0 / (self.screen_height - 1) if self.screen_height > 1 else 0.0
+        except ZeroDivisionError:
+            self._x_scale = 0.0
+            self._y_scale = 0.0
+
         # Aim offset based on aim point
         self.aim_offset_y = 0
 
@@ -225,10 +235,11 @@ class LowLevelMovementSystem:
                 return True
 
             # Normalize coordinates to 0-65535 range
+            # ULTRATHINK OPTIMIZATION: Use pre-calculated scale and int(x + 0.5) for speed
             # We subtract 1 from screen dimensions because pixel coordinates are 0-indexed
             # e.g. x=1919 should map to 65535 on a 1920-wide screen
-            normalized_x = max(0, min(65535, int(round((x * 65535) / (self.screen_width - 1)))))
-            normalized_y = max(0, min(65535, int(round((y * 65535) / (self.screen_height - 1)))))
+            normalized_x = max(0, min(65535, int(x * self._x_scale + 0.5)))
+            normalized_y = max(0, min(65535, int(y * self._y_scale + 0.5)))
 
             # Optimization: Reuse cached structure by updating fields directly
             self._input_structure.ii.mi.dx = normalized_x
