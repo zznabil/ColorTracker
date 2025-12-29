@@ -1,4 +1,5 @@
 from unittest.mock import MagicMock
+import numpy as np
 
 from core.detection import DetectionSystem
 from core.low_level_movement import LowLevelMovementSystem
@@ -22,6 +23,11 @@ class TestInstrumentationIntegration:
         config.target_color = 0xFF0000
         config.color_tolerance = 10
 
+        # Mock _capture_and_process_frame to return success so the logic proceeds to "detection_process"
+        # We need to return a valid 4-channel BGRA numpy array
+        fake_img = np.zeros((100, 100, 4), dtype=np.uint8)
+        detection._capture_and_process_frame = MagicMock(return_value=(True, fake_img))
+
         # Spy on monitor
         monitor.start_probe = MagicMock()
         monitor.stop_probe = MagicMock()
@@ -43,7 +49,8 @@ class TestInstrumentationIntegration:
         # Check specific probe names
         calls = [args[0] for args, _ in monitor.start_probe.call_args_list]
         assert "detection_process" in calls
-        # "detection_capture" might be skipped if exception happens early, but we tried to ensure it runs.
+        # "detection_capture" is not called because we mocked _capture_and_process_frame
+        # wait, we mocked it on the instance, so it should be fine.
 
     def test_movement_probes(self):
         config = MagicMock(spec=Config)

@@ -7,6 +7,7 @@ OPTIMIZATIONS (V3.3.0 ULTRATHINK):
 - Utilizes `__slots__` for minimal memory overhead and fast attribute access.
 - Pre-calculated Math Constants to reduce FLOPs.
 - Syscall Avoidance: Reuses time deltas to skip redundant `perf_counter` calls.
+- Velocity Gate Logic: Uses Chebyshev distance (max(dx, dy)) for O(1) speed estimation.
 """
 
 import math
@@ -26,6 +27,7 @@ class OneEuroFilter:
     OPTIMIZATION:
     - Uses __slots__ for reduced memory footprint and faster attribute access.
     - Inlines smoothing calculations to avoid method call overhead in hot path.
+    - Removed unused helper methods to eliminate dead code.
     """
 
     __slots__ = ("min_cutoff", "beta", "d_cutoff", "value_prev", "deriv_prev", "t_prev")
@@ -37,13 +39,6 @@ class OneEuroFilter:
         self.value_prev = float(x0)
         self.deriv_prev = 0.0
         self.t_prev = float(t0)
-
-    def smoothing_factor(self, t_e: float, cutoff: float) -> float:
-        r = 2 * math.pi * cutoff * t_e
-        return r / (r + 1)
-
-    def exponential_smoothing(self, a: float, x: float, x_prev: float) -> float:
-        return a * x + (1 - a) * x_prev
 
     def __call__(self, t: float, x: float) -> float:
         t_e = t - self.t_prev
@@ -151,14 +146,16 @@ class MotionEngine:
         # Guard against NaN/Inf inputs
         if not math.isfinite(x) or not math.isfinite(y):
             if self.x_filter is not None and self.y_filter is not None:
-                return int(round(self.x_filter.value_prev)), int(round(self.y_filter.value_prev))
+                # OPTIMIZATION: Use int(val + 0.5) for faster rounding
+                return int(self.x_filter.value_prev + 0.5), int(self.y_filter.value_prev + 0.5)
             return 0, 0
 
         # Initialize filters if first run
         if self.x_filter is None or self.y_filter is None:
             self.x_filter = OneEuroFilter(current_time, x, self._min_cutoff, self._beta)
             self.y_filter = OneEuroFilter(current_time, y, self._min_cutoff, self._beta)
-            return int(round(x)), int(round(y))
+            # OPTIMIZATION: Use int(val + 0.5) for faster rounding
+            return int(x + 0.5), int(y + 0.5)
 
         # 1. Apply 1 Euro Filter (Smoothing)
         smoothed_x = self.x_filter(current_time, x)
@@ -175,9 +172,14 @@ class MotionEngine:
 
         # Velocity gate: if moving very slowly, reduce prediction to favor smoothing lag.
         vel_scale: float = 1.0
-        abs_dx: float = abs(dx)
-        if abs_dx < 100.0:  # If moving < 100 px/sec
-            vel_scale = max(0.0, abs_dx / 100.0)
+
+        # ULTRATHINK OPTIMIZATION: Use Chebyshev distance (max) for speed check instead of just dx
+        # This fixes the bug where vertical-only movement had 0 prediction.
+        speed: float = max(abs(dx), abs(dy))
+
+        if speed < 100.0:  # If moving < 100 px/sec
+            # OPTIMIZATION: Replaced division with multiplication
+            vel_scale = max(0.0, speed * 0.01)
 
         lookahead: float = 0.1 * self._prediction_scale * vel_scale
         pred_x: float = smoothed_x + (dx * lookahead)
@@ -192,7 +194,8 @@ class MotionEngine:
         final_x = max(0.0, min(self._screen_width - 1.0, float(pred_x)))
         final_y = max(0.0, min(self._screen_height - 1.0, float(pred_y)))
 
-        return int(round(final_x)), int(round(final_y))
+        # OPTIMIZATION: Use int(val + 0.5) for faster rounding of positive coordinates
+        return int(final_x + 0.5), int(final_y + 0.5)
 
     def reset(self):
         """Reset filter state"""
