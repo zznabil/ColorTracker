@@ -2,7 +2,7 @@
 
 ## Phase 1: Architecture Refactoring
 
-- [ ] Task: Refactor LowLevelMovementSystem to Engine Strategy
+- [x] Task: Refactor LowLevelMovementSystem to Engine Strategy [62ece0c]
     - [ ] Subtask: Create BaseEngine interface and StandardEngine implementation.
     - [ ] Subtask: Write unit tests verifying engine switching does not break coordinate clamping.
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: Architecture Refactoring' (Protocol in workflow.md)
