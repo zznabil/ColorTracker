@@ -26,6 +26,10 @@ class TestInstrumentationIntegration:
         monitor.start_probe = MagicMock()
         monitor.stop_probe = MagicMock()
 
+        # Mock _capture_and_process_frame to return success so we proceed to processing
+        # This ensures "detection_process" probe is triggered
+        detection._capture_and_process_frame = MagicMock(return_value=(True, MagicMock()))
+
         # Call the method we expect to be instrumented
         try:
             # We need to ensure _scan_area is set or find_target returns early

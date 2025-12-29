@@ -230,25 +230,13 @@ class DetectionSystem:
         area["width"] = width
         area["height"] = height
 
-        success, img_bgra = self._capture_and_process_frame(area)
-        if not success:
+        capture_success, found, screen_x, screen_y = self._detect_in_area(area)
+
+        if not capture_success:
             return False, 0, 0
 
-        # Use cached bounds
-        if self._lower_bound is None or self._upper_bound is None:
-            self._update_color_bounds()
-
-        self.perf_monitor.start_probe("detection_process")
-        try:
-            mask = cv2.inRange(img_bgra, self._lower_bound, self._upper_bound)  # type: ignore
-            _, max_val, _, max_loc = cv2.minMaxLoc(mask)
-        finally:
-            self.perf_monitor.stop_probe("detection_process")
-
-        if max_val <= 0:
+        if not found:
             return False, 0, 0
-
-        screen_x, screen_y = int(max_loc[0] + local_left), int(max_loc[1] + local_top)
 
         # FOV Restriction Check
         # Use cached values to avoid redundant calculations and attribute access
@@ -295,37 +283,15 @@ class DetectionSystem:
         area["width"] = width
         area["height"] = height
 
-        success, img_bgra = self._capture_and_process_frame(area)
-        if not success:
+        capture_success, found, screen_x, screen_y = self._detect_in_area(area)
+
+        if not capture_success:
             return False, 0, 0
 
-        # OPTIMIZATION: Removed cv2.cvtColor(img_bgra, cv2.COLOR_BGRA2BGR)
-        # We now perform color matching directly on BGRA data.
-
-        # Use cached bounds
-        if self._lower_bound is None or self._upper_bound is None:
-            self._update_color_bounds()
-
-        self.perf_monitor.start_probe("detection_process")
-        try:
-            # Create mask of pixels within color range
-            mask = cv2.inRange(img_bgra, self._lower_bound, self._upper_bound)  # type: ignore
-
-            # OPTIMIZATION: Use minMaxLoc instead of findNonZero
-            _, max_val, _, max_loc = cv2.minMaxLoc(mask)
-        finally:
-            self.perf_monitor.stop_probe("detection_process")
-
-        if max_val <= 0:
+        if not found:
             # No match found in full search
             self.target_found_last_frame = False
             return False, 0, 0
-
-        match_x, match_y = max_loc
-
-        # Convert back to screen coordinates
-        screen_x = match_x + left
-        screen_y = match_y + top
 
         # Update target position
         self.target_x = screen_x
@@ -351,6 +317,37 @@ class DetectionSystem:
 
         # Return as BGR (OpenCV format)
         return (b, g, r)
+
+    def _detect_in_area(self, area: dict) -> tuple[bool, bool, int, int]:
+        """
+        Common detection logic using the provided area.
+        Refactored to eliminate Echo Chamber (duplicated logic).
+        Returns: (capture_success, target_found, screen_x, screen_y)
+        """
+        success, img_bgra = self._capture_and_process_frame(area)
+        if not success:
+            return False, False, 0, 0
+
+        # Use cached bounds
+        if self._lower_bound is None or self._upper_bound is None:
+            self._update_color_bounds()
+
+        self.perf_monitor.start_probe("detection_process")
+        try:
+            # Create mask of pixels within color range
+            mask = cv2.inRange(img_bgra, self._lower_bound, self._upper_bound)  # type: ignore
+            _, max_val, _, max_loc = cv2.minMaxLoc(mask)
+        finally:
+            self.perf_monitor.stop_probe("detection_process")
+
+        if max_val <= 0:
+            return True, False, 0, 0
+
+        # Convert local match to screen coordinates
+        screen_x = int(max_loc[0] + area["left"])
+        screen_y = int(max_loc[1] + area["top"])
+
+        return True, True, screen_x, screen_y
 
     def _clamp_search_area(
         self, left: int, right: int, top: int, bottom: int, max_size: int
