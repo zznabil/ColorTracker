@@ -39,6 +39,39 @@ class PerformanceMonitor:
         self._frame_counter = 0
         self.current_fps = 0.0
 
+        # Telemetry Probes
+        self._active_probes: dict[str, int] = {}  # name -> start_time_ns
+        self._probe_history: dict[str, collections.deque] = collections.defaultdict(
+            lambda: collections.deque(maxlen=history_size)
+        )
+
+    def start_probe(self, name: str):
+        """Start a high-resolution timing probe."""
+        self._active_probes[name] = time.perf_counter_ns()
+
+    def stop_probe(self, name: str):
+        """Stop a timing probe and record duration in ms."""
+        start_time = self._active_probes.pop(name, None)
+        if start_time is None:
+            return
+        
+        duration_ns = time.perf_counter_ns() - start_time
+        duration_ms = duration_ns / 1_000_000.0
+        self._probe_history[name].append(duration_ms)
+
+    def get_probe_stats(self, name: str) -> dict[str, float]:
+        """Get statistics for a specific probe."""
+        history = list(self._probe_history.get(name, []))
+        if not history:
+            return {}
+        
+        return {
+            "avg_ms": sum(history) / len(history),
+            "min_ms": min(history),
+            "max_ms": max(history),
+            "count": len(history)
+        }
+
     def record_frame(self, duration_sec: float, missed: bool = False):
         """
         Record the duration of a single logic loop frame.
