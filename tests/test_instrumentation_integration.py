@@ -26,6 +26,19 @@ class TestInstrumentationIntegration:
         monitor.start_probe = MagicMock()
         monitor.stop_probe = MagicMock()
 
+        # MOCK _get_sct to return a fake image so capture succeeds
+        # This ensures we reach the 'detection_process' probe
+        mock_sct = MagicMock()
+        mock_img = MagicMock()
+        # Create a valid buffer for 100x100 image (BGRA)
+        mock_img.bgra = b'\x00' * (100 * 100 * 4)
+        mock_img.height = 100
+        mock_img.width = 100
+        mock_sct.grab.return_value = mock_img
+
+        # We must mock the method on the instance
+        detection._get_sct = MagicMock(return_value=mock_sct)
+
         # Call the method we expect to be instrumented
         try:
             # We need to ensure _scan_area is set or find_target returns early
@@ -43,7 +56,8 @@ class TestInstrumentationIntegration:
         # Check specific probe names
         calls = [args[0] for args, _ in monitor.start_probe.call_args_list]
         assert "detection_process" in calls
-        # "detection_capture" might be skipped if exception happens early, but we tried to ensure it runs.
+        # "detection_capture" should also be there
+        assert "detection_capture" in calls
 
     def test_movement_probes(self):
         config = MagicMock(spec=Config)

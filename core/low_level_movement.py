@@ -97,6 +97,9 @@ class LowLevelMovementSystem:
     [Archetype A: The Sage - Logic/Precision]
     Handles low-level mouse movement using Windows API (SendInput) with
     pre-allocated structure reuse for zero-allocation interaction.
+    OPTIMIZATIONS:
+    - Pre-calculated coordinate scaling factors (multiplication > division).
+    - Inlined math for coordinate normalization.
     """
 
     def __init__(self, config: Any, perf_monitor: Any) -> None:
@@ -130,6 +133,14 @@ class LowLevelMovementSystem:
                 self.screen_height = user32.GetSystemMetrics(1)  # type: ignore
         except Exception:
             pass
+
+        # ULTRATHINK OPTIMIZATION: Pre-calculate scaling factors
+        # Avoids repeated division in hot path.
+        # Clamp dimensions to min 1 to avoid ZeroDivisionError
+        safe_w = max(1, self.screen_width - 1)
+        safe_h = max(1, self.screen_height - 1)
+        self._x_scale = 65535.0 / safe_w
+        self._y_scale = 65535.0 / safe_h
 
         # Aim offset based on aim point
         self.aim_offset_y = 0
@@ -210,7 +221,7 @@ class LowLevelMovementSystem:
     def move_mouse_absolute(self, x: int, y: int) -> bool:
         """
         Move mouse to absolute position using SendInput (low-level)
-        Using round() for better precision and (width-1) for correct mapping.
+        OPTIMIZATION: Uses pre-calculated scale factors and inlined rounding.
         """
         self.perf_monitor.start_probe("movement_input")
         try:
@@ -225,10 +236,10 @@ class LowLevelMovementSystem:
                 return True
 
             # Normalize coordinates to 0-65535 range
-            # We subtract 1 from screen dimensions because pixel coordinates are 0-indexed
-            # e.g. x=1919 should map to 65535 on a 1920-wide screen
-            normalized_x = max(0, min(65535, int(round((x * 65535) / (self.screen_width - 1)))))
-            normalized_y = max(0, min(65535, int(round((y * 65535) / (self.screen_height - 1)))))
+            # Optimization: Use pre-calculated scaling factors (multiplication)
+            # and inline rounding (int(val + 0.5)) for performance.
+            normalized_x = max(0, min(65535, int(x * self._x_scale + 0.5)))
+            normalized_y = max(0, min(65535, int(y * self._y_scale + 0.5)))
 
             # Optimization: Reuse cached structure by updating fields directly
             self._input_structure.ii.mi.dx = normalized_x
