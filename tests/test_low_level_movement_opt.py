@@ -1,6 +1,7 @@
-from unittest.mock import MagicMock, patch
-import pytest
+from unittest.mock import MagicMock
+
 from core.low_level_movement import LowLevelMovementSystem, StandardEngine
+
 
 class TestLowLevelMovementOptimization:
     def test_input_structure_reuse(self):
@@ -9,7 +10,7 @@ class TestLowLevelMovementOptimization:
         """
         # Test StandardEngine directly for reuse optimization
         engine = StandardEngine(1920, 1080)
-        
+
         mock_send = MagicMock(return_value=1)
         engine._send_input = mock_send
 
@@ -29,7 +30,7 @@ class TestLowLevelMovementOptimization:
     def test_absolute_movement_reuse(self):
         """Verify absolute movement also uses the cached structure in StandardEngine."""
         engine = StandardEngine(1920, 1080)
-        
+
         mock_send = MagicMock(return_value=1)
         engine._send_input = mock_send
 
@@ -48,19 +49,19 @@ class TestLowLevelMovementOptimization:
         config = MagicMock()
         monitor = MagicMock()
         system = LowLevelMovementSystem(config, monitor)
-        
+
         # Mock engines
         standard_mock = MagicMock()
         stealth_mock = MagicMock()
-        
+
         system.register_engine("standard", standard_mock)
         system.register_engine("stealth", stealth_mock)
-        
+
         # Test standard delegation
         system.set_engine("standard")
         system.move_mouse_relative(1, 1)
         standard_mock.move_relative.assert_called_once()
-        
+
         # Test stealth delegation
         system.set_engine("stealth")
         system.move_mouse_relative(2, 2)
