@@ -191,7 +191,7 @@ class LogitechEngine(MovementEngine):
     def move_relative(self, dx: int, dy: int) -> bool:
         if not self._initialized or not self._logitech_dll:
             raise RuntimeError("Logitech Engine not initialized")
-
+        
         # Placeholder for undocumented call: logitech_dll.move(dx, dy)
         # In a real implementation, we would use the specific ordinal/name found during research.
         # For now, we simulate success if the DLL was loaded.
@@ -205,7 +205,7 @@ class LogitechEngine(MovementEngine):
 class FlagMaskerEngine(MovementEngine):
     """
     [Archetype A: Experimental Stealth]
-    Uses standard SendInput but installs a WH_MOUSE_LL hook to attempt
+    Uses standard SendInput but installs a WH_MOUSE_LL hook to attempt 
     clearing the LLMHF_INJECTED flag before other apps see it.
     """
 
@@ -214,7 +214,7 @@ class FlagMaskerEngine(MovementEngine):
         self._hook_id = None
 
     def move_relative(self, dx: int, dy: int) -> bool:
-        # Logic:
+        # Logic: 
         # 1. Install temporary hook
         # 2. Call SendInput
         # 3. Hook callback clears flag
@@ -319,7 +319,7 @@ class LowLevelMovementSystem:
         """Centering logic (Logic layer)."""
         adjusted_target_y = self._apply_aim_offset(target_y)
         screen_center_x, screen_center_y = self.screen_width // 2, self.screen_height // 2
-
+        
         move_x = target_x - screen_center_x
         move_y = adjusted_target_y - screen_center_y
 

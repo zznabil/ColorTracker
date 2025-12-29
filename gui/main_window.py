@@ -538,10 +538,10 @@ def setup_gui(app):
                 dpg.add_spacer(height=10)
 
                 dpg.add_text("STEALTH ENGINE", color=(201, 0, 141))
-
+                
                 engine_options = ["Standard", "Logitech Proxy", "Flag Masker"]
                 engine_map = {"Standard": "standard", "Logitech Proxy": "logitech", "Flag Masker": "masker"}
-
+                
                 def _on_engine_change(s, a):
                     target = engine_map.get(a, "standard")
                     if not app.movement.set_engine(target):

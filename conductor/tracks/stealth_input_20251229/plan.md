@@ -24,6 +24,6 @@
 
 - [x] Task: Update SYSTEM Tab UI [ea90037]
     - [x] Subtask: Add the dropdown and link it to the movement engine factory.
-- [x] Task: Final Verification & Clean-up [d424585]
-    - [x] Subtask: Ensure 100% test pass and Ruff compliance.
+- [ ] Task: Final Verification & Clean-up
+    - [ ] Subtask: Ensure 100% test pass and Ruff compliance.
 - [ ] Task: Conductor - User Manual Verification 'Phase 3: GUI & Integration' (Protocol in workflow.md)

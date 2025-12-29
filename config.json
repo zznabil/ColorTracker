@@ -1,6 +1,6 @@
 {
     "aim_point": 1,
-    "color_tolerance": 0,
+    "color_tolerance": 100,
     "debug_mode": true,
     "enabled": true,
     "fov_x": 209,
@@ -9,7 +9,7 @@
     "leg_offset": 30,
     "motion_beta": 0.3,
     "motion_min_cutoff": 0.99,
-    "prediction_scale": 0.0,
+    "prediction_scale": 10.0,
     "screen_height": 1200,
     "screen_width": 1920,
     "start_key": "page_up",
