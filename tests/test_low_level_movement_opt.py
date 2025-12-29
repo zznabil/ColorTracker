@@ -20,7 +20,11 @@ class TestLowLevelMovementOptimization:
         mock_user32 = MagicMock()
         mock_user32.SendInput.return_value = 1
 
+        # Clear cached _send_input to force _get_user32 call (which we patch)
+        system._send_input = None
+
         with patch.object(system, "_get_user32", return_value=mock_user32):
+            # First call
             # First call
             system.move_mouse_relative(10, 20)
 
@@ -57,7 +61,11 @@ class TestLowLevelMovementOptimization:
         mock_user32 = MagicMock()
         mock_user32.SendInput.return_value = 1
 
+        # Clear cached _send_input to force _get_user32 call (which we patch)
+        system._send_input = None
+
         with patch.object(system, "_get_user32", return_value=mock_user32):
+            # First call
             system.move_mouse_absolute(100, 100)
             args1 = mock_user32.SendInput.call_args[0]
             obj1 = args1[1]._obj

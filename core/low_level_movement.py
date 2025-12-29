@@ -138,6 +138,12 @@ class LowLevelMovementSystem:
         self._mouse_input = MOUSEINPUT()
         self._input_structure = INPUT(type=INPUT_MOUSE, ii=INPUT._INPUT(mi=self._mouse_input))
 
+        # Optimization: Cache SendInput function pointer to avoid lookup overhead
+        self._send_input = None
+        user32 = self._get_user32()
+        if user32:
+            self._send_input = user32.SendInput
+
     def _get_user32(self):
         """Helper to get the correct user32 instance (real or mocked)"""
         # First check if ctypes.windll exists and has user32 (this catches the test mocks)
@@ -174,8 +180,14 @@ class LowLevelMovementSystem:
         """
         self.perf_monitor.start_probe("movement_input")
         try:
-            user32 = self._get_user32()
-            if not user32:
+            # Use cached function pointer if available
+            send_input = self._send_input
+            if not send_input:
+                user32 = self._get_user32()
+                if user32:
+                    send_input = user32.SendInput
+            
+            if not send_input:
                 return True
 
             # Optimization: Reuse cached structure by updating fields directly
@@ -188,7 +200,7 @@ class LowLevelMovementSystem:
             self._input_structure.ii.mi.dwExtraInfo = None
 
             # Send the input using Windows API with safety check
-            result = user32.SendInput(1, ctypes.byref(self._input_structure), ctypes.sizeof(INPUT))  # type: ignore
+            result = send_input(1, ctypes.byref(self._input_structure), ctypes.sizeof(INPUT))  # type: ignore
             return result == 1
         except Exception:
             return False
@@ -202,8 +214,14 @@ class LowLevelMovementSystem:
         """
         self.perf_monitor.start_probe("movement_input")
         try:
-            user32 = self._get_user32()
-            if not user32:
+            # Use cached function pointer if available
+            send_input = self._send_input
+            if not send_input:
+                user32 = self._get_user32()
+                if user32:
+                    send_input = user32.SendInput
+            
+            if not send_input:
                 return True
 
             # Normalize coordinates to 0-65535 range
@@ -221,7 +239,7 @@ class LowLevelMovementSystem:
             self._input_structure.ii.mi.dwExtraInfo = None
 
             # Send the input using Windows API with safety check
-            result = user32.SendInput(1, ctypes.byref(self._input_structure), ctypes.sizeof(INPUT))
+            result = send_input(1, ctypes.byref(self._input_structure), ctypes.sizeof(INPUT))
             return result == 1
         except Exception:
             return False
