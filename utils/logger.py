@@ -192,7 +192,8 @@ class Logger:
                 f.write(f"Generated: {datetime.now()}\n")
                 f.write("=" * 50 + "\n\n")
                 for log_entry in self.debug_log_buffer:
-                    f.write(log_entry + "\n")
+                    if log_entry is not None:
+                        f.write(str(log_entry) + "\n")
 
             self.logger.info(f"Debug log saved to {filename}")
         except Exception as e:
@@ -451,6 +452,7 @@ class Logger:
             self.critical(f"Uncaught exception:\n{error_msg}")
 
             # Also print to stderr for console visibility
-            sys.__stderr__.write(error_msg)
+            if sys.__stderr__:
+                sys.__stderr__.write(error_msg)
 
         sys.excepthook = handle_exception

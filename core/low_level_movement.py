@@ -11,7 +11,7 @@ than high-level libraries like pyautogui or pynput.
 import ctypes
 import sys
 import time
-from typing import Any
+from typing import Any, Protocol
 
 # Conditionally import Windows-specific libraries or mock them
 if sys.platform == "win32":
@@ -61,6 +61,13 @@ WM_MOUSEMOVE = 0x0200
 MOUSEEVENTF_MOVE = 0x0001
 MOUSEEVENTF_ABSOLUTE = 0x8000
 INPUT_MOUSE = 0
+
+
+# Define Protocol for user32 to satisfy static analysis
+class User32Protocol(Protocol):
+    def GetSystemMetrics(self, index: int) -> int: ...
+    def GetCursorPos(self, point_ref: Any) -> int: ...
+    def SendInput(self, nInputs: int, pInputs: Any, cbSize: int) -> int: ...
 
 
 # Define Windows API structures
@@ -136,17 +143,24 @@ class LowLevelMovementSystem:
         self._mouse_input = MOUSEINPUT()
         self._input_structure = INPUT(type=INPUT_MOUSE, ii=INPUT._INPUT(mi=self._mouse_input))
 
-    def _get_user32(self):
+        # ULTRATHINK: Cache user32 instance to avoid getattr overhead on every frame
+        self._user32: User32Protocol | None = self._resolve_user32()
+
+    def _resolve_user32(self) -> User32Protocol | None:
         """Helper to get the correct user32 instance (real or mocked)"""
         # First check if ctypes.windll exists and has user32 (this catches the test mocks)
         if hasattr(ctypes, "windll") and hasattr(ctypes.windll, "user32"):
-            return ctypes.windll.user32
+            return ctypes.windll.user32  # type: ignore
 
         # Fallback to the local module level windll (for non-Windows execution without patching)
         if windll is not None and hasattr(windll, "user32"):
-            return windll.user32
+            return windll.user32  # type: ignore
 
         return None
+
+    def _get_user32(self) -> User32Protocol | None:
+        """Deprecated: Use self._user32 directly. Kept for backward compatibility if needed."""
+        return self._user32
 
     def get_cursor_position(self) -> tuple[int, int]:
         """
@@ -155,13 +169,12 @@ class LowLevelMovementSystem:
         Returns:
             Tuple of (x, y) coordinates
         """
-        user32 = self._get_user32()
-        if not user32:
+        if not self._user32:
             return 0, 0
 
         point = POINT()
         try:
-            user32.GetCursorPos(ctypes.byref(point))  # type: ignore
+            self._user32.GetCursorPos(ctypes.byref(point))
         except Exception:
             pass
         return point.x, point.y
@@ -170,8 +183,7 @@ class LowLevelMovementSystem:
         """
         Move mouse by relative offset using SendInput (low-level)
         """
-        user32 = self._get_user32()
-        if not user32:
+        if not self._user32:
             return True
 
         # Optimization: Reuse cached structure by updating fields directly
@@ -185,7 +197,7 @@ class LowLevelMovementSystem:
 
         # Send the input using Windows API with safety check
         try:
-            result = user32.SendInput(1, ctypes.byref(self._input_structure), ctypes.sizeof(INPUT))  # type: ignore
+            result = self._user32.SendInput(1, ctypes.byref(self._input_structure), ctypes.sizeof(INPUT))
             return result == 1
         except Exception:
             return False
@@ -195,8 +207,7 @@ class LowLevelMovementSystem:
         Move mouse to absolute position using SendInput (low-level)
         Using round() for better precision and (width-1) for correct mapping.
         """
-        user32 = self._get_user32()
-        if not user32:
+        if not self._user32:
             return True
 
         # Normalize coordinates to 0-65535 range
@@ -215,7 +226,7 @@ class LowLevelMovementSystem:
 
         # Send the input using Windows API with safety check
         try:
-            result = user32.SendInput(1, ctypes.byref(self._input_structure), ctypes.sizeof(INPUT))
+            result = self._user32.SendInput(1, ctypes.byref(self._input_structure), ctypes.sizeof(INPUT))
             return result == 1
         except Exception:
             return False

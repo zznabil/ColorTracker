@@ -43,6 +43,7 @@ class Config:
     enabled: bool
     debug_mode: bool
     config_file: str
+    _version: int  # ULTRATHINK: Explicit type hint for version
     # Default configuration schema for validation and self-healing
     DEFAULT_CONFIG = {
         "screen_width": {"type": int, "default": 1920, "min": 640, "max": 7680},
