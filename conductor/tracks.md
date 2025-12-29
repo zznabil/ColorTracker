@@ -1,1 +1,1 @@
-# Project Tracks`n`nThis file tracks all major tracks for the project. Each track has its own detailed plan in its respective folder.`n`n---`n`n## [~] Track: Performance Benchmarking and Latency Optimization (Hot-Path Refinement)`n*Link: [./conductor/tracks/perf_opt_20251229/](./conductor/tracks/perf_opt_20251229/)*
+# Project Tracks`n`nThis file tracks all major tracks for the project. Each track has its own detailed plan in its respective folder.`n`n*
