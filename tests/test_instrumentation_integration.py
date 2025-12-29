@@ -26,6 +26,16 @@ class TestInstrumentationIntegration:
         monitor.start_probe = MagicMock()
         monitor.stop_probe = MagicMock()
 
+        # Mock _get_sct to prevent MSS errors in headless env and ensure flow continues
+        mock_sct = MagicMock()
+        # Mock sct_img with correct attributes for np.frombuffer
+        mock_img = MagicMock()
+        mock_img.bgra = b'\x00' * (100 * 100 * 4)
+        mock_img.width = 100
+        mock_img.height = 100
+        mock_sct.grab.return_value = mock_img
+        detection._get_sct = MagicMock(return_value=mock_sct)
+
         # Call the method we expect to be instrumented
         try:
             # We need to ensure _scan_area is set or find_target returns early
