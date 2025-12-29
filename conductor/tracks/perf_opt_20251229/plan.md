@@ -1,6 +1,6 @@
 # Plan: Performance Benchmarking and Latency Optimization
 
-## Phase 1: Instrumentation and Baserlining
+## Phase 1: Instrumentation and Baserlining [checkpoint: d143e65]
 
 - [x] Task: Implement High-Resolution Telemetry Probes [dee1527]
     - [ ] Subtask: Write Tests for new telemetry methods in PerformanceMonitor.
