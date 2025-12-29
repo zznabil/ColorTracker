@@ -9,7 +9,7 @@
     - [ ] Subtask: Add probes to capture_screen and process_frame in core/detection.py.
     - [ ] Subtask: Add probes to send_input in core/low_level_movement.py.
     - [ ] Subtask: Add probes to the main orchestration loop in main.py.
-- [ ] Task: Establish Baseline Report
+- [x] Task: Establish Baseline Report [6d09f00]
     - [ ] Subtask: Run the application in a controlled environment for 60 seconds.
     - [ ] Subtask: Generate a report of p50, p95, and p99 latency for each stage.
 
