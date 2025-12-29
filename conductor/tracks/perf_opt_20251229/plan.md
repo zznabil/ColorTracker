@@ -25,10 +25,10 @@ umpy conversion.
 
 ## Phase 3: Input and Synchronization Optimization
 
-- [ ] Task: Optimize Windows API Calls
+- [x] Task: Optimize Windows API Calls [2f2a8dc]
     - [ ] Subtask: Write Tests for ctypes structure reuse.
     - [ ] Subtask: Refactor core/low_level_movement.py to pre-instantiate INPUT structures and cache user32 function pointers.
-- [ ] Task: Implement Hybrid Busy-Wait Sync
+- [x] Task: Implement Hybrid Busy-Wait Sync [da8cd67]
     - [ ] Subtask: Write Tests for timing precision.
     - [ ] Subtask: Replace 	ime.sleep() in main.py with a hybrid sleep/spin-wait loop for precise frame pacing.
 
