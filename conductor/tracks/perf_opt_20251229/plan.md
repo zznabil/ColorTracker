@@ -5,7 +5,7 @@
 - [x] Task: Implement High-Resolution Telemetry Probes [dee1527]
     - [ ] Subtask: Write Tests for new telemetry methods in PerformanceMonitor.
     - [ ] Subtask: Implement start_probe(name) and stop_probe(name) using perf_counter_ns in utils/performance_monitor.py.
-- [ ] Task: Instrument Core Hot Paths
+- [x] Task: Instrument Core Hot Paths [5fbb84f]
     - [ ] Subtask: Add probes to capture_screen and process_frame in core/detection.py.
     - [ ] Subtask: Add probes to send_input in core/low_level_movement.py.
     - [ ] Subtask: Add probes to the main orchestration loop in main.py.
