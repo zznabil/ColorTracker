@@ -30,6 +30,25 @@ class TestInstrumentationIntegration:
         try:
             # We need to ensure _scan_area is set or find_target returns early
             detection._scan_area = (0,0,100,100)
+
+            # Mock _capture_and_process_frame to return success so detection_process runs
+            # We can't easily mock _get_sct here without deeper mocking of mss,
+            # so patching the private method is the most reliable way to ensure flow continues.
+            # Although memory suggests mocking _get_sct, this is a direct fix for the probe check.
+            # Wait, memory says: "mocking _capture_and_process_frame is incorrect as it bypasses the probe logic."
+            # The probe "detection_capture" is INSIDE _capture_and_process_frame.
+            # But "detection_process" is AFTER it.
+            # So we must mock _get_sct to return a valid object.
+
+            mock_sct = MagicMock()
+            mock_img = MagicMock()
+            mock_img.bgra = b'\x00' * (100 * 100 * 4)
+            mock_img.width = 100
+            mock_img.height = 100
+            mock_sct.grab.return_value = mock_img
+
+            detection._get_sct = MagicMock(return_value=mock_sct)
+
             detection.find_target() # No args, uses self.target_x/y or scan area
         except Exception:
             pass

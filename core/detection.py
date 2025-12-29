@@ -74,6 +74,9 @@ class DetectionSystem:
         # Optimization: Pre-allocate capture area dictionaries to avoid per-frame allocation
         self._capture_area = {"left": 0, "top": 0, "width": 0, "height": 0}
 
+        # Optimization: Pre-allocate mask buffer for cv2.inRange to avoid per-frame allocation
+        self._mask_buffer: NDArray[np.uint8] | None = None
+
     def _get_sct(self) -> Any:
         """
         Get thread-local MSS instance
@@ -131,6 +134,11 @@ class DetectionSystem:
         self._center_y = h // 2
         self._fov_x = fov_x
         self._fov_y = fov_y
+
+        # Optimization: Pre-allocate mask buffer
+        # We use the full screen dimensions to ensure it's large enough for any sub-region
+        if self._mask_buffer is None or self._mask_buffer.shape != (h, w):
+            self._mask_buffer = np.zeros((h, w), dtype=np.uint8)
 
         # Calculate FOV boundaries for full search
         scan_left = max(0, self._center_x - fov_x)
@@ -240,7 +248,22 @@ class DetectionSystem:
 
         self.perf_monitor.start_probe("detection_process")
         try:
-            mask = cv2.inRange(img_bgra, self._lower_bound, self._upper_bound)  # type: ignore
+            # Optimization: Use pre-allocated buffer if available and fits
+            if self._mask_buffer is not None:
+                h_img, w_img = img_bgra.shape[:2]
+                h_buf, w_buf = self._mask_buffer.shape
+
+                if h_img <= h_buf and w_img <= w_buf:
+                    # Create a view into the pre-allocated buffer
+                    mask_dst = self._mask_buffer[:h_img, :w_img]
+                    cv2.inRange(img_bgra, self._lower_bound, self._upper_bound, dst=mask_dst)  # type: ignore
+                    mask = mask_dst
+                else:
+                    # Fallback if buffer is too small (unlikely)
+                    mask = cv2.inRange(img_bgra, self._lower_bound, self._upper_bound)  # type: ignore
+            else:
+                mask = cv2.inRange(img_bgra, self._lower_bound, self._upper_bound)  # type: ignore
+
             _, max_val, _, max_loc = cv2.minMaxLoc(mask)
         finally:
             self.perf_monitor.stop_probe("detection_process")
@@ -308,8 +331,22 @@ class DetectionSystem:
 
         self.perf_monitor.start_probe("detection_process")
         try:
-            # Create mask of pixels within color range
-            mask = cv2.inRange(img_bgra, self._lower_bound, self._upper_bound)  # type: ignore
+            # Optimization: Use pre-allocated buffer if available and fits
+            if self._mask_buffer is not None:
+                h_img, w_img = img_bgra.shape[:2]
+                h_buf, w_buf = self._mask_buffer.shape
+
+                if h_img <= h_buf and w_img <= w_buf:
+                    # Create a view into the pre-allocated buffer
+                    mask_dst = self._mask_buffer[:h_img, :w_img]
+                    cv2.inRange(img_bgra, self._lower_bound, self._upper_bound, dst=mask_dst)  # type: ignore
+                    mask = mask_dst
+                else:
+                    # Fallback if buffer is too small
+                    mask = cv2.inRange(img_bgra, self._lower_bound, self._upper_bound)  # type: ignore
+            else:
+                # Create mask of pixels within color range
+                mask = cv2.inRange(img_bgra, self._lower_bound, self._upper_bound)  # type: ignore
 
             # OPTIMIZATION: Use minMaxLoc instead of findNonZero
             _, max_val, _, max_loc = cv2.minMaxLoc(mask)
