@@ -27,12 +27,25 @@ class TestInstrumentationIntegration:
         monitor.stop_probe = MagicMock()
 
         # Call the method we expect to be instrumented
+        # Mock _capture_and_process_frame to return success so we reach the processing stage
+        detection._capture_and_process_frame = MagicMock(return_value=(True, MagicMock()))
+        # Mock cv2 to avoid actual processing errors on magic mock
+        import cv2
+        original_inRange = cv2.inRange
+        original_minMaxLoc = cv2.minMaxLoc
+        cv2.inRange = MagicMock(return_value=MagicMock())
+        cv2.minMaxLoc = MagicMock(return_value=(0, 100, (0,0), (10,10)))
+
         try:
             # We need to ensure _scan_area is set or find_target returns early
             detection._scan_area = (0,0,100,100)
             detection.find_target() # No args, uses self.target_x/y or scan area
         except Exception:
             pass
+        finally:
+            # Restore cv2
+            cv2.inRange = original_inRange
+            cv2.minMaxLoc = original_minMaxLoc
 
         # Verify probes were started/stopped
         # We instrumented _capture_and_process_frame ("detection_capture") and _local/_full search ("detection_process")
