@@ -537,6 +537,30 @@ def setup_gui(app):
 
                 dpg.add_spacer(height=10)
 
+                dpg.add_text("STEALTH ENGINE", color=(201, 0, 141))
+                
+                engine_options = ["Standard", "Logitech Proxy", "Flag Masker"]
+                engine_map = {"Standard": "standard", "Logitech Proxy": "logitech", "Flag Masker": "masker"}
+                
+                def _on_engine_change(s, a):
+                    target = engine_map.get(a, "standard")
+                    if not app.movement.set_engine(target):
+                        app.logger.warning(f"Engine '{a}' failed to initialize. Falling back to Standard.")
+                        dpg.set_value(s, "Standard")
+                    else:
+                        app.logger.info(f"Movement engine switched to: {a}")
+
+                app.engine_combo = dpg.add_combo(
+                    items=engine_options,
+                    default_value="Standard",
+                    callback=_on_engine_change,
+                    width=-1
+                )
+                with dpg.tooltip(app.engine_combo):
+                    dpg.add_text("Choose the mouse injection method. 'Standard' is most compatible. 'Logitech' requires G-Hub.")
+
+                dpg.add_spacer(height=10)
+
                 dpg.add_spacer(height=15)
                 dpg.add_separator()
                 dpg.add_spacer(height=15)
