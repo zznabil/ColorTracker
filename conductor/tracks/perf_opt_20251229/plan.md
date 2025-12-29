@@ -13,7 +13,7 @@
     - [ ] Subtask: Run the application in a controlled environment for 60 seconds.
     - [ ] Subtask: Generate a report of p50, p95, and p99 latency for each stage.
 
-## Phase 2: Detection Loop Optimization
+## Phase 2: Detection Loop Optimization [checkpoint: 6a8d367]
 
 - [x] Task: Optimize Image Buffer Handling [934b32d]
     - [ ] Subtask: Write Benchmarks for current mss + 
