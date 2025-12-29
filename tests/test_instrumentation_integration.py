@@ -26,6 +26,12 @@ class TestInstrumentationIntegration:
         monitor.start_probe = MagicMock()
         monitor.stop_probe = MagicMock()
 
+        # Mock capture to return success so we reach detection_process
+        # We must return a valid numpy array of shape (H, W, 4)
+        import numpy as np
+        fake_img = np.zeros((100, 100, 4), dtype=np.uint8)
+        detection._capture_and_process_frame = MagicMock(return_value=(True, fake_img))
+
         # Call the method we expect to be instrumented
         try:
             # We need to ensure _scan_area is set or find_target returns early
