@@ -451,6 +451,7 @@ class Logger:
             self.critical(f"Uncaught exception:\n{error_msg}")
 
             # Also print to stderr for console visibility
-            sys.__stderr__.write(error_msg)
+            if sys.__stderr__:
+                sys.__stderr__.write(error_msg)
 
         sys.excepthook = handle_exception

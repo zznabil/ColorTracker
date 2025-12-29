@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -20,34 +20,36 @@ class TestLowLevelMovementOptimization:
         mock_user32 = MagicMock()
         mock_user32.SendInput.return_value = 1
 
-        with patch.object(system, "_get_user32", return_value=mock_user32):
-            # First call
-            system.move_mouse_relative(10, 20)
+        # Patch the _user32 attribute directly since we removed _get_user32
+        system._user32 = mock_user32
 
-            if not mock_user32.SendInput.called:
-                pytest.skip("SendInput not called - possibly due to platform restrictions or missing user32")
+        # First call
+        system.move_mouse_relative(10, 20)
 
-            args1 = mock_user32.SendInput.call_args[0]
-            # args1[1] should be a byref to the INPUT structure
-            # ctypes.byref returns an object with _obj attribute pointing to the actual structure
-            obj1 = args1[1]._obj
+        if not mock_user32.SendInput.called:
+             pytest.skip("SendInput not called - possibly due to platform restrictions or missing user32")
 
-            # Verify values
-            assert obj1.type == 0  # INPUT_MOUSE
-            assert obj1.ii.mi.dx == 10
-            assert obj1.ii.mi.dy == 20
+        args1 = mock_user32.SendInput.call_args[0]
+        # args1[1] should be a byref to the INPUT structure
+        # ctypes.byref returns an object with _obj attribute pointing to the actual structure
+        obj1 = args1[1]._obj
 
-            # Second call
-            system.move_mouse_relative(30, 40)
-            args2 = mock_user32.SendInput.call_args[0]
-            obj2 = args2[1]._obj
+        # Verify values
+        assert obj1.type == 0  # INPUT_MOUSE
+        assert obj1.ii.mi.dx == 10
+        assert obj1.ii.mi.dy == 20
 
-            # Verify values updated
-            assert obj2.ii.mi.dx == 30
-            assert obj2.ii.mi.dy == 40
+        # Second call
+        system.move_mouse_relative(30, 40)
+        args2 = mock_user32.SendInput.call_args[0]
+        obj2 = args2[1]._obj
 
-            # CRITICAL: Verify object identity is the same (Reuse)
-            assert obj1 is obj2, "INPUT structure was recreated instead of reused!"
+        # Verify values updated
+        assert obj2.ii.mi.dx == 30
+        assert obj2.ii.mi.dy == 40
+
+        # CRITICAL: Verify object identity is the same (Reuse)
+        assert obj1 is obj2, "INPUT structure was recreated instead of reused!"
 
     def test_absolute_movement_reuse(self):
         """Verify absolute movement also uses the cached structure."""
@@ -57,13 +59,15 @@ class TestLowLevelMovementOptimization:
         mock_user32 = MagicMock()
         mock_user32.SendInput.return_value = 1
 
-        with patch.object(system, "_get_user32", return_value=mock_user32):
-            system.move_mouse_absolute(100, 100)
-            args1 = mock_user32.SendInput.call_args[0]
-            obj1 = args1[1]._obj
+        # Patch the _user32 attribute directly
+        system._user32 = mock_user32
 
-            system.move_mouse_absolute(200, 200)
-            args2 = mock_user32.SendInput.call_args[0]
-            obj2 = args2[1]._obj
+        system.move_mouse_absolute(100, 100)
+        args1 = mock_user32.SendInput.call_args[0]
+        obj1 = args1[1]._obj
 
-            assert obj1 is obj2, "INPUT structure was recreated in absolute movement!"
+        system.move_mouse_absolute(200, 200)
+        args2 = mock_user32.SendInput.call_args[0]
+        obj2 = args2[1]._obj
+
+        assert obj1 is obj2, "INPUT structure was recreated in absolute movement!"
