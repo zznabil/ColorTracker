@@ -26,11 +26,21 @@ class TestInstrumentationIntegration:
         monitor.start_probe = MagicMock()
         monitor.stop_probe = MagicMock()
 
+        # Mock _get_sct to return a mock with grab method returning valid data
+        mock_sct = MagicMock()
+        mock_shot = MagicMock()
+        # Create a valid bgra buffer (100x100x4 bytes)
+        mock_shot.bgra = b'\x00' * (100 * 100 * 4)
+        mock_shot.width = 100
+        mock_shot.height = 100
+        mock_sct.grab.return_value = mock_shot
+        detection._get_sct = MagicMock(return_value=mock_sct)
+
         # Call the method we expect to be instrumented
         try:
             # We need to ensure _scan_area is set or find_target returns early
-            detection._scan_area = (0,0,100,100)
-            detection.find_target() # No args, uses self.target_x/y or scan area
+            detection._scan_area = (0, 0, 100, 100)
+            detection.find_target()  # No args, uses self.target_x/y or scan area
         except Exception:
             pass
 
