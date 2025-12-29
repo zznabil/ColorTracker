@@ -2,7 +2,7 @@
 
 ## Phase 1: Instrumentation and Baserlining
 
-- [ ] Task: Implement High-Resolution Telemetry Probes
+- [x] Task: Implement High-Resolution Telemetry Probes [dee1527]
     - [ ] Subtask: Write Tests for new telemetry methods in PerformanceMonitor.
     - [ ] Subtask: Implement start_probe(name) and stop_probe(name) using perf_counter_ns in utils/performance_monitor.py.
 - [ ] Task: Instrument Core Hot Paths
@@ -39,4 +39,5 @@ umpy conversion.
     - [ ] Subtask: Compare metrics against targets defined in spec.md.
 - [ ] Task: Code Cleanup
     - [ ] Subtask: Remove temporary debugging probes (if any) or put them behind a feature flag.
-    - [ ] Subtask: Ensure all tests pass and code complies with uff.
+    - [ ] Subtask: Ensure all tests pass and code complies with 
+uff.
