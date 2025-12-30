@@ -112,6 +112,10 @@ class MotionEngine:
         self._screen_width = self._get_config_float("screen_width", 1920.0)
         self._screen_height = self._get_config_float("screen_height", 1080.0)
 
+        # Pre-calculate boundaries for faster clamping
+        self._max_x = self._screen_width - 1.0
+        self._max_y = self._screen_height - 1.0
+
         # Ensure parameters are valid
         if not math.isfinite(self._min_cutoff):
             self._min_cutoff = 0.5
@@ -191,8 +195,18 @@ class MotionEngine:
             pred_y = smoothed_y
 
         # ULTRATHINK: Final safety clamp to screen boundaries
-        final_x = max(0.0, min(self._screen_width - 1.0, float(pred_x)))
-        final_y = max(0.0, min(self._screen_height - 1.0, float(pred_y)))
+        # OPTIMIZATION: Use if/elif blocks instead of max/min functions for speed
+        final_x = float(pred_x)
+        if final_x < 0.0:
+            final_x = 0.0
+        elif final_x > self._max_x:
+            final_x = self._max_x
+
+        final_y = float(pred_y)
+        if final_y < 0.0:
+            final_y = 0.0
+        elif final_y > self._max_y:
+            final_y = self._max_y
 
         # OPTIMIZATION: Use int(val + 0.5) for faster rounding of positive coordinates
         return int(final_x + 0.5), int(final_y + 0.5)
