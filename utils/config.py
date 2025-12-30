@@ -106,6 +106,32 @@ class Config:
             # We use super() to set _version to avoid re-triggering logic, though it's safe either way
             super().__setattr__("_version", self._version + 1)
 
+    def _strip_json_comments(self, content: str) -> str:
+        """
+        Strips C-style comments (// and /* ... */) from JSON content.
+        """
+        import re
+
+        content = re.sub(r"//.*", "", content)
+        content = re.sub(r"/\*.*?\*/", "", content, flags=re.DOTALL)
+        return content
+
+    def _migrate_legacy_config(self, config_data: dict[str, Any]) -> None:
+        """
+        Migrates legacy configuration keys to V3 structure.
+        """
+        # Smoothing (V2) -> Motion Min Cutoff & Motion Beta (V3)
+        if "smoothing" in config_data:
+            s = float(config_data["smoothing"])
+            # Heuristic mapping: higher smoothing = lower cutoff and lower beta
+            # Smoothing 50.0 is quite high for V3 defaults
+            config_data["motion_min_cutoff"] = max(0.001, 0.05 / (s / 5.0 + 1.0))
+            config_data["motion_beta"] = max(0.001, 0.05 / (s / 5.0 + 1.0))
+
+        # Prediction Multiplier (V2/Dev) -> Prediction Scale (V3)
+        if "prediction_multiplier" in config_data:
+            config_data["prediction_scale"] = float(config_data["prediction_multiplier"])
+
     def validate(self, key: str, value: Any) -> Any:
         """
         Validates and repairs a specific configuration value using a declarative approach.
@@ -163,26 +189,10 @@ class Config:
             if not content.strip():
                 raise ValueError("Empty configuration file")
 
-            # Strip comments
-            import re
-
-            content = re.sub(r"//.*", "", content)
-            content = re.sub(r"/\*.*?\*/", "", content, flags=re.DOTALL)
-
+            content = self._strip_json_comments(content)
             config_data = json.loads(content)
 
-            # --- LEGACY KEY MAPPING ---
-            # Smoothing (V2) -> Motion Min Cutoff & Motion Beta (V3)
-            if "smoothing" in config_data:
-                s = float(config_data["smoothing"])
-                # Heuristic mapping: higher smoothing = lower cutoff and lower beta
-                # Smoothing 50.0 is quite high for V3 defaults
-                config_data["motion_min_cutoff"] = max(0.001, 0.05 / (s / 5.0 + 1.0))
-                config_data["motion_beta"] = max(0.001, 0.05 / (s / 5.0 + 1.0))
-
-            # Prediction Multiplier (V2/Dev) -> Prediction Scale (V3)
-            if "prediction_multiplier" in config_data:
-                config_data["prediction_scale"] = float(config_data["prediction_multiplier"])
+            self._migrate_legacy_config(config_data)
 
             # Validate and apply each key from DEFAULT_SCHEMA
             updated_count = 0
