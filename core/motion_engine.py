@@ -138,10 +138,10 @@ class MotionEngine:
             if self._internal_time == 0.0:
                 self._internal_time = time.perf_counter()
             self._internal_time += dt
-            current_time = self._internal_time
         else:
-            current_time = time.perf_counter()
-            self._internal_time = current_time
+            self._internal_time = time.perf_counter()
+
+        current_time = self._internal_time
 
         # Guard against NaN/Inf inputs
         if not math.isfinite(x) or not math.isfinite(y):

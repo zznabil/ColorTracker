@@ -5,9 +5,15 @@
 The performance-critical engine: Vision hot-paths, adaptive motion smoothing, and zero-allocation WinAPI input.
 
 ## WHERE TO LOOK
-- **Vision Logic**: `core/detection.py` - MSS (thread-local), `np.frombuffer` views, `cv2.minMaxLoc` search.
+- **Detection Engine**: `core/detection.py` - MSS (thread-local), `np.frombuffer` views, `cv2.minMaxLoc` search. Achieves **Branchless Hot-Path** via eager cache warming.
 - **Motion Engine**: `core/motion_engine.py` - 1 Euro Filter, `__slots__` state, Chebyshev velocity gating.
-- **Input Injection**: `core/low_level_movement.py` - `SendInput` pre-allocation, function pointer caching, thread-safe delegation interface.
+- **Input Injection**: `core/low_level_movement.py` - `SendInput` pre-allocation, function pointer caching, thread-safe delegation interface. Now includes **Eager Hardware Metrics** initialization.
+
+## SINGULARITY OPTIMIZATIONS (V3.4.2)
+
+- **Branchless Execution**: Zero `if` checks for uninitialized caches in frame processing.
+- **Eager Initialization**: Constructors now pre-warm all FOV, bounds, and screen scaling metrics.
+- **Lockless Telemetry**: Integrated with `PerformanceMonitor`'s atomic `pop()` functionality.
 
 ## CONVENTIONS
 

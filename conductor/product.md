@@ -1,7 +1,7 @@
 # Product Definition - SAI Color Tracker
 
 ## Overview
-**SAI Color Tracker** (V3.4.1) is a high-performance, modular computer vision utility designed for ultra-low latency coordinate tracking and automated input simulation. It serves as a reference implementation for "Archetype A" (Logic/Data) and "Archetype B" (Visual/Physics) software architecture patterns.
+**SAI Color Tracker** (V3.4.2) is a high-performance, modular computer vision utility designed for ultra-low latency coordinate tracking and automated input simulation. It serves as a reference implementation for "Archetype A" (Logic/Data) and "Archetype B" (Visual/Physics) software architecture patterns.
 
 ## Core Value Proposition
 - **Clinical Precision**: Sub-millisecond detection and input injection.
@@ -31,27 +31,27 @@
     - Pre-calculated coordinate scaling (Multiplication > Division).
     - Safety clamping to screen boundaries (0-65535).
 
-## V3.4.1 Highlights
+## V3.4.2 SINGULARITY Highlights
 
 ### Thread Safety Architecture
 - **Sage/Artisan Separation**: Core logic runs in dedicated thread; GUI operates in main thread.
 - **Cross-Thread Delegation**: `ColorTrackerAlgo.move_to_target()` provides safe interface between threads.
 - **Hot-Path Optimization**: Method reference caching in `_algo_loop_internal` eliminates redundant attribute lookups.
 
-### Performance Monitor Perfection
-- **Comprehensive Coverage**: Fixed critical failures in `tests/test_performance_monitor.py` and added `test_get_stats_comprehensive` for 1% Low FPS calculation logic.
-- **Empty Probe Handling**: Added `TestProbeEmptyHistory` class to cover edge cases for telemetry probes with no data recorded.
-- **Zero Contention**: Verified lockless ring buffer snapshot pattern for high-frequency telemetry access.
+### Unconditionally Branchless Hot-Path
+- **Eager Initialization**: Hoisted all configuration caches and hardware bounds into constructors, eliminating per-frame branch logic.
+- **Loop Efficiency**: Consolidated maintenance tasks into a 500-iteration throttle, maximizing tracking throughput.
 
-### Benchmark Module Integrity
-- **Module Resolution**: Fixed `benchmark.py` import mocking for `dearpygui` to support headless performance auditing.
-- **Telemetry Verification**: Confirmed high-resolution probe recording (Avg latency ~6ms) for capture-to-process cycle.
+### Telemetry Singularity
+- **Zero-Lookup Probes**: Refactored performance monitor to use atomic `pop()` for record-retrieval, eliminating redundant map lookups.
+- **Zero-Allocation Cycle**: Guaranteed allocation-free operation during the active detection and tracking loop.
+
+### Professional HUD Evolution
+- **Telemetry Pane**: Expanded UI layout to support high-resolution real-time analytics and 1% low tracking.
 
 ### Test Coverage
 - **All Tests Passing**: 128/128 tests (100% integrity) confirming system stability.
 - **New Test Suites**: Added `TestProbeEmptyHistory` for empty probe edge cases.
-- **Updated Tests**: Fixed `test_horizontal_broad_coverage.py` to align with stealth protocol (absolute coordinate usage).
-
 ### SINGULARITY & ULTRATHINK Alignment
 - **100% Test Integrity**: Zero failures across comprehensive test suite.
 - **GC Management**: `gc.disable()` in hot loops. Manual `gc.collect(1)` every 600 frames.

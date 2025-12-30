@@ -15,6 +15,11 @@ The `utils/` layer provides a deterministic foundation for the application. It h
 | **Paths** | `utils/paths.py` | Robust path resolution for both standard execution and frozen PyInstaller states. |
 | **Display** | `utils/screen_info.py` | DPI-aware geometry and screen resolution discovery. |
 
+## SINGULARITY UPDATES (V3.4.2)
+
+- **Telemetry Singularity**: Refactored `PerformanceMonitor.stop_probe` to use `dict.pop()`, eliminating redundant containment checks and attribute lookup depth.
+- **Loop Hoisting**: Version synchronization and health monitoring logic moved to a 500-frame throttle in the main loop service.
+
 ## CONVENTIONS
 
 - **Atomic Config Persistence**: All saves use a `write -> rename` pattern to prevent file corruption.

@@ -13,9 +13,14 @@ The Artisan manages a GPU-accelerated HUD and non-interactive viewport overlays.
 |-----------|------|------|
 | **Core GUI Setup** | `main_window.py` | Initializes DPG, manages the lifecycle of tabs and viewports. |
 | **Viewport HUD** | `main_window.py` | High-performance FOV and target overlays via `add_viewport_drawlist`. |
-| **Analytics Engine** | `main_window.py` | Real-time plotting of 1% low FPS, detection latency, and motion signal jitter. |
+| **Analytics Engine** | `main_window.py` | Real-time plotting of 1% low FPS and detection latency. Now supports high-resolution **Singularity Telemetry**. |
 | **Theme Engine** | `main_window.py` | GPU-driven styling and color tolerance visualizers for "Vision" setup. |
 | **Thread Safety Interface** | `main.py` | `move_to_target()` delegation method providing safe cross-thread access to movement system. |
+
+## SINGULARITY UPDATES (V3.4.2)
+
+- **High-Res Analytics**: UI now consumes atomic snapshots from the Singularity-grade performance monitor.
+- **Loop Throttling Visibility**: Performance HUD reflects the impact of 500-frame hoisting optimizations on jitter reduction.
 
 ## CONVENTIONS
 

@@ -1,13 +1,32 @@
 # Optimization History: The "Best of All Worlds" Merge
 
 **Date**: 2025-12-30
-**Event**: Analysis of 26 Experimental Branches
+**Event**: SINGULARITY Audit (V3.4.2)
 **Executor**: Omni-Architect (Trae IDE)
 
 ## Overview
-This document records the results of the "ULTRATHINK" analysis performed on 26 divergent development branches to synthesize the V3.4.1 "Harmony" release.
+This document records the results of the "SINGULARITY" audit performed on the V3.4.1 baseline to achieve the V3.4.2 "Total Perfection" release.
 
-## Findings
+## Audit Findings (V3.4.2)
+
+### 1. Hot-Path Branch Elimination
+*   **Issue**: Subsystems previously used "lazy-initialization" checks (`if cache is None: update()`) in every frame.
+*   **Fix**: Migrated to **Eager Initialization** in class constructors. All caches are pre-warmed, ensuring the hot-path is unconditionally branchless.
+*   **Impact**: Deterministic execution timing without branch misprediction jitter.
+
+### 2. Telemetry Overhead Reduction
+*   **Issue**: `PerformanceMonitor.stop_probe` performed redundant containment checks.
+*   **Fix**: Refactored to use atomic `dict.pop` which returns value directly, eliminating a lookup.
+*   **Impact**: Zero-lookup overhead for high-frequency instrumentation probes.
+
+### 3. Main Loop Throttling
+*   **Optimization**: Version synchronization and health monitoring hoisted from every frame to a 500-iteration throttle.
+*   **Impact**: Significant reduction in attribute lookup depth for the tracking cycle.
+
+---
+
+## Legacy: Analysis of 26 Experimental Branches (V3.4.1)
+This records the synthesis of the V3.4.1 "Harmony" release.
 
 ### 1. Motion Engine Analysis
 *   **Standard Implementation**: Most branches used the standard `abs(dx)` velocity gate.

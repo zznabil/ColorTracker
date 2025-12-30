@@ -9,18 +9,19 @@ from utils.performance_monitor import PerformanceMonitor
 class TestInstrumentationIntegration:
     def test_detection_probes(self):
         config = MagicMock(spec=Config)
-        monitor = PerformanceMonitor()
-
-        # This should succeed now
-        detection = DetectionSystem(config, monitor)
-
-        # Mock necessary config values for detection
+        # Mock necessary config values for detection BEFORE instantiation
         config.fov_x = 100
         config.fov_y = 100
         config.screen_width = 1920
         config.screen_height = 1080
         config.target_color = 0xFF0000
         config.color_tolerance = 10
+        config._version = 1
+
+        monitor = PerformanceMonitor()
+
+        # This should succeed now with proper mock config
+        detection = DetectionSystem(config, monitor)
 
         # Spy on monitor
         monitor.start_probe = MagicMock()
@@ -29,8 +30,8 @@ class TestInstrumentationIntegration:
         # Call the method we expect to be instrumented
         try:
             # We need to ensure _scan_area is set or find_target returns early
-            detection._scan_area = (0,0,100,100)
-            detection.find_target() # No args, uses self.target_x/y or scan area
+            detection._scan_area = (0, 0, 100, 100)
+            detection.find_target()  # No args, uses self.target_x/y or scan area
         except Exception:
             pass
 
@@ -47,9 +48,16 @@ class TestInstrumentationIntegration:
 
     def test_movement_probes(self):
         config = MagicMock(spec=Config)
+        # Mock necessary config values for movement BEFORE instantiation
+        config.screen_width = 1920
+        config.screen_height = 1080
+        config.aim_point = 1
+        config.smooth_factor = 0.5
+        config._version = 1
+
         monitor = PerformanceMonitor()
 
-        # This will fail on init until we fix LowLevelMovementSystem
+        # This should succeed now with proper mock config
         movement = LowLevelMovementSystem(config, monitor)
 
         monitor.start_probe = MagicMock()

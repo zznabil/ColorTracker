@@ -49,21 +49,15 @@ class PerformanceMonitor:
         """Start a high-resolution timing probe."""
         self._active_probes[name] = time.perf_counter_ns()
 
-    def stop_probe(self, name: str):
+    def stop_probe(self, name: str) -> None:
         """Stop a timing probe and record duration in ms."""
         start_time = self._active_probes.pop(name, None)
         if start_time is None:
             return
 
         duration_ns = time.perf_counter_ns() - start_time
-        duration_ms = duration_ns / 1_000_000.0
-
-        # ULTRATHINK: Ensure key existence in history to prevent pruning bugs
-        if name not in self._probe_history:
-            # Force creation if it's the first time
-            _ = self._probe_history[name]
-
-        self._probe_history[name].append(duration_ms)
+        # ULTRATHINK: Atomic defaultdict access avoids redundant containment checks
+        self._probe_history[name].append(duration_ns / 1_000_000.0)
 
     def get_probe_stats(self, name: str) -> dict[str, float]:
         """Get statistics for a specific probe."""

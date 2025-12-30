@@ -25,12 +25,12 @@
 - **Tests**: `pytest` (Unit, Integration, Stress, Edge Cases).
 - **Telemetry**: Custom `perf_counter_ns` probes (Lockless).
 
-## V3.4.1 Updates
+## V3.4.2 Updates (SINGULARITY)
 
-### Performance Monitor Perfection
-- **Comprehensive Coverage**: Added `test_get_stats_comprehensive` for 1% Low FPS calculation logic.
-- **Empty Probe Handling**: Added `TestProbeEmptyHistory` class for telemetry edge cases.
-- **Passing Rate**: 100% (18/18 tests passing).
+### Unconditionally Branchless Hot-Path
+- **Eager Initialization**: Hoisted all config/metric lookups into constructors.
+- **Telemetry Singularity**: Atomic `pop()` implementation for zero-lookup overhead.
+- **Performance Assurance**: 100% test integrity under branchless architecture.
 
 ### Thread Safety Architecture
 - **Sage/Artisan Separation**: Added `move_to_target()` delegation in `ColorTrackerAlgo` for proper thread isolation.

@@ -74,6 +74,11 @@ class DetectionSystem:
         # Optimization: Pre-allocate capture area dictionaries to avoid per-frame allocation
         self._capture_area = {"left": 0, "top": 0, "width": 0, "height": 0}
 
+        # ULTRATHINK: Force eager-initialization of all caches to enable branchless hot-path
+        self._update_fov_cache()
+        self._update_color_bounds()
+        self._last_config_version = getattr(self.config, "_version", 0)
+
     def _get_sct(self) -> Any:
         """
         Get thread-local MSS instance
@@ -236,10 +241,6 @@ class DetectionSystem:
         if not success:
             return False, 0, 0
 
-        # Use cached bounds
-        if self._lower_bound is None or self._upper_bound is None:
-            self._update_color_bounds()
-
         self.perf_monitor.start_probe("detection_process")
         try:
             mask = cv2.inRange(img_bgra, self._lower_bound, self._upper_bound)  # type: ignore
@@ -250,7 +251,7 @@ class DetectionSystem:
         if max_val <= 0:
             return False, 0, 0
 
-        screen_x, screen_y = int(max_loc[0] + local_left), int(max_loc[1] + local_top)
+        screen_x, screen_y = max_loc[0] + local_left, max_loc[1] + local_top
 
         # FOV Restriction Check
         # Use cached values to avoid redundant calculations and attribute access
@@ -303,10 +304,6 @@ class DetectionSystem:
 
         # OPTIMIZATION: Removed cv2.cvtColor(img_bgra, cv2.COLOR_BGRA2BGR)
         # We now perform color matching directly on BGRA data.
-
-        # Use cached bounds
-        if self._lower_bound is None or self._upper_bound is None:
-            self._update_color_bounds()
 
         self.perf_monitor.start_probe("detection_process")
         try:

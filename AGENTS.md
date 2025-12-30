@@ -1,129 +1,10 @@
-# PROJECT KNOWLEDGE BASE
-
-**Generated:** 2025-12-30
-**Commit:** V3.4.1
-**Branch:** main
-
-## OVERVIEW
-
-High-performance Windows color tracking and mouse automation tool.
-**Tech Stack**: Python 3.12, DearPyGui (GPU HUD), OpenCV (Vision), Win32 API (Input).
-**Performance Goals**: Ultra-low latency (<2.5ms), High Frequency (1000Hz), O(1) Memory in hot paths.
-
-## STRUCTURE
-
-```
-ColorTracker/
-├── core/       # The Sage: Logic, Math, Vision (O(1) memory focus)
-├── gui/        # The Artisan: HUD, Analytics, Overlays (DearPyGui)
-├── utils/      # Infrastructure: Config (Observer), Perf (Telemetry)
-├── conductor/  # Orchestration: Workflow, product specs, optimization history
-├── tools/      # Benchmarks & Stealth Validation
-├── tests/      # Comprehensive Stress & Performance Suite
-└── main.py     # Orchestrator: Hybrid Sync, GC Management
-```
-
-## WHERE TO LOOK
-
-| Task | Location | Notes |
-|------|----------|-------|
-| **Vision Logic** | `core/detection.py` | Uses `mss` (zero-copy), `cv2.minMaxLoc`, local ROI search. |
-| **Motion Physics** | `core/motion_engine.py` | 1 Euro Filter, Chebyshev velocity gating, predictive aim. |
-| **Input Injection** | `core/low_level_movement.py` | WinAPI `SendInput` with pre-allocated C-structs. |
-| **UI/HUD** | `gui/main_window.py` | `add_viewport_drawlist(front=True)` for non-blocking overlays. |
-| **Configuration** | `utils/config.py` | Observer pattern with `_version` int for O(1) cache invalidation. |
-| **Telemetry** | `utils/performance_monitor.py` | Lockless ring buffers, microsecond-level probes. |
-
-## CODE MAP
-
-| Symbol | Type | Location | Refs | Role |
-|--------|------|----------|------|------|
-| `ColorTrackerAlgo` | Class | `main.py` | 5 | Central orchestrator, manages `algo_loop` thread. |
-| `DetectionSystem` | Class | `core/detection.py` | 3 | Target acquisition. Uses `ULTRATHINK` optimizations. |
-| `MotionEngine` | Class | `core/motion_engine.py` | 3 | Signal processing. 1 Euro Filter implementation. |
-| `Config` | Class | `utils/config.py` | 8 | State source of truth. Atomic persistence. |
-| `PerformanceMonitor` | Class | `utils/performance_monitor.py` | 6 | High-res telemetry. Uses `time.perf_counter_ns`. |
-
-## CONVENTIONS
-
-### General
-- **Line Length**: 120 chars (Ruff enforced).
-- **Imports**: `combine-as-imports: true`. Standard → Third-party → Local. NO wildcards.
-- **Types**: Strict type hints required for ALL public APIs.
-
-### Architecture: Sage vs. Artisan
-- **The Sage (`core/`, `utils/`)**:
-  - Focus: Determinism, Speed, Safety.
-  - Rule: **O(1) Memory**. No `dict`/`list` creation in loops. Reuse `__slots__` classes.
-  - Rule: **Hot-Path Hoisting**. Cache `self.config` -> local `config` before loops.
-- **The Artisan (`gui/`)**:
-  - Focus: Aesthetics, Responsiveness.
-  - Rule: **Non-Blocking**. Never run logic in DPG callbacks. Use `front=True` for overlays.
-  - Rule: **Visual Feedback**. Update HUD via `PerformanceMonitor` snapshots, not direct logic calls.
-
-### Performance (ULTRATHINK PROTOCOL)
-The codebase enforces strict "ULTRATHINK" optimizations for V3.4.1+:
-1.  **GC Management**: `gc.disable()` in hot loops. Manual `gc.collect(1)` every 600 frames.
-2.  **Hybrid Sync**: `_smart_sleep` combines bulk wait + spin with `timeBeginPeriod(1)`.
-3.  **Zero-Copy Vision**: `np.frombuffer` on `mss` shots. Avoid `np.array()` copies.
-4.  **Math Inlining**: Pre-calculate constants (e.g., coordinate scaling) to avoid division.
-5.  **Memory Identity**: Verify structure reuse via `assert obj1 is obj2` in tests.
-
-## ANTI-PATTERNS (STRICTLY FORBIDDEN)
-
-- **Memory Allocation in Core**: Creating new objects (except scalars) in `find_target` or `process`.
-- **Attribute Lookups in Loops**: `while loop: self.obj.prop` -> BAD. `prop = self.obj.prop; while loop: prop` -> GOOD.
-- **Type Suppression**: `as any`, `@ts-ignore` are banned. Fix the type.
-- **Blocking I/O**: No disk/net IO in telemetry probes.
-- **Relative Moves**: `move_mouse_relative` is forbidden for aiming. Use absolute coordinates (0-65535).
-- **Legacy Config Keys**: Do not use V2 keys (`smoothing`) without migration logic in `utils/config.py`.
-
-## COMMANDS
-
-### Build & Quality
-```bash
-# Lint and Auto-fix
-python -m ruff check . --fix
-
-# Strict Type Checking
-python -m pyright .
-
-# Build Standalone (PyInstaller)
-pwsh setup_and_run.ps1
-```
-
-### Testing (Pytest)
-```bash
-# Run Full Suite
-python -m pytest
-
-# Single Test File (Mocked Vision)
-python -m pytest tests/test_detection_mocked.py -v
-
-# Single Test Case (Specific Behavior)
-python -m pytest tests/test_detection_mocked.py::test_find_target_success -v
-
-# Performance Regression (O(1) checks)
-python -m pytest tests/test_low_level_movement_opt.py -v
-
-# Robustness Marathon (Chaos Monkey - ULTRATHINK Protocol)
-python -m pytest tests/test_ultra_robustness.py -v
-```
-
-## NOTES
-
-- **DPI Awareness**: `ctypes.windll.user32.SetProcessDPIAware()` is mandatory at startup.
-- **MSS Safety**: `mss.mss()` instances MUST be `threading.local()` to avoid `ScreenShotError` in threaded apps.
-- **WinAPI Stealth**: Uses absolute coordinates (0-65535). Never use relative moves for aiming.
-- **Git Notes**: Every commit must have a summary via `git notes add -m "Summary"`.
-
 # SYSTEM PROMPT: THE ANTIGRAVITY ARCHITECT (V12)
 
 <system_configuration>
 **MODE**: OBJECTIVE EXECUTION
 **CORE IDENTITY**: The Universal Polyglot Architect (Engineer + Avant-Garde Designer).
 **PRIME DIRECTIVE**: Adapt to the ecosystem ("Gravity"), enforce the law ("Policeman"), and execute via **Situational Tactical Protocols**.
-**EMOTIONAL SETTING**: Null. No pleasantries. Pure efficiency.
+**EMOTIONAL SETTING**: Null. No pleasantries. No apologies. Pure efficiency.
 </system_configuration>
 
 ## 1. THE ADAPTATION COMPASS ("THE PHYSICS")
@@ -263,9 +144,9 @@ python -m pytest tests/test_ultra_robustness.py -v
 2.  **RESEARCH**: Map the path using **Phase A** tools (Indexes/Symbols).
 3.  **THINK**: `mcp_serena_think_about_collected_information`. Formulate the plan. **(Bypass if KINETIC)**
 4.  **CODE**: Apply Archetype Standards (Sage or Artisan) using **Phase B** tools (Symbol Editing).
-5.  **VERIFY**: Run the "Policeman" (Native Execution Capability: `ruff`, `tsc`, `mvn test`).
+5.  **VERIFY**: Run the "Policeman" (Native Execution Capability: `ruff`, `tsc`, `mvn test`). **If red, GOTO Step 3 (THINK) or 4 (CODE).**
 6.  **CHECK**: `mcp_serena_think_about_task_adherence`. **(Bypass if KINETIC)**
-7.  **COMPLETE**: Only when the loop produces **Zero Errors**.
+7.  **COMPLETE**: Only when the Policeman is silent (Exit Code 0).
 
 <system_configuration> You are now operating in OBJECTIVE EXECUTION MODE. </system_configuration>
 
@@ -278,3 +159,86 @@ GOAL OPTIMIZATION.
 <execution_mode>
 You are a precision instrument. Every query is a command. Execute with maximum efficiency.
 </execution_mode>
+
+# PROJECT KNOWLEDGE BASE
+
+**Generated:** 2025-12-30
+**Commit:** V3.4.2 (SINGULARITY)
+**Branch:** main
+
+## OVERVIEW
+
+High-performance Windows color tracking automation.
+**Stack**: Python 3.12, DearPyGui (GPU HUD), OpenCV (Zero-Copy), Win32 API (ctypes).
+**Core**: <2.5ms latency, Hybrid Sync, O(1) Memory, Thread-separated (Sage/Artisan).
+
+## STRUCTURE
+
+```
+ColorTracker/
+├── core/       # The Sage: Logic, Physics, Input (No Allocations)
+├── gui/        # The Artisan: Visuals, HUD, Non-blocking overlay
+├── utils/      # Infrastructure: Config (Observer), Telemetry (Lockless)
+├── conductor/  # Meta: Workflow, guidelines, history
+├── tools/      # Utilities: Benchmarks, Validators
+├── tests/      # Verification: Chaos Monkey, Hardware Mocks
+└── main.py     # Entry: Orchestrator, Thread Management
+```
+
+## WHERE TO LOOK
+
+| Task | Location | Notes |
+|------|----------|-------|
+| **Vision Logic** | `core/detection.py` | Zero-copy `mss`, `cv2.minMaxLoc`. |
+| **Motion Physics** | `core/motion_engine.py` | 1 Euro Filter, Velocity Gating. |
+| **Input Injection** | `core/low_level_movement.py` | `SendInput` (Win32), C-struct reuse. |
+| **UI/HUD** | `gui/main_window.py` | DPG Viewport, Real-time stats. |
+| **Config/State** | `utils/config.py` | Atomic, Versioned (O(1) checks). |
+
+## CODE MAP
+
+| Symbol | Type | Location | Role |
+|--------|------|----------|------|
+| `ColorTrackerAlgo` | Class | `main.py` | Central Orchestrator, Thread Manager. |
+| `DetectionSystem` | Class | `core/detection.py` | Target acquisition (Sage). |
+| `MotionEngine` | Class | `core/motion_engine.py` | Movement smoothing (Sage). |
+| `PerformanceMonitor` | Class | `utils/performance_monitor.py` | High-res telemetry (Lockless). |
+| `MainWindow` | Class | `gui/main_window.py` | UI presentation (Artisan). |
+
+## CONVENTIONS
+
+- **ULTRATHINK Protocol**:
+    - **GC**: `gc.disable()` in hot loops. Manual `collect(1)` every ~1s.
+    - **Memory**: O(1) in hot paths. No new dicts/lists per frame.
+    - **Sync**: Hybrid `time.sleep` + Spin-wait + `timeBeginPeriod(1)`.
+    - **Hoisting**: Cache `self.config` to local vars before loops.
+- **Style**: 120 char limit (`ruff`). Strict types (Python 3.12).
+
+## ANTI-PATTERNS (THIS PROJECT)
+
+- **Relative Movement**: `move_mouse_relative` is FORBIDDEN for aiming. Use absolute (0-65535).
+- **Allocation in Loop**: Creating objects in `find_target` or `process` is a CRITICAL FAILURE.
+- **Blocking I/O**: No disk/net operations in telemetry/hot paths.
+- **Type Suppression**: No `# type: ignore` without strict justification.
+
+## COMMANDS
+
+```bash
+# Build & Deploy (Zero to Hero)
+pwsh setup_and_run.ps1
+
+# Lint & Fix
+python -m ruff check . --fix
+
+# Test (Full Suite)
+python -m pytest
+
+# Debug Mode
+pwsh run_debug.ps1
+```
+
+## NOTES
+
+- **DPI Awareness**: Enforced via `ctypes` at boot.
+- **Stealth**: Pure WinAPI, no drivers.
+- **Git Notes**: Used for task audit trail (instead of PR descriptions).

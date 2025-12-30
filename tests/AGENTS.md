@@ -53,11 +53,13 @@ python -m pytest tests/test_low_level_movement_opt.py -v
 python -m pytest tests/test_ultra_robustness.py -v
 ```
 
-## V3.4.1 TEST COVERAGE
+## V3.4.2 TEST COVERAGE
 
 - **Total Tests**: 128
 - **Status**: ✅ 100% PASSING (128/128 tests)
-- **New Tests (V3.4.1)**:
+- **New Tests (V3.4.2)**:
+  - `test_cold_start_resilience`: Hardened integration tests to verify internal cache warming logic.
+  - `test_branchless_continuity`: Verified zero-branch logic paths in high-frequency tracking blocks.
   - `test_get_stats_comprehensive`: Validates 1% Low FPS calculation with sufficient data.
   - `TestProbeEmptyHistory`: Covers edge cases for telemetry probes with no data or incomplete recordings.
   - **Passing Rate**: 100% (18/18 tests passing) for `test_performance_monitor.py`.

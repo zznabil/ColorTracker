@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-Color Tracking Algo for Single Player Games in Development - V3.4.1
+Color Tracking Algo for Single Player Games in Development - V3.4.2
 
 Main entry point for the Color Tracking Algo application, orchestrated
 for high-performance detection and responsive UI.
@@ -306,6 +306,7 @@ class ColorTrackerAlgo:
 
         # High-performance timing variables
         target_frame_time = frame_interval
+        current_config_version = getattr(self.config, "_version", 0)
 
         try:
             while self.running:
@@ -317,6 +318,7 @@ class ColorTrackerAlgo:
                 if loop_count % 500 == 0:
                     config_enabled = self.config.enabled
                     target_fps = self.config.target_fps
+                    current_config_version = getattr(self.config, "_version", 0)
                     new_frame_interval = 1.0 / max(1, target_fps)
                     if abs(new_frame_interval - frame_interval) > 0.0001:
                         frame_interval = new_frame_interval
@@ -357,9 +359,6 @@ class ColorTrackerAlgo:
                 if config_enabled:
                     try:
                         # Step 1: Detect target
-                        # Hoist version check to main loop to avoid lookups in detection
-                        current_config_version = getattr(self.config, "_version", 0)
-
                         t0_detect = time.perf_counter()
                         target_found, target_x, target_y = find_target(current_config_version)
                         t1_detect = time.perf_counter()
