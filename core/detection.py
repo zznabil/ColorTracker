@@ -104,17 +104,16 @@ class DetectionSystem:
         target_bgr = self._hex_to_bgr(current_color)
 
         # Convert to 4-channel BGRA bounds (B, G, R, A)
-        if current_tolerance == 0:
-            self._lower_bound = np.array([target_bgr[0], target_bgr[1], target_bgr[2], 0], dtype=np.uint8)
-            self._upper_bound = np.array([target_bgr[0], target_bgr[1], target_bgr[2], 255], dtype=np.uint8)
-        else:
-            # The gain factor (2.5) results in a max reach of 250 at 100 tolerance.
-            gain = 2.5
-            lower_bgr = [max(0, int(c - current_tolerance * gain)) for c in target_bgr]
-            upper_bgr = [min(255, int(c + current_tolerance * gain)) for c in target_bgr]
+        # The gain factor (2.5) results in a max reach of 250 at 100 tolerance.
+        # OPTIMIZATION: Unified calculation path (Echo Chamber Reduction)
+        gain = 2.5
+        delta = int(current_tolerance * gain)
 
-            self._lower_bound = np.array([lower_bgr[0], lower_bgr[1], lower_bgr[2], 0], dtype=np.uint8)
-            self._upper_bound = np.array([upper_bgr[0], upper_bgr[1], upper_bgr[2], 255], dtype=np.uint8)
+        lower_bgr = [max(0, c - delta) for c in target_bgr]
+        upper_bgr = [min(255, c + delta) for c in target_bgr]
+
+        self._lower_bound = np.array([*lower_bgr, 0], dtype=np.uint8)
+        self._upper_bound = np.array([*upper_bgr, 255], dtype=np.uint8)
 
         # Cache update complete
 
