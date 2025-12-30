@@ -230,28 +230,10 @@ class DetectionSystem:
             )
             width, height = local_right - local_left, local_bottom - local_top
 
-        # Optimization: Update pre-allocated dict instead of creating new one
-        area = self._capture_area
-        area["left"] = local_left
-        area["top"] = local_top
-        area["width"] = width
-        area["height"] = height
-
-        success, img_bgra = self._capture_and_process_frame(area)
-        if not success:
+        # Delegate scanning to common helper
+        found, screen_x, screen_y = self._scan_region(local_left, local_top, width, height)
+        if not found:
             return False, 0, 0
-
-        self.perf_monitor.start_probe("detection_process")
-        try:
-            mask = cv2.inRange(img_bgra, self._lower_bound, self._upper_bound)  # type: ignore
-            _, max_val, _, max_loc = cv2.minMaxLoc(mask)
-        finally:
-            self.perf_monitor.stop_probe("detection_process")
-
-        if max_val <= 0:
-            return False, 0, 0
-
-        screen_x, screen_y = max_loc[0] + local_left, max_loc[1] + local_top
 
         # FOV Restriction Check
         # Use cached values to avoid redundant calculations and attribute access
@@ -291,6 +273,34 @@ class DetectionSystem:
         width = right - left
         height = bottom - top
 
+        # Delegate scanning to common helper
+        found, screen_x, screen_y = self._scan_region(left, top, width, height)
+
+        if not found:
+            # No match found in full search
+            self.target_found_last_frame = False
+            return False, 0, 0
+
+        # Update target position
+        self.target_x = screen_x
+        self.target_y = screen_y
+        self.target_found_last_frame = True
+
+        return True, screen_x, screen_y
+
+    def _scan_region(self, left: int, top: int, width: int, height: int) -> tuple[bool, int, int]:
+        """
+        Scans a specific screen region for the target color.
+
+        Args:
+            left: Left coordinate of the scan area
+            top: Top coordinate of the scan area
+            width: Width of the scan area
+            height: Height of the scan area
+
+        Returns:
+            Tuple of (found, screen_x, screen_y)
+        """
         # Optimization: Update pre-allocated dict
         area = self._capture_area
         area["left"] = left
@@ -301,9 +311,6 @@ class DetectionSystem:
         success, img_bgra = self._capture_and_process_frame(area)
         if not success:
             return False, 0, 0
-
-        # OPTIMIZATION: Removed cv2.cvtColor(img_bgra, cv2.COLOR_BGRA2BGR)
-        # We now perform color matching directly on BGRA data.
 
         self.perf_monitor.start_probe("detection_process")
         try:
@@ -316,20 +323,11 @@ class DetectionSystem:
             self.perf_monitor.stop_probe("detection_process")
 
         if max_val <= 0:
-            # No match found in full search
-            self.target_found_last_frame = False
             return False, 0, 0
 
-        match_x, match_y = max_loc
-
-        # Convert back to screen coordinates
-        screen_x = match_x + left
-        screen_y = match_y + top
-
-        # Update target position
-        self.target_x = screen_x
-        self.target_y = screen_y
-        self.target_found_last_frame = True
+        # Convert to global screen coordinates
+        screen_x = max_loc[0] + left
+        screen_y = max_loc[1] + top
 
         return True, screen_x, screen_y
 
