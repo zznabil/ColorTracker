@@ -41,7 +41,7 @@ def setup_gui(app):
     app.fov_overlay_enabled = False
     app._fov_use_viewport_drawlist = False
     screen_w = getattr(app.config, "screen_width", 1920)
-    screen_h = getattr(app.config, "screen_height", 1440)
+    screen_h = getattr(app.config, "screen_height", 1080)
 
     try:
         # Viewport drawlist draws on the viewport and does not capture inputs
@@ -53,6 +53,25 @@ def setup_gui(app):
             fill=[0, 255, 0, 30],
             thickness=2,
             tag="fov_rect",
+            parent=app._fov_draw_surface,
+            show=False,
+        )
+        # Add a small crosshair to the viewport drawlist
+        dpg.draw_line(
+            [0, 0],
+            [0, 0],
+            color=[201, 0, 141, 255],
+            thickness=1,
+            tag="crosshair_h",
+            parent=app._fov_draw_surface,
+            show=False,
+        )
+        dpg.draw_line(
+            [0, 0],
+            [0, 0],
+            color=[201, 0, 141, 255],
+            thickness=1,
+            tag="crosshair_v",
             parent=app._fov_draw_surface,
             show=False,
         )
@@ -84,6 +103,9 @@ def setup_gui(app):
                 thickness=2,
                 tag="fov_rect",
             )
+            # Fallback crosshair
+            dpg.draw_line([0, 0], [0, 0], color=[201, 0, 141, 255], thickness=1, tag="crosshair_h")
+            dpg.draw_line([0, 0], [0, 0], color=[201, 0, 141, 255], thickness=1, tag="crosshair_v")
 
     # Helper functions for FOV overlay with optimized updates
     def update_fov_overlay():
@@ -99,15 +121,25 @@ def setup_gui(app):
                 sh = dpg.get_viewport_height()
             else:
                 sw = getattr(app.config, "screen_width", 1920)
-                sh = getattr(app.config, "screen_height", 1440)
+                sh = getattr(app.config, "screen_height", 1080)
+
             cx = int(sw // 2)
             cy = int(sh // 2)
-            left = int(cx - (fov_width // 2))
-            top = int(cy - (fov_height // 2))
-            right = int(cx + (fov_width // 2))
-            bottom = int(cy + (fov_height // 2))
+            left = int(cx - fov_width)
+            top = int(cy - fov_height)
+            right = int(cx + fov_width)
+            bottom = int(cy + fov_height)
+
             if dpg.does_item_exist("fov_rect"):
                 dpg.configure_item("fov_rect", pmin=[left, top], pmax=[right, bottom])
+
+            # Update crosshair
+            ch_size = 5
+            if dpg.does_item_exist("crosshair_h"):
+                dpg.configure_item("crosshair_h", p1=[cx - ch_size, cy], p2=[cx + ch_size, cy], show=True)
+            if dpg.does_item_exist("crosshair_v"):
+                dpg.configure_item("crosshair_v", p1=[cx, cy - ch_size], p2=[cx, cy + ch_size], show=True)
+
         except Exception:
             # Fail silently to avoid breaking GUI
             pass
@@ -116,25 +148,27 @@ def setup_gui(app):
         app.fov_overlay_enabled = bool(app_data)
         if app.fov_overlay_enabled:
             sw = getattr(app.config, "screen_width", 1920)
-            sh = getattr(app.config, "screen_height", 1440)
+            sh = getattr(app.config, "screen_height", 1080)
             if getattr(app, "_fov_use_viewport_drawlist", False):
-                # Show rectangle on viewport drawlist
+                # Show items on viewport drawlist
                 dpg.configure_item("fov_rect", show=True)
+                dpg.configure_item("crosshair_h", show=True)
+                dpg.configure_item("crosshair_v", show=True)
             else:
                 if dpg.does_item_exist("fov_overlay"):
                     dpg.configure_item("fov_overlay", width=sw, height=sh)
                     dpg.set_item_pos("fov_overlay", [0, 0])
-                    dpg.configure_item("fov_overlay", width=sw, height=sh)
-                if dpg.does_item_exist("fov_drawlist"):
-                    dpg.configure_item("fov_drawlist", width=sw, height=sh)
                 # Make sure it doesn't block interactions
                 dpg.configure_item("fov_overlay", no_inputs=True, no_bring_to_front_on_focus=True)
                 dpg.show_item("fov_overlay")
             update_fov_overlay()
-        elif getattr(app, "_fov_use_viewport_drawlist", False):
-            dpg.configure_item("fov_rect", show=False)
         else:
-            dpg.hide_item("fov_overlay")
+            if getattr(app, "_fov_use_viewport_drawlist", False):
+                dpg.configure_item("fov_rect", show=False)
+                dpg.configure_item("crosshair_h", show=False)
+                dpg.configure_item("crosshair_v", show=False)
+            else:
+                dpg.hide_item("fov_overlay")
 
     def on_fov_changed(sender, a, user_data):
         # Immediate value snapping with visual feedback
@@ -176,9 +210,9 @@ def setup_gui(app):
     app.update_tolerance_preview = update_tolerance_preview
 
     def _create_styled_slider(label, default, min_val, max_val, callback, tooltip, user_data=None):
-        with dpg.group(horizontal=True):
+        with dpg.group(horizontal=True) as g:
             dpg.add_text(label)
-            slider = dpg.add_slider_float(
+            dpg.add_slider_float(
                 label="",
                 default_value=default,
                 min_value=min_val,
@@ -188,14 +222,14 @@ def setup_gui(app):
                 width=-1,
                 format="%.3f" if isinstance(default, float) else "%d",
             )
-            with dpg.tooltip(slider):
+            with dpg.tooltip(g):
                 dpg.add_text(tooltip)
-        return slider
+        return dpg.last_item()  # The slider itself is the last item added inside before the tooltip
 
     def _create_styled_slider_int(label, default, min_val, max_val, callback, tooltip, user_data=None):
-        with dpg.group(horizontal=True):
+        with dpg.group(horizontal=True) as g:
             dpg.add_text(label)
-            slider = dpg.add_slider_int(
+            dpg.add_slider_int(
                 label="",
                 default_value=default,
                 min_value=min_val,
@@ -204,9 +238,9 @@ def setup_gui(app):
                 user_data=user_data,
                 width=-1,
             )
-            with dpg.tooltip(slider):
+            with dpg.tooltip(g):
                 dpg.add_text(tooltip)
-        return slider
+        return dpg.last_item()
 
     def on_master_enable_changed(sender, app_data):
         """Update master enable state and sync UI visual feedback"""
@@ -234,11 +268,19 @@ def setup_gui(app):
         # --- PERSISTENT HEADER ---
         # A sleek, always-visible status bar
         with dpg.group(horizontal=True):
-            dpg.add_text("STATUS:", color=(150, 150, 150))
+            t_status = dpg.add_text("STATUS:", color=(150, 150, 150))
+            with dpg.tooltip(t_status):
+                dpg.add_text("Current state of the tracking algorithm logic engine.")
             app.status_text = dpg.add_text("Idle", color=(255, 255, 255))
+            with dpg.tooltip(app.status_text):
+                dpg.add_text("Visual indication of whether a target is currently locked or scanning.")
             dpg.add_spacer(width=20)
-            dpg.add_text("FPS:", color=(150, 150, 150))
+            t_fps = dpg.add_text("FPS:", color=(150, 150, 150))
+            with dpg.tooltip(t_fps):
+                dpg.add_text("Real-time performance metric (Frames Per Second).")
             app.fps_text = dpg.add_text("0.0", color=(255, 255, 255))
+            with dpg.tooltip(app.fps_text):
+                dpg.add_text("The actual throughput of the main acquisition loop.")
 
         dpg.add_spacer(height=5)
 
@@ -251,7 +293,9 @@ def setup_gui(app):
             height=32,
         )
         with dpg.tooltip(toggle_btn):
-            dpg.add_text("Master Switch: Click to Toggle Active/Idle State")
+            dpg.add_text(
+                "MASTER TOGGLE: Engages/Disengages the core logic engine.\nPress the bound HOTKEY (F8 by default) for immediate control."
+            )
 
         dpg.add_spacer(height=10)
         dpg.add_separator()
@@ -289,82 +333,98 @@ def setup_gui(app):
 
                 # SECTION: OFFSETS (Micro-Adjustments)
                 # Grouped with targeting because they directly affect WHERE we aim
-                with dpg.collapsing_header(label="Precision Offsets", default_open=True):
-                    _create_styled_slider_int(
-                        "Head Offset (px)",
-                        app.config.head_offset,
-                        0,
-                        100,
-                        lambda s, a: app.config.update("head_offset", a),
-                        "Vertical adjustment when aiming at HEAD.",
-                    )
-                    _create_styled_slider_int(
-                        "Leg Offset (px)",
-                        app.config.leg_offset,
-                        0,
-                        100,
-                        lambda s, a: app.config.update("leg_offset", a),
-                        "Vertical adjustment when aiming at LEGS.",
-                    )
+                with dpg.group():
+                    with dpg.collapsing_header(label="Precision Offsets", default_open=True) as offset_header:
+                        _create_styled_slider_int(
+                            "Head Offset (px)",
+                            app.config.head_offset,
+                            0,
+                            100,
+                            lambda s, a: app.config.update("head_offset", a),
+                            "Vertical adjustment when aiming at HEAD.",
+                        )
+                        _create_styled_slider_int(
+                            "Leg Offset (px)",
+                            app.config.leg_offset,
+                            0,
+                            100,
+                            lambda s, a: app.config.update("leg_offset", a),
+                            "Vertical adjustment when aiming at LEGS.",
+                        )
+                    with dpg.tooltip(offset_header):
+                        dpg.add_text("Fine-tune the aim height relative to the target's centroid.")
 
                 dpg.add_spacer(height=15)
                 dpg.add_separator()
                 dpg.add_spacer(height=15)
 
                 # SECTION: MOTION PHYSICS (1 Euro Filter)
-                dpg.add_text("MOTION PHYSICS (1 Euro)", color=(201, 0, 141))
+                t_mp = dpg.add_text("MOTION PHYSICS (1 Euro)", color=(201, 0, 141))
+                with dpg.tooltip(t_mp):
+                    dpg.add_text(
+                        "Advanced signal processing parameters for the 1 Euro Filter.\nEnsures smooth movement without sacrificing reaction speed."
+                    )
 
                 # Stabilization
-                dpg.add_text("Stabilization (Min Cutoff)")
-                app.min_cutoff_slider = dpg.add_slider_float(
-                    label="",
-                    default_value=app.config.motion_min_cutoff,
-                    min_value=0.01,
-                    max_value=25.0,
-                    callback=lambda s, a: [
-                        dpg.set_value(s, round(a * 10) / 10),
-                        app.config.update("motion_min_cutoff", round(a * 10) / 10),
-                    ][-1],
-                    width=-1,
-                    format="%.1f",
-                )
-                with dpg.tooltip(app.min_cutoff_slider):
-                    dpg.add_text("Low (0.1) = Heavy/Smooth. High (25.0) = Raw/Responsive.")
+                with dpg.group(horizontal=True) as stop_g:
+                    dpg.add_text("Stabilization (Min Cutoff)")
+                    app.min_cutoff_slider = dpg.add_slider_float(
+                        label="",
+                        default_value=app.config.motion_min_cutoff,
+                        min_value=0.01,
+                        max_value=25.0,
+                        callback=lambda s, a: [
+                            dpg.set_value(s, round(a * 10) / 10),
+                            app.config.update("motion_min_cutoff", round(a * 10) / 10),
+                        ][-1],
+                        width=-1,
+                        format="%.1f",
+                    )
+                with dpg.tooltip(stop_g):
+                    dpg.add_text(
+                        "Low (0.1) = Heavy/Smooth. High (25.0) = Raw/Responsive.\nMinimal velocity threshold to eliminate jitter at rest."
+                    )
 
                 dpg.add_spacer(height=5)
 
                 # Responsiveness (Beta)
-                dpg.add_text("Reflex Speed (Beta)")
-                app.beta_slider = dpg.add_slider_float(
-                    label="",
-                    default_value=app.config.motion_beta,
-                    min_value=0.0001,
-                    max_value=0.3,
-                    callback=lambda s, a: [
-                        dpg.set_value(s, round(a * 1000) / 1000),
-                        app.config.update("motion_beta", round(a * 1000) / 1000),
-                    ][-1],
-                    width=-1,
-                    format="%.3f",
-                )
-                with dpg.tooltip(app.beta_slider):
-                    dpg.add_text("Higher = Faster reaction to sudden direction changes.")
+                with dpg.group(horizontal=True) as beta_g:
+                    dpg.add_text("Reflex Speed (Beta)")
+                    app.beta_slider = dpg.add_slider_float(
+                        label="",
+                        default_value=app.config.motion_beta,
+                        min_value=0.0001,
+                        max_value=0.3,
+                        callback=lambda s, a: [
+                            dpg.set_value(s, round(a * 1000) / 1000),
+                            app.config.update("motion_beta", round(a * 1000) / 1000),
+                        ][-1],
+                        width=-1,
+                        format="%.3f",
+                    )
+                with dpg.tooltip(beta_g):
+                    dpg.add_text(
+                        "Higher = Faster reaction to sudden direction changes.\nVelocity-weighted cutoff factor. Adjusts responsiveness during motion."
+                    )
 
                 dpg.add_spacer(height=5)
 
                 # Prediction
-                dpg.add_text("Velocity Prediction")
-                app.prediction_scale_slider = dpg.add_slider_float(
-                    label="",
-                    default_value=app.config.prediction_scale,
-                    min_value=0.0,
-                    max_value=5.0,
-                    callback=lambda s, a: app.config.update("prediction_scale", a),
-                    width=-1,
-                    format="%.2f x",
-                )
-                with dpg.tooltip(app.prediction_scale_slider):
-                    dpg.add_text("Multiplies movement to lead the target.")
+                with dpg.group(horizontal=True) as pred_g:
+                    dpg.add_text("Velocity Prediction")
+                    app.prediction_scale_slider = dpg.add_slider_float(
+                        label="",
+                        default_value=app.config.prediction_scale,
+                        min_value=0.0,
+                        max_value=5.0,
+                        callback=lambda s, a: app.config.update("prediction_scale", a),
+                        width=-1,
+                        format="%.2f x",
+                    )
+                with dpg.tooltip(pred_g):
+                    dpg.add_text(
+                        "Multiplies movement to lead the target.\nAlgorithm-side extrapolation of target movement to compensate for input lag."
+                    )
 
             # ---------------------------
             # TAB 2: VISION (Sensing)
@@ -373,7 +433,9 @@ def setup_gui(app):
                 dpg.add_spacer(height=10)
 
                 # SECTION: COLOR SENSE
-                dpg.add_text("COLOR SPECTRUM", color=(201, 0, 141))
+                t_cs = dpg.add_text("COLOR SPECTRUM", color=(201, 0, 141))
+                with dpg.tooltip(t_cs):
+                    dpg.add_text("Define the target BGR/Hex color signature for detection.")
 
                 # Hex Color handling
                 hex_color = app.config.target_color
@@ -415,7 +477,9 @@ def setup_gui(app):
                     # Preview Box Column
                     dpg.add_spacer(width=10)
                     with dpg.group():
-                        dpg.add_text("Preview")
+                        d_text = dpg.add_text("Preview")
+                        with dpg.tooltip(d_text):
+                            dpg.add_text("Real-time representation of the selected hex color.")
                         app.color_display_item = dpg.add_button(label="", width=60, height=60)
                         with dpg.theme() as theme_color_preview:
                             with dpg.theme_component(dpg.mvAll):
@@ -431,16 +495,21 @@ def setup_gui(app):
                 dpg.add_spacer(height=10)
 
                 # Tolerance
-                dpg.add_text("Tolerance (Match Width)")
-                app.tolerance_slider = dpg.add_slider_int(
-                    label="",
-                    default_value=app.config.color_tolerance,
-                    max_value=100,
-                    width=-1,
-                    callback=lambda s, a: [app.config.update("color_tolerance", a), app.update_tolerance_preview()][-1],
-                )
-                with dpg.tooltip(app.tolerance_slider):
-                    dpg.add_text("How 'strict' the color match is. Lower = Stricter.")
+                with dpg.group(horizontal=True) as tol_g:
+                    dpg.add_text("Tolerance (Match Width)")
+                    app.tolerance_slider = dpg.add_slider_int(
+                        label="",
+                        default_value=app.config.color_tolerance,
+                        max_value=100,
+                        width=-1,
+                        callback=lambda s, a: [app.config.update("color_tolerance", a), app.update_tolerance_preview()][
+                            -1
+                        ],
+                    )
+                with dpg.tooltip(tol_g):
+                    dpg.add_text(
+                        "How 'strict' the color match is. Lower = Stricter.\nDistance metric for color similarity in 3D BGR space."
+                    )
 
                 # Tolerance Visualizer
                 app.tolerance_preview = dpg.add_button(label="TOLERANCE VISUALIZER", width=-1, height=4)
@@ -466,9 +535,12 @@ def setup_gui(app):
                 dpg.add_spacer(height=15)
 
                 # SECTION: FIELD OF VIEW
-                dpg.add_text("FIELD OF VIEW (FOV)", color=(201, 0, 141))
+                t_fov = dpg.add_text("FIELD OF VIEW (FOV)", color=(201, 0, 141))
+                with dpg.tooltip(t_fov):
+                    dpg.add_text("Search window dimensions centered on the crosshair.")
 
-                with dpg.group(horizontal=True):
+                with dpg.group(horizontal=True) as fov_g:
+                    dpg.add_text("Window Size")
                     app.fov_x_slider = dpg.add_slider_int(
                         label="W",
                         default_value=app.config.fov_x,
@@ -478,8 +550,6 @@ def setup_gui(app):
                         callback=on_fov_changed,
                         user_data="fov_x",
                     )
-                    with dpg.tooltip(app.fov_x_slider):
-                        dpg.add_text("Horizontal scan range in pixels.")
                     app.fov_y_slider = dpg.add_slider_int(
                         label="H",
                         default_value=app.config.fov_y,
@@ -489,8 +559,10 @@ def setup_gui(app):
                         callback=on_fov_changed,
                         user_data="fov_y",
                     )
-                    with dpg.tooltip(app.fov_y_slider):
-                        dpg.add_text("Vertical scan range in pixels.")
+                with dpg.tooltip(fov_g):
+                    dpg.add_text(
+                        "Search window dimensions centered on the crosshair.\nW: Horizontal range | H: Vertical range."
+                    )
 
                 cb_overlay = dpg.add_checkbox(
                     label="Show Overlay (Green Box)", default_value=False, callback=on_fov_overlay_toggled
@@ -506,15 +578,25 @@ def setup_gui(app):
             with dpg.tab(label="  SYSTEM  "):
                 dpg.add_spacer(height=10)
 
-                dpg.add_text("INPUT BINDINGS", color=(201, 0, 141))
+                t_ib = dpg.add_text("INPUT BINDINGS", color=(201, 0, 141))
+                with dpg.tooltip(t_ib):
+                    dpg.add_text("Hardware-level hotkeys for seamless algorithm orchestration.")
 
                 with dpg.group(horizontal=True):
-                    dpg.add_text("START Key: ")
-                    dpg.add_text(app.config.start_key.upper(), color=(0, 255, 0))
+                    t_sk = dpg.add_text("START Key: ")
+                    with dpg.tooltip(t_sk):
+                        dpg.add_text("Functional binding to BEGIN the tracking loop.")
+                    app_sk_val = dpg.add_text(app.config.start_key.upper(), color=(0, 255, 0))
+                    with dpg.tooltip(app_sk_val):
+                        dpg.add_text(f"Currently bound to: {app.config.start_key.upper()}")
 
                 with dpg.group(horizontal=True):
-                    dpg.add_text("STOP Key:  ")
-                    dpg.add_text(app.config.stop_key.upper(), color=(255, 0, 0))
+                    t_spk = dpg.add_text("STOP Key:  ")
+                    with dpg.tooltip(t_spk):
+                        dpg.add_text("Functional binding to HALT the tracking loop.")
+                    app_spk_val = dpg.add_text(app.config.stop_key.upper(), color=(255, 0, 0))
+                    with dpg.tooltip(app_spk_val):
+                        dpg.add_text(f"Currently bound to: {app.config.stop_key.upper()}")
 
                 dpg.add_button(label="Rebind Keys (Config File Only)", width=-1, enabled=False)
                 with dpg.tooltip(dpg.last_item()):
@@ -524,7 +606,9 @@ def setup_gui(app):
                 dpg.add_separator()
                 dpg.add_spacer(height=15)
 
-                dpg.add_text("PERFORMANCE", color=(201, 0, 141))
+                t_perf = dpg.add_text("PERFORMANCE", color=(201, 0, 141))
+                with dpg.tooltip(t_perf):
+                    dpg.add_text("Hardware resource allocation settings.")
 
                 _create_styled_slider_int(
                     "Target FPS Loop",
@@ -541,7 +625,9 @@ def setup_gui(app):
                 dpg.add_separator()
                 dpg.add_spacer(height=15)
 
-                dpg.add_text("DEBUGGING")
+                t_dbg = dpg.add_text("DEBUGGING")
+                with dpg.tooltip(t_dbg):
+                    dpg.add_text("System auditing and diagnostic tools.")
                 dpg.add_checkbox(
                     label="Enable Debug Console",
                     default_value=app.config.debug_mode,
@@ -615,43 +701,71 @@ def setup_gui(app):
             # ---------------------------
             with dpg.tab(label="  STATS  "):
                 dpg.add_spacer(height=10)
-                dpg.add_text("REAL-TIME ANALYTICS", color=(201, 0, 141))
+                t_rta = dpg.add_text("REAL-TIME ANALYTICS", color=(201, 0, 141))
+                with dpg.tooltip(t_rta):
+                    dpg.add_text("High-precision telemetry streams from the core processing threads.")
 
                 # Stats Summary
                 with dpg.group(horizontal=True):
-                    dpg.add_text("Current FPS:")
+                    t_f = dpg.add_text("Current FPS:")
+                    with dpg.tooltip(t_f):
+                        dpg.add_text("Instantaneous frame rate of the detection loop.")
                     app.analytics_fps_val = dpg.add_text("0.0", color=(0, 255, 0))
+                    with dpg.tooltip(app.analytics_fps_val):
+                        dpg.add_text("Real-time throughput samples.")
                     dpg.add_spacer(width=20)
-                    dpg.add_text("Avg Latency:")
+                    t_l = dpg.add_text("Avg Latency:")
+                    with dpg.tooltip(t_l):
+                        dpg.add_text("Average time to complete one full detection-to-input cycle.")
                     app.analytics_latency_val = dpg.add_text("0.00ms", color=(0, 255, 255))
+                    with dpg.tooltip(app.analytics_latency_val):
+                        dpg.add_text("Lower values indicate higher system responsiveness.")
 
                 with dpg.group(horizontal=True):
-                    dpg.add_text("1% Low FPS:")
+                    t_lo = dpg.add_text("1% Low FPS:")
+                    with dpg.tooltip(t_lo):
+                        dpg.add_text("Bottom 1% of frame rates (measures stability/micro-stutter).")
                     app.analytics_low_val = dpg.add_text("0.0", color=(255, 100, 100))
+                    with dpg.tooltip(app.analytics_low_val):
+                        dpg.add_text("Stability metric: higher is better.")
                     dpg.add_spacer(width=20)
-                    dpg.add_text("Missed Frames:")
+                    t_m = dpg.add_text("Missed Frames:")
+                    with dpg.tooltip(t_m):
+                        dpg.add_text("Total frames dropped due to processing delays or synchronization errors.")
                     app.analytics_missed_val = dpg.add_text("0", color=(255, 50, 50))
+                    with dpg.tooltip(app.analytics_missed_val):
+                        dpg.add_text("Accumulated friction in the processing pipeline.")
 
                 dpg.add_spacer(height=10)
 
                 # FPS Graph
-                dpg.add_text("FPS History (Last 1000 frames)")
-                with dpg.plot(label="FPS", height=150, width=-1):
-                    dpg.add_plot_legend()
-                    dpg.add_plot_axis(dpg.mvXAxis, label="Time", no_tick_labels=True)
-                    with dpg.plot_axis(dpg.mvYAxis, label="FPS"):
-                        app.analytics_fps_series = dpg.add_line_series([], [], label="FPS")
+                t_fg = dpg.add_text("FPS History (Last 1000 frames)")
+                with dpg.tooltip(t_fg):
+                    dpg.add_text("Chronological throughput graph (Stability visualization).")
+                with dpg.group() as fps_group:
+                    with dpg.plot(label="FPS", height=150, width=-1):
+                        dpg.add_plot_legend()
+                        dpg.add_plot_axis(dpg.mvXAxis, label="Time", no_tick_labels=True)
+                        with dpg.plot_axis(dpg.mvYAxis, label="FPS"):
+                            app.analytics_fps_series = dpg.add_line_series([], [], label="FPS")
+                with dpg.tooltip(fps_group):
+                    dpg.add_text("Frames Per Second over time. Spikes indicate performance issues.")
 
                 dpg.add_spacer(height=10)
 
                 # Latency Graph
-                dpg.add_text("Frame Latency (ms)")
-                with dpg.plot(label="Latency", height=150, width=-1):
-                    dpg.add_plot_legend()
-                    dpg.add_plot_axis(dpg.mvXAxis, label="Time", no_tick_labels=True)
-                    with dpg.plot_axis(dpg.mvYAxis, label="ms"):
-                        app.analytics_latency_series = dpg.add_line_series([], [], label="Frame Time")
-                        app.analytics_detection_series = dpg.add_line_series([], [], label="Detection Time")
+                t_lg = dpg.add_text("Frame Latency (ms)")
+                with dpg.tooltip(t_lg):
+                    dpg.add_text("In-depth breakdown of processing delays.")
+                with dpg.group() as lat_group:
+                    with dpg.plot(label="Latency", height=150, width=-1):
+                        dpg.add_plot_legend()
+                        dpg.add_plot_axis(dpg.mvXAxis, label="Time", no_tick_labels=True)
+                        with dpg.plot_axis(dpg.mvYAxis, label="ms"):
+                            app.analytics_latency_series = dpg.add_line_series([], [], label="Frame Time")
+                            app.analytics_detection_series = dpg.add_line_series([], [], label="Detection Time")
+                with dpg.tooltip(lat_group):
+                    dpg.add_text("Individual frame completion times and detection latencies.")
 
                 def update_analytics():
                     if not hasattr(app, "perf_monitor"):
@@ -688,8 +802,12 @@ def setup_gui(app):
             # We'll just always show it but maybe disabled? No, let's just show it.
             with dpg.tab(label="  DEBUG  "):
                 dpg.add_spacer(height=10)
-                dpg.add_text("ADVANCED LOGGING", color=(201, 0, 141))
-                dpg.add_text("Debug configuration is handled via config.json")
+                t_al = dpg.add_text("ADVANCED LOGGING", color=(201, 0, 141))
+                with dpg.tooltip(t_al):
+                    dpg.add_text("System auditing and subsystem tracing.")
+                t_dc = dpg.add_text("Debug configuration is handled via config.json")
+                with dpg.tooltip(t_dc):
+                    dpg.add_text("Modify debug_rules in configuration to enable specific trace points.")
 
                 # Debug rules visualizer removed per user feedback (non-functional)
 
@@ -738,10 +856,16 @@ def setup_gui(app):
         pos=[60, 200],
     ):
         dpg.add_spacer(height=5)
-        dpg.add_text("Reset all settings to factory defaults?\nThis cannot be undone.", wrap=240)
+        m_text = dpg.add_text("Reset all settings to factory defaults?\nThis cannot be undone.", wrap=240)
+        with dpg.tooltip(m_text):
+            dpg.add_text("CRITICAL: This action will purge all current configuration values.")
         dpg.add_spacer(height=10)
         with dpg.group(horizontal=True):
-            dpg.add_button(label="YES, RESET", callback=app.reset_all_settings, width=120, height=25)
-            dpg.add_button(
+            btn_yes = dpg.add_button(label="YES, RESET", callback=app.reset_all_settings, width=120, height=25)
+            with dpg.tooltip(btn_yes):
+                dpg.add_text("Proceed with factory reset and reload configuration.")
+            btn_no = dpg.add_button(
                 label="CANCEL", callback=lambda: dpg.hide_item("reset_confirmation_modal"), width=120, height=25
             )
+            with dpg.tooltip(btn_no):
+                dpg.add_text("Abort reset and return to application.")

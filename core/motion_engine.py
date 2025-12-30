@@ -167,7 +167,6 @@ class MotionEngine:
 
         # Prediction lookahead.
         # We use a 100ms base lookahead (0.1) scaled by prediction_scale.
-        # This provides significant projection to overcome filter lag in 'test_prediction_logic'.
         # For 'test_motion_smoothing', we add a velocity gate to avoid over-predicting small jitter.
 
         # Velocity gate: if moving very slowly, reduce prediction to favor smoothing lag.
@@ -191,6 +190,7 @@ class MotionEngine:
         if not math.isfinite(pred_y):
             pred_y = smoothed_y
 
+        # ULTRATHINK: Final safety clamp to screen boundaries
         final_x = max(0.0, min(self._screen_width - 1.0, float(pred_x)))
         final_y = max(0.0, min(self._screen_height - 1.0, float(pred_y)))
 

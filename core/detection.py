@@ -113,7 +113,6 @@ class DetectionSystem:
 
         # Cache update complete
 
-
     def _update_fov_cache(self) -> None:
         """
         Updates cached FOV and screen dimension values.
@@ -141,13 +140,16 @@ class DetectionSystem:
         self._scan_area = (scan_left, scan_top, scan_right, scan_bottom)
         # _last_fov_config removed as we use versioning now
 
-    def find_target(self) -> tuple[bool, int, int]:
+    def find_target(self, config_version: int | None = None) -> tuple[bool, int, int]:
         """
         Search for target pixel color on screen
+
+        Args:
+            config_version: Optional explicit version check to avoid getattr overhead
         """
         # ULTRATHINK: O(1) Version Check
-        # Use getattr to support mocked config in tests which might not have _version
-        current_version = getattr(self.config, "_version", 0)
+        # Use provided version or fallback to getattr
+        current_version = config_version if config_version is not None else getattr(self.config, "_version", 0)
 
         # Initialize if first run or config changed
         if current_version != self._last_config_version or self._scan_area is None:

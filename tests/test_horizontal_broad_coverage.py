@@ -219,10 +219,12 @@ class TestMovementSystemMathematics:
 
             # Head (aim_point=0) - subtract head_offset
             config.aim_point = 0
+            ms._update_config_cache()
             assert ms._apply_aim_offset(500) == 490
 
             # Legs (aim_point=2) - add leg_offset
             config.aim_point = 2
+            ms._update_config_cache()
             assert ms._apply_aim_offset(500) == 520
 
 
@@ -313,13 +315,12 @@ class TestCrossModuleDataFlow:
             # Target at (1060, 640) - 100px right and 100px down from center
             pred_x, pred_y = 1060, 640
 
-            with patch.object(ms, "move_mouse_relative") as mock_move:
+            with patch.object(ms, "move_mouse_absolute") as mock_move:
                 mock_move.return_value = True
                 ms.move_to_target(pred_x, pred_y)
 
-                # move_to_target calculates offset from screen center (960, 540)
-                # Offset should be (1060-960, 640-540) = (100, 100)
-                mock_move.assert_called_once_with(100, 100)
+                # move_to_target now uses absolute movement for stealth
+                mock_move.assert_called_once_with(1060, 640)
 
 
 if __name__ == "__main__":

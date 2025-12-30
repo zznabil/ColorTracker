@@ -1,2 +1,37 @@
-# Technology Stack`n`n## Core Language & Runtime`n- **Python:** The primary development language, chosen for its vast ecosystem and rapid prototyping capabilities.`n`n## Frameworks & Libraries`n- **Dear PyGui:** GPU-accelerated immediate mode GUI framework for a high-performance HUD and configuration interface.`n- **OpenCV (opencv-python):** Used for low-latency image processing and color detection logic.`n- **NumPy:** Essential for high-performance numerical operations and zero-copy image buffer manipulation.`n- **MSS:** Optimized screen capture library used for thread-safe, low-latency frame acquisition.`n- **Input Control:** `n    - **ctypes:** For direct, surgical access to the Windows `SendInput` API to minimize input latency.`n    - **PyAutoGUI / pynput:** Used for high-level input handling and keyboard listening.`n`n## Development & Quality Assurance`n- **pytest:** The primary testing framework for unit, integration, and stress tests.`n- **High-Resolution Telemetry:** Custom instrumentation using 	ime.perf_counter_ns() for microsecond-level tracing of hot paths.
-- **Ruff:** Used for extremely fast linting and code formatting to maintain clinical precision.`n- **Pyright:** Static type checker to ensure type safety and early error detection.
+# Technology Stack
+
+## Core Runtime
+- **Language**: Python 3.12+ (Strict Mode)
+- **Architecture**: 64-bit Windows
+
+## Critical Libraries
+| Component | Library | Purpose |
+| :--- | :--- | :--- |
+| **GUI** | `dearpygui` | GPU-accelerated Immediate Mode GUI (60+ FPS overlay) |
+| **Vision** | `opencv-python` | `cv2.minMaxLoc`, `cv2.cvtColor` (Optimized C++ bindings) |
+| **Capture** | `mss` | High-speed, thread-safe screen capture (DirectX/GDI) |
+| **Math** | `numpy` | Zero-copy buffer views, vector arithmetic |
+| **Input** | `ctypes` | Direct `user32.dll` / `SendInput` calls |
+
+## Algorithmic Core
+- **Smoothing**: **1 Euro Filter** (Adaptive Low-Pass Filter).
+- **Prediction**: **Chebyshev Velocity Gating** ($v = \max(|dx|, |dy|)$).
+- **Normalization**: **Pre-calculated Scaling** ($x_{norm} = x \cdot S_x$).
+- **Timing**: **Hybrid Spin-Wait** (Sleep 90% -> Spin 10%).
+
+## Quality Assurance
+- **Linting**: `ruff` (Strict PEP 8).
+- **Types**: `pyright` (Strict).
+- **Tests**: `pytest` (Unit, Integration, Stress, Edge Cases).
+- **Telemetry**: Custom `perf_counter_ns` probes (Lockless).
+
+## V3.4.1 Updates
+
+### Performance Monitor Perfection
+- **Comprehensive Coverage**: Added `test_get_stats_comprehensive` for 1% Low FPS calculation logic.
+- **Empty Probe Handling**: Added `TestProbeEmptyHistory` class for telemetry edge cases.
+- **Passing Rate**: 100% (18/18 tests passing).
+
+### Thread Safety Architecture
+- **Sage/Artisan Separation**: Added `move_to_target()` delegation in `ColorTrackerAlgo` for proper thread isolation.
+- **Hot-Path Caching**: Method reference hoisting in `_algo_loop_internal` eliminates redundant lookups.

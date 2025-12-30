@@ -57,6 +57,12 @@ class PerformanceMonitor:
 
         duration_ns = time.perf_counter_ns() - start_time
         duration_ms = duration_ns / 1_000_000.0
+
+        # ULTRATHINK: Ensure key existence in history to prevent pruning bugs
+        if name not in self._probe_history:
+            # Force creation if it's the first time
+            _ = self._probe_history[name]
+
         self._probe_history[name].append(duration_ms)
 
     def get_probe_stats(self, name: str) -> dict[str, float]:
@@ -69,7 +75,7 @@ class PerformanceMonitor:
             "avg_ms": sum(history) / len(history),
             "min_ms": min(history),
             "max_ms": max(history),
-            "count": len(history)
+            "count": len(history),
         }
 
     def record_frame(self, duration_sec: float, missed: bool = False):
@@ -125,7 +131,7 @@ class PerformanceMonitor:
             "worst_frame_ms": self.worst_frame_time,
             "avg_detection_ms": avg_detect,
             "missed_frames": float(self.missed_frames),
-            "one_percent_low_fps": one_percent_low
+            "one_percent_low_fps": one_percent_low,
         }
 
     def get_history(self) -> dict[str, list[float]]:
@@ -134,7 +140,7 @@ class PerformanceMonitor:
         return {
             "fps": list(self.fps_history),
             "frame_times": list(self.frame_times),
-            "detection_times": list(self.detection_times)
+            "detection_times": list(self.detection_times),
         }
 
     def reset_aggregates(self):

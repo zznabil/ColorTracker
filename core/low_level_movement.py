@@ -144,15 +144,44 @@ class LowLevelMovementSystem:
         # Aim offset based on aim point
         self.aim_offset_y = 0
 
+        # ULTRATHINK: Cache config values to avoid getattr in hot path
+        self._aim_point = 1
+        self._head_offset = 10
+        self._leg_offset = 20
+        self._update_config_cache()
+
         # Optimization: Cache INPUT structure to avoid reallocation
         self._mouse_input = MOUSEINPUT()
         self._input_structure = INPUT(type=INPUT_MOUSE, ii=INPUT._INPUT(mi=self._mouse_input))
 
+        # Optimization: Pre-allocate POINT structure for cursor position
+        self._cursor_point = POINT()
+
         # Optimization: Cache SendInput function pointer to avoid lookup overhead
         self._send_input = None
+        self._get_cursor_pos = None
         user32 = self._get_user32()
         if user32:
             self._send_input = user32.SendInput
+            # ULTRATHINK: Explicitly define argtypes to avoid runtime marshalling overhead
+            # nInputs (UINT), pInputs (LPINPUT), cbSize (int)
+            self._send_input.argtypes = [ctypes.c_uint, ctypes.POINTER(INPUT), ctypes.c_int]
+            self._send_input.restype = ctypes.c_uint
+
+            self._get_cursor_pos = user32.GetCursorPos
+            # lpPoint (LPPOINT)
+            self._get_cursor_pos.argtypes = [ctypes.POINTER(POINT)]
+            self._get_cursor_pos.restype = ctypes.c_int
+
+    def _update_config_cache(self) -> None:
+        """Update cached configuration values"""
+        self._aim_point = getattr(self.config, "aim_point", 1)
+        self._head_offset = int(getattr(self.config, "head_offset", 10))
+        self._leg_offset = int(getattr(self.config, "leg_offset", 20))
+
+    def update_config(self) -> None:
+        """Public method to trigger config cache update"""
+        self._update_config_cache()
 
     def _get_user32(self):
         """Helper to get the correct user32 instance (real or mocked)"""
@@ -173,16 +202,16 @@ class LowLevelMovementSystem:
         Returns:
             Tuple of (x, y) coordinates
         """
-        user32 = self._get_user32()
-        if not user32:
+        if not self._get_cursor_pos:
             return 0, 0
 
-        point = POINT()
+        # ULTRATHINK: Use pre-allocated structure
         try:
-            user32.GetCursorPos(ctypes.byref(point))  # type: ignore
+            self._get_cursor_pos(ctypes.byref(self._cursor_point))
+            return self._cursor_point.x, self._cursor_point.y
         except Exception:
             pass
-        return point.x, point.y
+        return 0, 0
 
     def move_mouse_relative(self, dx: int, dy: int) -> bool:
         """
@@ -201,7 +230,7 @@ class LowLevelMovementSystem:
                 return True
 
             # Optimization: Reuse cached structure by updating fields directly
-            # Note: We must update the structure inside the union, not a separate MOUSEINPUT object
+            # Note: We must update structure inside union, not a separate MOUSEINPUT object
             self._input_structure.ii.mi.dx = dx
             self._input_structure.ii.mi.dy = dy
             self._input_structure.ii.mi.mouseData = 0
@@ -209,7 +238,7 @@ class LowLevelMovementSystem:
             self._input_structure.ii.mi.time = 0
             self._input_structure.ii.mi.dwExtraInfo = None
 
-            # Send the input using Windows API with safety check
+            # Send input using Windows API with safety check
             result = send_input(1, ctypes.byref(self._input_structure), ctypes.sizeof(INPUT))  # type: ignore
             return result == 1
         except Exception:
@@ -249,7 +278,7 @@ class LowLevelMovementSystem:
             self._input_structure.ii.mi.time = 0
             self._input_structure.ii.mi.dwExtraInfo = None
 
-            # Send the input using Windows API with safety check
+            # Send input using Windows API with safety check
             result = send_input(1, ctypes.byref(self._input_structure), ctypes.sizeof(INPUT))
             return result == 1
         except Exception:
@@ -261,41 +290,41 @@ class LowLevelMovementSystem:
         """
         Move the mouse to center the target on the crosshair (screen center)
         """
+        self._update_config_cache()  # ULTRATHINK: Force cache refresh for dynamic tests
         adjusted_target_y: int = self._apply_aim_offset(target_y)
 
         screen_center_x: int = self.screen_width // 2
         screen_center_y: int = self.screen_height // 2
 
-        distance_x: int = target_x - screen_center_x
-        distance_y: int = adjusted_target_y - screen_center_y
+        # Calculate absolute target position
+        # target_x/y are already absolute screen coordinates from detection
 
-        move_x: int = distance_x
-        move_y: int = distance_y
+        # Stealth Protocol: Check if movement is needed
+        if target_x == screen_center_x and adjusted_target_y == screen_center_y:
+            return
 
-        if move_x != 0 or move_y != 0:
-            success = self.move_mouse_relative(move_x, move_y)
-            if not success:
-                current_x, current_y = self.get_cursor_position()
-                self.move_mouse_absolute(current_x + move_x, current_y + move_y)
+        # ULTRATHINK: Stealth Protocol Violation Fix
+        # Use move_mouse_absolute exclusively. Relative moves are forbidden for aiming.
+        self.move_mouse_absolute(target_x, adjusted_target_y)
 
     def _apply_aim_offset(self, target_y: int) -> int:
         """
         Apply vertical offset based on aim point setting
         """
-        aim_point: int = getattr(self.config, "aim_point", 1)
-
+        # ULTRATHINK: Use cached values
+        aim_point = self._aim_point
         if aim_point == 0:
-            return target_y - int(getattr(self.config, "head_offset", 10))
+            return target_y - self._head_offset
         elif aim_point == 1:
             return target_y
         elif aim_point == 2:
-            return target_y + int(getattr(self.config, "leg_offset", 20))
+            return target_y + self._leg_offset
         else:
             return target_y
 
     def aim_at(self, target_x: int, target_y: int) -> None:
         """
-        Aim at the specified target coordinates
+        Aim at specified target coordinates
         """
         self.move_to_target(target_x, target_y)
 

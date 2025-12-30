@@ -8,6 +8,7 @@ for high-performance detection and responsive UI.
 """
 
 import ctypes
+import gc
 import logging
 import sys
 import threading
@@ -279,6 +280,11 @@ class ColorTrackerAlgo:
     def _algo_loop_internal(self):
         """Internal loop logic with optimized performance for ultra-high FPS"""
         self.logger.debug("Algorithm loop started - beginning main detection and tracking cycle")
+
+        # ULTRATHINK: Disable automatic garbage collection to prevent non-deterministic pauses
+        # We will manually collect periodically in the logging block
+        gc.disable()
+
         loop_count = 0
 
         # Performance optimization: cache frequently used values
@@ -293,10 +299,10 @@ class ColorTrackerAlgo:
         # Local references to methods to avoid self. lookup overhead
         find_target = self.detection.find_target
         process_motion = self.motion_engine.process
-        aim_at = self.movement.aim_at
         update_target_status = self._update_target_status
         update_fps_display = self._update_fps_display
         perf_monitor = self.perf_monitor
+        move_to_target = self.move_to_target
 
         # High-performance timing variables
         target_frame_time = frame_interval
@@ -317,6 +323,8 @@ class ColorTrackerAlgo:
                         target_frame_time = frame_interval
                     # Sync motion engine config cache
                     self.motion_engine.update_config()
+                    # Sync movement engine config cache
+                    self.movement.update_config()
 
                 # Ultra-efficient FPS calculation (every 1 second for better responsiveness)
                 current_time = time.perf_counter()
@@ -335,6 +343,10 @@ class ColorTrackerAlgo:
                             f"Max: {stats['worst_frame_ms']:.2f}ms | "
                             f"Missed: {int(stats['missed_frames'])}"
                         )
+                        # ULTRATHINK: Manual Garbage Collection
+                        # Perform a generation 1 collection to clean up young objects without full stop-the-world
+                        gc.collect(1)
+
                         # Reset aggregate counters in monitor
                         perf_monitor.reset_aggregates()
 
@@ -345,8 +357,11 @@ class ColorTrackerAlgo:
                 if config_enabled:
                     try:
                         # Step 1: Detect target
+                        # Hoist version check to main loop to avoid lookups in detection
+                        current_config_version = getattr(self.config, "_version", 0)
+
                         t0_detect = time.perf_counter()
-                        target_found, target_x, target_y = find_target()
+                        target_found, target_x, target_y = find_target(current_config_version)
                         t1_detect = time.perf_counter()
                         perf_monitor.record_detection(t1_detect - t0_detect)
 
@@ -361,7 +376,7 @@ class ColorTrackerAlgo:
                                 predicted_x, predicted_y = process_motion(target_x, target_y, target_frame_time)
 
                                 # Move mouse to target
-                                aim_at(predicted_x, predicted_y)
+                                move_to_target(predicted_x, predicted_y)
                             except Exception as move_error:
                                 if loop_count % 500 == 0:
                                     self.logger.error(f"Movement subsystem error: {move_error}")
@@ -392,7 +407,16 @@ class ColorTrackerAlgo:
             self.logger.critical(f"Fatal error in algorithm loop: {fatal_error}")
 
         finally:
+            # Re-enable GC when loop exits
+            gc.enable()
             self.logger.debug(f"Algorithm loop ended after {loop_count} iterations")
+
+    def move_to_target(self, x: int, y: int) -> None:
+        """
+        Delegates to movement system.
+        Thread-safe wrapper for GUI/Sage parity.
+        """
+        self.movement.move_to_target(x, y)
 
     def _update_fps_display(self):
         """Update FPS display with caching"""
@@ -430,10 +454,13 @@ class ColorTrackerAlgo:
         if target_time is None:
             target_time = time.perf_counter() + duration
 
+        # ULTRATHINK OPTIMIZATION: Fixed slack time for consistent precision
         # Use sleep for longer periods (bulk wait)
-        if duration > 0.001:  # More than 1ms
-            # Sleep 90% of needed time to avoid oversleeping
-            time.sleep(duration * 0.9)
+        # 1.5ms slack is safe for Windows scheduler variance (typically 1ms resolution with timeBeginPeriod)
+        slack = 0.0015
+
+        if duration > slack:
+            time.sleep(duration - slack)
 
         # High-precision spin wait for the remaining time
         while time.perf_counter() < target_time:
