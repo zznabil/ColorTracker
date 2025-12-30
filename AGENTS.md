@@ -21,6 +21,9 @@ python -m pytest tests/test_detection_mocked.py
 # Run single test function
 python -m pytest tests/test_detection_mocked.py::test_find_target_success -v
 
+# Run benchmarking suite
+python -m pytest tests/test_low_level_movement_opt.py -v
+
 # Run application
 python main.py
 ```
@@ -28,7 +31,7 @@ python main.py
 ## Code Style Guidelines
 
 ### Python & Types
-- **Version**: Python 3.11+ with type hints required
+- **Version**: Python 3.12+ with strict type hints required
 - **Line length**: 120 characters (enforced by Ruff)
 - **Indentation**: 4 spaces
 - **Quotes**: Double quotes for strings
@@ -62,20 +65,23 @@ class Config:
     target_fps: int
 ```
 
-### Performance Optimizations
-- Use `__slots__` for classes to reduce memory
-- Cache local references in hot loops
-- Use `np.frombuffer` for zero-copy operations
-- Reuse ctypes structures to avoid allocation
+### Performance & Precision Optimizations
+- **Smart Sleep**: Use `_smart_sleep` orchestrator for sub-millisecond frame pacing.
+- **Telemetry Probes**: Use `start_probe()`/`stop_probe()` for microsecond tracing.
+- **Allocation Pruning**: Pre-allocate dictionaries and reuse `__slots__` to reduce GC pressure.
+- **Variable Hoisting**: Cache `self.config` attributes to local scope in hot loops.
+- **DLL Caching**: Use cached Windows API function pointers in `LowLevelMovementSystem`.
 
 ```python
 class MotionEngine:
     __slots__ = ('x_filter', 'y_filter', '_min_cutoff')
 
-def algo_loop(self):
+def _algo_loop_internal(self):
+    # Hoist methods and config to local scope
     find_target = self.detection.find_target
-    while running:
-        target = find_target()
+    enabled = self.config.enabled
+    while self.running:
+        # ... hot path ...
 ```
 
 ### Error Handling
@@ -96,7 +102,7 @@ def validate_value(key, value, schema):
 ### Documentation
 - Module docstrings: `"""Detection System Module"""`
 - Function docstrings: Return type and parameter descriptions
-- Inline comments for complex math/logic
+- Inline comments for complex math/logic (e.g. 1 Euro Filter constants)
 
 ### Testing
 - Framework: pytest
@@ -118,7 +124,7 @@ def test_find_target_success(mock_detection):
 
 **Archetype A: The Sage (Logic/Data)** - `core/`, `utils/`
 - Type-safety, O(1) memory, deterministic execution
-- Examples: `DetectionSystem`, `MotionEngine`, `Config`
+- Examples: `DetectionSystem`, `MotionEngine`, `Config` (Observer Pattern)
 
 **Archetype B: The Artisan (Visual/Physics)** - `gui/`
 - Aesthetics, HCI, motion physics
@@ -141,23 +147,20 @@ DEFAULT_CONFIG = {
 
 ### Common Patterns
 ```python
-# Config loading
+# Config loading with versioning
 config = Config()
-config.load()  # Self-healing
+config.load()
+version = config.version # O(1) check
 
-# Performance monitoring
+# Performance monitoring (High-Res)
 perf_monitor = PerformanceMonitor()
-perf_monitor.record_frame(frame_time)
-stats = perf_monitor.get_stats()
+perf_monitor.start_probe("capture")
+# ... capture ...
+perf_monitor.stop_probe("capture")
 
 # Logging
 logger = Logger(log_level=logging.DEBUG, log_to_file=True)
 logger.info("Operation completed")
-
-# Keyboard listener
-keyboard = KeyboardListener(config)
-keyboard.register_callback("page_up", start_callback)
-keyboard.start()
 ```
 
 ### Project Structure
@@ -165,13 +168,14 @@ keyboard.start()
 core/          # Detection, motion engine, low-level movement
 gui/           # DearPyGui interface
 utils/         # Config, logger, performance monitor, keyboard listener
+tools/         # Benchmarking and validation suite
 tests/         # Pytest fixtures and test files
-main.py        # Entry point
+main.py        # Entry point with Hybrid Sync
 ```
 
 ### Key Dependencies
 - `dearpygui` - GUI framework
-- `mss` - Screen capture
+- `mss` - Screen capture (Cursor capture disabled)
 - `opencv-python` - Computer vision
 - `numpy` - Numerical operations
 - `pynput` - Keyboard listener
@@ -179,10 +183,10 @@ main.py        # Entry point
 ### Debugging
 - Enable `debug_mode` in config for F12 debug console
 - Use `logger.debug()` for verbose logging
-- Check `PerformanceMonitor` stats for latency
+- Check `PerformanceMonitor` probes for micro-stuttering
 - Run `pytest -v` for detailed test output
 - Use `ruff check . --fix` for auto-fixing
 
 ---
 
-**Version**: V3.2.3 | **Python**: 3.11+
+**Version**: V3.4.0 | **Python**: 3.12+

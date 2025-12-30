@@ -11,7 +11,7 @@ The `setup_and_run.ps1` script is the definitive orchestration path for installi
 
 ## 🛠 What the Script Does
 - **Admin Elevation**: Ensures the script has rights to install Python and manage system paths.
-- **Python Provisioning**: Checks for Python 3.11. If missing, it downloads and performs a silent installation of Python 3.11.9.
+- **Python Provisioning**: Checks for Python 3.12. If missing, it downloads and performs a silent installation of Python 3.12.
 - **Venv Isolation**: Creates a local `.venv` to prevent dependency poisoning of the global system.
 - **Requirement Sync**: Automatically installs all libraries in `requirements.txt`.
 - **PyInstaller Compilation**: Uses the project's `.spec` file to build a fresh, high-performance `ColorTracker.exe`.

@@ -1,27 +1,27 @@
-# Deep Architectural Blueprint - V3.3.0
+# Deep Architectural Blueprint - V3.4.1
 
 ## Project Overview
-**SAI Color Tracking Algorithm V3** is a modular Python-based real-time computer vision application for color detection and automated mouse movement. It is optimized for responsiveness and stealth, utilizing low-level Windows API for input.
+**SAI Color Tracking Algorithm V3** is a modular Python-based real-time computer vision application for color detection and automated mouse movement. It is optimized for responsiveness, precision, and stealth, utilizing low-level Windows API for input.
 
 **Key Technologies:**
 - **GUI**: `Dear PyGui` (GPU-accelerated immediate mode).
 - **Vision**: `OpenCV`, `NumPy`, `mss` (Optimized screen capture).
 - **Input**: `ctypes` (SendInput Windows API).
-- **Persistence**: JSON-based "self-healing" configuration.
+- **Persistence**: JSON-based "self-healing" configuration with Observer Pattern.
 
 ### Archetype A: The Sage (`core/`, `utils/`) - [Logic/Data/Precision]
-- **`core/detection.py`**: Handles thread-safe screen capture using `mss`. Implements `_local_search` and `_full_search` fallback using `cv2.minMaxLoc` for O(1) memory allocation. Optimized with Local Variable Caching.
-- **`core/motion_engine.py`**: Encapsulates 1 Euro Filter logic. Optimized via `__slots__` and pre-calculated constants.
-- **`core/low_level_movement.py`**: Surgical Windows `SendInput` wrapper. Ensures clamped coordinate injection.
+- **`core/detection.py`**: Handles thread-safe screen capture using `mss`. Implements `_local_search` and `_full_search` fallback using `cv2.minMaxLoc` for O(1) memory allocation. Optimized with Local Variable Caching and pre-allocated search area dictionaries.
+- **`core/motion_engine.py`**: Encapsulates 1 Euro Filter logic. Optimized via `__slots__` and pre-calculated constants. Implements **Chebyshev Velocity Gating** to eliminate prediction deadzones.
+- **`core/low_level_movement.py`**: Surgical Windows `SendInput` wrapper. Ensures clamped coordinate injection. Caches DLL function pointers and uses **Pre-Calculated Scaling** for zero-division hot-paths.
 - **`utils/config.py`**: Strategic "Self-Healing" configuration with **Observer Pattern** (Versioned State) for O(1) change detection.
-- **`utils/performance_monitor.py`**: **Lockless** architecture using atomic snapshots for thread-safe telemetry without contention.
+- **`utils/performance_monitor.py`**: **Lockless** architecture using atomic snapshots and microsecond probes for high-resolution telemetry.
 
 ### Archetype B: The Artisan (`gui/`) - [Aesthetic/Responsive/Physics]
-- **`gui/main_window.py`**: GPU-accelerated Dear PyGui orchestrator. Manages immediate-mode event loops and visual HUD overlays.
+- **`gui/main_window.py`**: GPU-accelerated Dear PyGui orchestrator. Manages immediate-mode event loops and visual HUD overlays. Expanded to 480x730 for advanced telemetry.
 - **`gui/interface.py`**: Caching layer for visual elements to eliminate lag during state transitions.
 
 ### Orchestration (`main.py`)
-- **`ColorTrackerAlgo`**: The central controller managing the high-precision hybrid timing loop (`_algo_loop_internal`).
+- **`ColorTrackerAlgo`**: The central controller managing the high-precision hybrid timing loop (`_algo_loop_internal`) with `_smart_sleep`.
 
 ## Static Analysis & Safety
 - **Linting**: Verified with `Ruff` (0 errors).
@@ -57,14 +57,16 @@
     - **Edge Cases**: `test_ultra_edge_cases.py`, `test_detection_mocked.py`, `test_detection_noise.py`, `test_keyboard_listener_rebinding.py`, `test_paths.py`.
 
 ## Verification Log
-- **Last Verified**: 2025-12-29 (V3.4.0 ULTRATHINK)
-- **Protocol**: ULTRATHINK "Observability & Precision Baseline"
-- **Status**: ✅ PASSED (Production Grade V3.4.0)
+- **Last Verified**: 2025-12-30 (V3.4.1 ULTRATHINK)
+- **Protocol**: ULTRATHINK "Harmony Baseline"
+- **Status**: ✅ PASSED (Production Grade V3.4.1)
 - **New Archetypes**:
     - **Observability**: High-resolution microsecond probes (`start_probe`/`stop_probe`) for hotpath auditing.
     - **SmartSleep**: Hybrid Sleep/Spin-Wait orchestrator for precise frame pacing.
+    - **Harmony Merge**: Chebyshev Velocity estimation and Scaling factor multipliers.
 - **Metrics**:
     - **Loop Jitter**: <0.01ms (SmartSleep Enabled)
     - **Capture Latency**: -25% (MSS Cursor Disabled)
     - **GC Pressure**: 0 (Allocation-Free hotpath)
+    - **Floating Point Ops**: Minimized via Scaling Multipliers.
     - **Static Analysis**: 100% Clean (Ruff: 0 errors / Pyright: 0 errors)

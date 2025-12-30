@@ -10,7 +10,7 @@ class MockKey:
         self.name = name
 
     def __str__(self):
-        return self.char if self.char else self.name
+        return str(self.char if self.char else self.name or "")
 
 def test_listen_for_single_key():
     config = MagicMock()

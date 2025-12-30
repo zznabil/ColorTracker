@@ -1,4 +1,4 @@
-# Color Tracking Algo for Single Player Games in Development - V3.4.0
+# Color Tracking Algo for Single Player Games in Development - V3.4.1
 
 A high-performance, modular color tracking and mouse automation tool optimized for responsiveness and stealth.
 
@@ -29,7 +29,7 @@ This project follows a strict structural duality to maintain clinical precision:
    Right-click `setup_and_run.ps1` and select "Run with PowerShell". This automates Python installation, virtual environment setup, dependency management, and build.
 
 2. **Manual Installation**:
-   - Install Python 3.11+.
+    - Install Python 3.12+.
    - Clone the repository.
    - Install dependencies: `pip install -r requirements.txt`
 

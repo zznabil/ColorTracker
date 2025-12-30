@@ -1,24 +1,22 @@
 {
-    "include": [
-        "."
-    ],
-    "exclude": [
-        "**/node_modules",
-        "**/__pycache__",
-        "dist",
-        "build"
-    ],
-    "pythonVersion": "3.12",
-    "pythonPlatform": "Windows",
-    "typeCheckingMode": "basic",
-    "reportMissingImports": true,
-    "reportMissingTypeStubs": false,
-    "reportAttributeAccessIssue": true,
-    "reportArgumentType": true,
-    "reportUnboundVariable": true,
-    "reportOptionalSubscript": true,
-    "reportOptionalMemberAccess": true,
-    "reportOptionalCall": true,
-    "reportOptionalIterable": true,
-    "reportDuplicateImport": true
+  "include": [
+    "core",
+    "gui",
+    "tests",
+    "tools",
+    "utils",
+    "main.py",
+    "benchmark.py"
+  ],
+  "exclude": [
+    "**/__pycache__",
+    ".venv",
+    ".git",
+    "build",
+    "dist"
+  ],
+  "reportMissingImports": true,
+  "reportMissingTypeStubs": false,
+  "pythonVersion": "3.12",
+  "pythonPlatform": "Windows"
 }

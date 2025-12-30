@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.4.1] - 2025-12-30
+### Added (Harmony Merge)
+- **Chebyshev Velocity Gating**: Injected `max(abs(dx), abs(dy))` speed estimation in `MotionEngine` to fix the vertical prediction deadzone bug.
+- **Scaling Optimization**: Replaced division with pre-calculated multiplication (`_x_scale` / `_y_scale`) in the 1000Hz `move_mouse_absolute` loop.
+- **Verification Suites**: Harmonized `test_vertical_prediction.py` and `test_low_level_movement_optimization.py` into the main test gate.
+
 ## [3.4.0] - 2025-12-29
 ### Added (Observability)
 - **High-Resolution Telemetry**: Implemented `perf_counter_ns` probes in `PerformanceMonitor` for microsecond-level tracing of detection, capture, and input phases.

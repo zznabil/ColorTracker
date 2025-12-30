@@ -1,21 +1,23 @@
-# Color Tracking Algo for Single Player Games in Development - V3.3.0 User Guide
+# Color Tracking Algo for Single Player Games in Development - V3.4.0 User Guide
 
 ## Introduction
-The **Color Tracking Algo for Single Player Games in Development** (V3.3.0) is a professional-grade computer vision utility optimized for high-performance coordinate tracking and automated input research.
+The **Color Tracking Algo for Single Player Games in Development** (V3.4.0) is a professional-grade computer vision utility optimized for high-performance coordinate tracking and automated input research.
 
 ## Features
 - **Extreme Speed Detection**: GPU-accelerated frame processing with cached FOV geometry and `mss` capture.
+- **Observability Probes**: High-resolution microsecond-level tracing for hot paths (`start_probe`/`stop_probe`).
 - **Titanium Class Optimizations**: Lockless telemetry snapshots $O(0 \text{ contention})$ and version-based config propagation.
 - **Orchestration Gems**: Loop-level method caching and config hot-reload throttling for peak 960 FPS throughput.
 - **Zero-Copy Buffer Management**: Direct `np.frombuffer` access to screen memory avoids O(N) allocation overhead.
-- **Allocation-Free Interaction**: Reuses `ctypes` input structures to prevent memory allocation churn.
-- **Hybrid Precision Sync**: Fused `time.sleep` and micro-spin-wait for nanosecond timing accuracy.
+- **Allocation-Free Interaction**: Reuses `ctypes` input structures and caches function pointers to prevent memory allocation churn.
+- **Hybrid Precision Sync**: Fused `time.sleep` and micro-spin-wait for nanosecond timing accuracy via `_smart_sleep`.
 - **Adaptive Predictive Tracking**: Real-time velocity-based projection to eliminate smoothing-induced lag.
 
 ## Installation
 1.  **Prerequisites**:
-    *   Windows 10/11 (High-DPI aware)
-    *   Python 3.11 or higher
+     *   Windows 10/11 (High-DPI aware)
+     *   Python 3.12 or higher
+
 2.  **Setup**:
     ```bash
     pip install -r requirements.txt

@@ -92,6 +92,7 @@ class TestUltraRobustness:
         # Simulate a circular motion target
         radius = 100
         center_x, center_y = 960, 540
+        i = -1
 
         try:
             for i in range(10000):
