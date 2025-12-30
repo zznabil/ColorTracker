@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-Color Tracking Algo for Single Player Games in Development - V3.4.0
+Color Tracking Algo for Single Player Games in Development - V3.4.1
 
 Main entry point for the Color Tracking Algo application, orchestrated
 for high-performance detection and responsive UI.
