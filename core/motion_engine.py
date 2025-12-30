@@ -30,7 +30,16 @@ class OneEuroFilter:
     - Removed unused helper methods to eliminate dead code.
     """
 
-    __slots__ = ("min_cutoff", "beta", "d_cutoff", "value_prev", "deriv_prev", "t_prev")
+    __slots__ = (
+        "min_cutoff",
+        "beta",
+        "d_cutoff",
+        "value_prev",
+        "deriv_prev",
+        "t_prev",
+        "_last_te",
+        "_cached_alpha_d",
+    )
 
     def __init__(self, t0: float, x0: float, min_cutoff: float = 1.0, beta: float = 0.0, d_cutoff: float = 1.0):
         self.min_cutoff = float(min_cutoff)
@@ -39,6 +48,9 @@ class OneEuroFilter:
         self.value_prev = float(x0)
         self.deriv_prev = 0.0
         self.t_prev = float(t0)
+        # ULTRATHINK OPTIMIZATION: Cache for alpha_d to skip division in hot path
+        self._last_te = -1.0
+        self._cached_alpha_d = 0.0
 
     def __call__(self, t: float, x: float) -> float:
         t_e = t - self.t_prev
@@ -48,9 +60,16 @@ class OneEuroFilter:
             return self.value_prev
 
         # 1. Calculate the filtered derivative of the signal
-        # Inline smoothing_factor(t_e, self.d_cutoff)
-        r_d = TWO_PI * self.d_cutoff * t_e
-        a_d = r_d / (r_d + 1)
+        # ULTRATHINK OPTIMIZATION: Reuse cached alpha_d if time delta is constant
+        # This removes 1 division, 1 addition, and 2 multiplications per coordinate per frame
+        # when running at stable FPS (which is enforced by main.py).
+        if t_e != self._last_te:
+            r_d = TWO_PI * self.d_cutoff * t_e
+            self._cached_alpha_d = r_d / (r_d + 1)
+            self._last_te = t_e
+
+        a_d = self._cached_alpha_d
+
         dx = (x - self.value_prev) / t_e
         # Inline exponential_smoothing(a_d, dx, self.deriv_prev)
         dx_hat = a_d * dx + (1 - a_d) * self.deriv_prev

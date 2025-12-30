@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from core.detection import DetectionSystem
 from core.low_level_movement import LowLevelMovementSystem
@@ -31,7 +31,18 @@ class TestInstrumentationIntegration:
         try:
             # We need to ensure _scan_area is set or find_target returns early
             detection._scan_area = (0, 0, 100, 100)
-            detection.find_target()  # No args, uses self.target_x/y or scan area
+
+            # Mock _get_sct to return a mock that produces valid bgra
+            with patch.object(detection, '_get_sct') as mock_get_sct:
+                mock_sct = MagicMock()
+                mock_shot = MagicMock()
+                mock_shot.bgra = b'\x00' * (100 * 100 * 4)  # 100x100 4-channel
+                mock_shot.height = 100
+                mock_shot.width = 100
+                mock_sct.grab.return_value = mock_shot
+                mock_get_sct.return_value = mock_sct
+
+                detection.find_target()  # No args, uses self.target_x/y or scan area
         except Exception:
             pass
 
