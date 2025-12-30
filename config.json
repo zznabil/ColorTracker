@@ -3,7 +3,7 @@
     "color_tolerance": 0,
     "debug_mode": true,
     "enabled": false,
-    "fov_x": 209,
+    "fov_x": 10,
     "fov_y": 20,
     "head_offset": 0,
     "leg_offset": 30,
