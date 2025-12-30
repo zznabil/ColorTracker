@@ -267,12 +267,21 @@ class LowLevelMovementSystem:
             # ULTRATHINK OPTIMIZATION: Use pre-calculated scale and int(x + 0.5) for speed
             # We subtract 1 from screen dimensions because pixel coordinates are 0-indexed
             # e.g. x=1919 should map to 65535 on a 1920-wide screen
-            normalized_x = max(0, min(65535, int(x * self._x_scale + 0.5)))
-            normalized_y = max(0, min(65535, int(y * self._y_scale + 0.5)))
+            nx = int(x * self._x_scale + 0.5)
+            if nx < 0:
+                nx = 0
+            elif nx > 65535:
+                nx = 65535
+
+            ny = int(y * self._y_scale + 0.5)
+            if ny < 0:
+                ny = 0
+            elif ny > 65535:
+                ny = 65535
 
             # Optimization: Reuse cached structure by updating fields directly
-            self._input_structure.ii.mi.dx = normalized_x
-            self._input_structure.ii.mi.dy = normalized_y
+            self._input_structure.ii.mi.dx = nx
+            self._input_structure.ii.mi.dy = ny
             self._input_structure.ii.mi.mouseData = 0
             self._input_structure.ii.mi.dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE
             self._input_structure.ii.mi.time = 0
