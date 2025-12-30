@@ -207,14 +207,17 @@ class DetectionSystem:
         Perform a local search around the last known target position.
         """
         # Calculate local search area with bounds checking
-        # Calculate local search area with bounds checking
         # Hardcoded optimization margin (user feedback: slider removed)
         search_area: int = 100
-        local_left = max(0, self.target_x - search_area)
-        local_top = max(0, self.target_y - search_area)
-        # Use cached screen dimensions
-        local_right = min(self._screen_width, self.target_x + search_area)
-        local_bottom = min(self._screen_height, self.target_y + search_area)
+
+        # ULTRATHINK OPTIMIZATION: Clamp local search to FOV to avoid processing pixels that will be rejected
+        # This reduces mss.grab overhead and cv2.inRange processing time when target is near FOV edge
+        scan_left, scan_top, scan_right, scan_bottom = self._scan_area  # type: ignore
+
+        local_left = max(scan_left, self.target_x - search_area)
+        local_top = max(scan_top, self.target_y - search_area)
+        local_right = min(scan_right, self.target_x + search_area)
+        local_bottom = min(scan_bottom, self.target_y + search_area)
 
         # Calculate dimensions and validate
         width = local_right - local_left

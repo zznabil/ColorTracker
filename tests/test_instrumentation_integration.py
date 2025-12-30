@@ -27,6 +27,15 @@ class TestInstrumentationIntegration:
         monitor.start_probe = MagicMock()
         monitor.stop_probe = MagicMock()
 
+        # Mock _get_sct to prevent MSS errors in headless environment
+        mock_sct = MagicMock()
+        mock_shot = MagicMock()
+        mock_shot.bgra = b'\x00' * (100 * 100 * 4)  # 100x100 4-channel image
+        mock_shot.width = 100
+        mock_shot.height = 100
+        mock_sct.grab.return_value = mock_shot
+        detection._get_sct = MagicMock(return_value=mock_sct)
+
         # Call the method we expect to be instrumented
         try:
             # We need to ensure _scan_area is set or find_target returns early
