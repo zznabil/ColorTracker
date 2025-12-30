@@ -393,7 +393,10 @@ class ColorTrackerAlgo:
                 sleep_time = target_frame_time - actual_frame_time
 
                 # Record performance metrics for every frame (fix for 0 FPS stats)
-                perf_monitor.record_frame(actual_frame_time, missed=(sleep_time <= 0))
+                # ULTRATHINK OPTIMIZATION: Pass current timestamp to avoid redundant syscall
+                perf_monitor.record_frame(
+                    actual_frame_time, missed=(sleep_time <= 0), timestamp=frame_end_time
+                )
 
                 # Use hybrid precision sleep
                 if sleep_time > 0:

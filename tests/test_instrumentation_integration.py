@@ -23,6 +23,15 @@ class TestInstrumentationIntegration:
         # This should succeed now with proper mock config
         detection = DetectionSystem(config, monitor)
 
+        # Mock _get_sct to return a mock mss instance with valid data
+        mock_sct = MagicMock()
+        mock_screenshot = MagicMock()
+        mock_screenshot.bgra = b'\x00' * (100 * 100 * 4)  # Valid BGRA buffer
+        mock_screenshot.width = 100
+        mock_screenshot.height = 100
+        mock_sct.grab.return_value = mock_screenshot
+        detection._get_sct = MagicMock(return_value=mock_sct)
+
         # Spy on monitor
         monitor.start_probe = MagicMock()
         monitor.stop_probe = MagicMock()
