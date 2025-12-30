@@ -164,14 +164,16 @@ class LowLevelMovementSystem:
         if user32:
             self._send_input = user32.SendInput
             # ULTRATHINK: Explicitly define argtypes to avoid runtime marshalling overhead
-            # nInputs (UINT), pInputs (LPINPUT), cbSize (int)
-            self._send_input.argtypes = [ctypes.c_uint, ctypes.POINTER(INPUT), ctypes.c_int]
-            self._send_input.restype = ctypes.c_uint
+            # Only apply if the object supports it (real ctypes function)
+            if hasattr(self._send_input, "argtypes"):
+                self._send_input.argtypes = [ctypes.c_uint, ctypes.POINTER(INPUT), ctypes.c_int]
+                self._send_input.restype = ctypes.c_uint
 
             self._get_cursor_pos = user32.GetCursorPos
             # lpPoint (LPPOINT)
-            self._get_cursor_pos.argtypes = [ctypes.POINTER(POINT)]
-            self._get_cursor_pos.restype = ctypes.c_int
+            if hasattr(self._get_cursor_pos, "argtypes"):
+                self._get_cursor_pos.argtypes = [ctypes.POINTER(POINT)]
+                self._get_cursor_pos.restype = ctypes.c_int
 
     def _update_config_cache(self) -> None:
         """Update cached configuration values"""
@@ -252,39 +254,42 @@ class LowLevelMovementSystem:
         Using round() for better precision and (width-1) for correct mapping.
         """
         self.perf_monitor.start_probe("movement_input")
-        try:
-            # Use cached function pointer if available
-            send_input = self._send_input
-            if not send_input:
-                user32 = self._get_user32()
-                if user32:
-                    send_input = user32.SendInput
 
-            if not send_input:
-                return True
-
-            # Normalize coordinates to 0-65535 range
-            # ULTRATHINK OPTIMIZATION: Use pre-calculated scale and int(x + 0.5) for speed
-            # We subtract 1 from screen dimensions because pixel coordinates are 0-indexed
-            # e.g. x=1919 should map to 65535 on a 1920-wide screen
-            normalized_x = max(0, min(65535, int(x * self._x_scale + 0.5)))
-            normalized_y = max(0, min(65535, int(y * self._y_scale + 0.5)))
-
-            # Optimization: Reuse cached structure by updating fields directly
-            self._input_structure.ii.mi.dx = normalized_x
-            self._input_structure.ii.mi.dy = normalized_y
-            self._input_structure.ii.mi.mouseData = 0
-            self._input_structure.ii.mi.dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE
-            self._input_structure.ii.mi.time = 0
-            self._input_structure.ii.mi.dwExtraInfo = None
-
-            # Send input using Windows API with safety check
-            result = send_input(1, ctypes.byref(self._input_structure), ctypes.sizeof(INPUT))
-            return result == 1
-        except Exception:
-            return False
-        finally:
+        # ULTRATHINK: Hot path optimization - Removed try/except and dynamic lookups
+        if not self._send_input:
             self.perf_monitor.stop_probe("movement_input")
+            return True
+
+        # Normalize coordinates to 0-65535 range
+        # ULTRATHINK OPTIMIZATION: Use pre-calculated scale and int(x + 0.5) for speed
+        # We subtract 1 from screen dimensions because pixel coordinates are 0-indexed
+        # e.g. x=1919 should map to 65535 on a 1920-wide screen
+        normalized_x = int(x * self._x_scale + 0.5)
+        normalized_y = int(y * self._y_scale + 0.5)
+
+        # Fast clamping
+        if normalized_x < 0:
+            normalized_x = 0
+        elif normalized_x > 65535:
+            normalized_x = 65535
+
+        if normalized_y < 0:
+            normalized_y = 0
+        elif normalized_y > 65535:
+            normalized_y = 65535
+
+        # Optimization: Reuse cached structure by updating fields directly
+        self._input_structure.ii.mi.dx = normalized_x
+        self._input_structure.ii.mi.dy = normalized_y
+        self._input_structure.ii.mi.mouseData = 0
+        self._input_structure.ii.mi.dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE
+        self._input_structure.ii.mi.time = 0
+        self._input_structure.ii.mi.dwExtraInfo = None
+
+        # Send input using Windows API with safety check
+        result = self._send_input(1, ctypes.byref(self._input_structure), ctypes.sizeof(INPUT))
+        self.perf_monitor.stop_probe("movement_input")
+        return result == 1
 
     def move_to_target(self, target_x: int, target_y: int) -> None:
         """

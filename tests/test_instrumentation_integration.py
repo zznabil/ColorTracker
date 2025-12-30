@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from core.detection import DetectionSystem
 from core.low_level_movement import LowLevelMovementSystem
@@ -31,20 +31,33 @@ class TestInstrumentationIntegration:
         try:
             # We need to ensure _scan_area is set or find_target returns early
             detection._scan_area = (0, 0, 100, 100)
-            detection.find_target()  # No args, uses self.target_x/y or scan area
+
+            # Mock _capture_and_process_frame to return success so it reaches "detection_process"
+            # We must mock it on the instance 'detection'
+            mock_img = MagicMock()
+            # It needs to behave like numpy array for cv2.inRange
+            detection._capture_and_process_frame = MagicMock(return_value=(True, mock_img))
+
+            # Also mock cv2.inRange/minMaxLoc to avoid OpenCV errors with MagicMock image
+            with patch("cv2.inRange"), \
+                 patch("cv2.minMaxLoc", return_value=(0, 1, (0,0), (10,10))):
+                detection.find_target()  # No args, uses self.target_x/y or scan area
         except Exception:
             pass
 
         # Verify probes were started/stopped
         # We instrumented _capture_and_process_frame ("detection_capture") and _local/_full search ("detection_process")
         # detection.find_target() calls _full_search -> _capture_and_process_frame
-        assert monitor.start_probe.call_count >= 1
+
+        # Note: Since we mocked _capture_and_process_frame, "detection_capture" probe inside it won't run.
+        # But "detection_process" inside _full_search SHOULD run.
+
+        # Verify stop_probe was called at least once
         assert monitor.stop_probe.call_count >= 1
 
         # Check specific probe names
         calls = [args[0] for args, _ in monitor.start_probe.call_args_list]
         assert "detection_process" in calls
-        # "detection_capture" might be skipped if exception happens early, but we tried to ensure it runs.
 
     def test_movement_probes(self):
         config = MagicMock(spec=Config)

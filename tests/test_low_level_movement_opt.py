@@ -61,17 +61,22 @@ class TestLowLevelMovementOptimization:
         mock_user32 = MagicMock()
         mock_user32.SendInput.return_value = 1
 
-        # Clear cached _send_input to force _get_user32 call (which we patch)
-        system._send_input = None
+        # In the optimized version, we must inject the mock directly because
+        # dynamic lookup via _get_user32 has been removed from the hot path.
+        system._send_input = mock_user32.SendInput
 
-        with patch.object(system, "_get_user32", return_value=mock_user32):
-            # First call
-            system.move_mouse_absolute(100, 100)
-            args1 = mock_user32.SendInput.call_args[0]
-            obj1 = args1[1]._obj
+        # First call
+        system.move_mouse_absolute(100, 100)
 
-            system.move_mouse_absolute(200, 200)
-            args2 = mock_user32.SendInput.call_args[0]
-            obj2 = args2[1]._obj
+        if not mock_user32.SendInput.called:
+             pytest.fail("SendInput not called")
 
-            assert obj1 is obj2, "INPUT structure was recreated in absolute movement!"
+        args1 = mock_user32.SendInput.call_args[0]
+        obj1 = args1[1]._obj
+
+        # Second call
+        system.move_mouse_absolute(200, 200)
+        args2 = mock_user32.SendInput.call_args[0]
+        obj2 = args2[1]._obj
+
+        assert obj1 is obj2, "INPUT structure was recreated in absolute movement!"
