@@ -26,6 +26,18 @@ class TestInstrumentationIntegration:
         monitor.start_probe = MagicMock()
         monitor.stop_probe = MagicMock()
 
+        # Create a mock MSS instance to bypass real screen capture
+        mock_sct = MagicMock()
+        mock_img = MagicMock()
+        # Mock bgra property to be a bytes-like object (e.g., 100x100x4 bytes)
+        mock_img.bgra = b'\x00' * (100 * 100 * 4)
+        mock_img.width = 100
+        mock_img.height = 100
+        mock_sct.grab.return_value = mock_img
+
+        # Patch _get_sct to return the mock
+        detection._get_sct = MagicMock(return_value=mock_sct)
+
         # Call the method we expect to be instrumented
         try:
             # We need to ensure _scan_area is set or find_target returns early

@@ -144,6 +144,14 @@ class LowLevelMovementSystem:
         if user32:
             self._send_input = user32.SendInput
 
+        # Pre-calculate scaling factors for absolute movement
+        # Optimization: Multiplication is faster than division
+        # Clamp width/height to avoid ZeroDivisionError
+        w = max(2, self.screen_width)
+        h = max(2, self.screen_height)
+        self._x_scale = 65535.0 / (w - 1)
+        self._y_scale = 65535.0 / (h - 1)
+
     def _get_user32(self):
         """Helper to get the correct user32 instance (real or mocked)"""
         # First check if ctypes.windll exists and has user32 (this catches the test mocks)
@@ -225,10 +233,14 @@ class LowLevelMovementSystem:
                 return True
 
             # Normalize coordinates to 0-65535 range
-            # We subtract 1 from screen dimensions because pixel coordinates are 0-indexed
-            # e.g. x=1919 should map to 65535 on a 1920-wide screen
-            normalized_x = max(0, min(65535, int(round((x * 65535) / (self.screen_width - 1)))))
-            normalized_y = max(0, min(65535, int(round((y * 65535) / (self.screen_height - 1)))))
+            # Optimization: Use pre-calculated scales and fast integer conversion
+            # int(val + 0.5) is faster than round(val)
+            normalized_x = int(x * self._x_scale + 0.5)
+            normalized_y = int(y * self._y_scale + 0.5)
+
+            # Clamp to valid range (0-65535)
+            normalized_x = max(0, min(65535, normalized_x))
+            normalized_y = max(0, min(65535, normalized_y))
 
             # Optimization: Reuse cached structure by updating fields directly
             self._input_structure.ii.mi.dx = normalized_x
