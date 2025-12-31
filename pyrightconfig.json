@@ -1,0 +1,22 @@
+{
+  "include": [
+    "core",
+    "gui",
+    "tests",
+    "tools",
+    "utils",
+    "main.py",
+    "benchmark.py"
+  ],
+  "exclude": [
+    "**/__pycache__",
+    ".venv",
+    ".git",
+    "build",
+    "dist"
+  ],
+  "reportMissingImports": true,
+  "reportMissingTypeStubs": false,
+  "pythonVersion": "3.12",
+  "pythonPlatform": "Windows"
+}
