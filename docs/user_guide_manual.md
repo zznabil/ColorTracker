@@ -1,7 +1,7 @@
-# Color Tracking Algo for Single Player Games in Development - V3.4.0 User Guide
+# Color Tracking Algo for Single Player Games in Development - V3.4.1 User Guide
 
 ## Introduction
-The **Color Tracking Algo for Single Player Games in Development** (V3.4.0) is a professional-grade computer vision utility optimized for high-performance coordinate tracking and automated input research.
+The **Color Tracking Algo for Single Player Games in Development** (V3.4.1) is a professional-grade computer vision utility optimized for high-performance coordinate tracking and automated input research.
 
 ## Features
 - **Extreme Speed Detection**: GPU-accelerated frame processing with cached FOV geometry and `mss` capture.

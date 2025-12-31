@@ -189,4 +189,4 @@ main.py        # Entry point with Hybrid Sync
 
 ---
 
-**Version**: V3.4.0 | **Python**: 3.12+
+**Version**: V3.4.1 | **Python**: 3.12+
