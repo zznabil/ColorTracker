@@ -72,10 +72,17 @@ class PerformanceMonitor:
             "count": len(history),
         }
 
-    def record_frame(self, duration_sec: float, missed: bool = False):
+    def record_frame(
+        self, duration_sec: float, missed: bool = False, timestamp: float | None = None
+    ):
         """
         Record the duration of a single logic loop frame.
         Lock-free implementation for single-writer scenario.
+
+        Args:
+            duration_sec: Frame duration in seconds.
+            missed: Whether the frame missed its deadline.
+            timestamp: Optional timestamp (perf_counter) to avoid redundant syscalls.
         """
         duration_ms = duration_sec * 1000.0
 
@@ -90,9 +97,16 @@ class PerformanceMonitor:
 
         # FPS tracking
         self._frame_counter += 1
-        now = time.perf_counter()
+
+        # ULTRATHINK: Use injected timestamp if available to save a syscall
+        now = timestamp if timestamp is not None else time.perf_counter()
+
         if now - self._last_fps_update >= 0.5:  # Update FPS every 500ms
-            self.current_fps = self._frame_counter / (now - self._last_fps_update)
+            # Avoid division by zero in weird edge cases (e.g. clock reset)
+            time_delta = now - self._last_fps_update
+            if time_delta > 0:
+                self.current_fps = self._frame_counter / time_delta
+
             self.fps_history.append(self.current_fps)
             self._frame_counter = 0
             self._last_fps_update = now
