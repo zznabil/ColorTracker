@@ -178,7 +178,8 @@ class MotionEngine:
 
         if speed < 100.0:  # If moving < 100 px/sec
             # OPTIMIZATION: Replaced division with multiplication
-            vel_scale = max(0.0, speed * 0.01)
+            # Speed is always positive (max(abs, abs)), so max(0.0, ...) is redundant
+            vel_scale = speed * 0.01
 
         lookahead: float = 0.1 * self._prediction_scale * vel_scale
         pred_x: float = smoothed_x + (dx * lookahead)
@@ -191,8 +192,18 @@ class MotionEngine:
             pred_y = smoothed_y
 
         # ULTRATHINK: Final safety clamp to screen boundaries
-        final_x = max(0.0, min(self._screen_width - 1.0, float(pred_x)))
-        final_y = max(0.0, min(self._screen_height - 1.0, float(pred_y)))
+        # OPTIMIZATION: Explicit if/elif clamping is faster than max(min()) chains in Python
+        final_x = float(pred_x)
+        if final_x < 0.0:
+            final_x = 0.0
+        elif final_x > self._screen_width - 1.0:
+            final_x = self._screen_width - 1.0
+
+        final_y = float(pred_y)
+        if final_y < 0.0:
+            final_y = 0.0
+        elif final_y > self._screen_height - 1.0:
+            final_y = self._screen_height - 1.0
 
         # OPTIMIZATION: Use int(val + 0.5) for faster rounding of positive coordinates
         return int(final_x + 0.5), int(final_y + 0.5)
