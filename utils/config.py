@@ -294,3 +294,90 @@ class Config:
                 config_dict[key] = value
 
         return config_dict
+
+    # Preset configurations
+    PRESETS = {
+        "default": {
+            "target_color": 0xC9008D,
+            "fov_x": 50,
+            "fov_y": 25,
+            "motion_min_cutoff": 0.99,
+            "motion_beta": 0.3,
+            "prediction_scale": 0.0,
+            "aim_point": 1,
+            "head_offset": 0,
+            "leg_offset": 30,
+            "color_tolerance": 0,
+            "target_fps": 576,
+        },
+        "aggressive": {
+            "target_color": 0xC9008D,
+            "fov_x": 209,
+            "fov_y": 25,
+            "motion_min_cutoff": 0.5,
+            "motion_beta": 0.005,
+            "prediction_scale": 1.0,
+            "aim_point": 0,
+            "head_offset": 0,
+            "leg_offset": 0,
+            "color_tolerance": 0,
+            "target_fps": 240,
+        },
+        "precise": {
+            "target_color": 0xC9008D,
+            "fov_x": 30,
+            "fov_y": 30,
+            "motion_min_cutoff": 2.0,
+            "motion_beta": 0.001,
+            "prediction_scale": 0.0,
+            "aim_point": 1,
+            "head_offset": 10,
+            "leg_offset": 20,
+            "color_tolerance": 5,
+            "target_fps": 120,
+        },
+        "high_fps": {
+            "target_color": 0xC9008D,
+            "fov_x": 80,
+            "fov_y": 40,
+            "motion_min_cutoff": 0.3,
+            "motion_beta": 0.05,
+            "prediction_scale": 0.5,
+            "aim_point": 1,
+            "head_offset": 0,
+            "leg_offset": 30,
+            "color_tolerance": 0,
+            "target_fps": 1000,
+        },
+    }
+
+    def apply_preset(self, preset_name: str) -> bool:
+        """
+        Apply a preset configuration
+
+        Args:
+            preset_name: Name of the preset to apply
+
+        Returns:
+            True if preset was applied successfully, False otherwise
+        """
+        if preset_name not in self.PRESETS:
+            print(f"Unknown preset: {preset_name}")
+            return False
+
+        preset = self.PRESETS[preset_name]
+
+        print(f"Applying preset: {preset_name}")
+        for key, value in preset.items():
+            self.update(key, value)
+
+        return True
+
+    def get_available_presets(self) -> list[str]:
+        """
+        Get list of available preset names
+
+        Returns:
+            List of preset names
+        """
+        return list(self.PRESETS.keys())

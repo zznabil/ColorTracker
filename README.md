@@ -1,4 +1,4 @@
-# Color Tracking Algo for Single Player Games in Development - V3.4.1
+# Color Tracking Algo for Single Player Games in Development - V3.5.0
 
 A high-performance, modular color tracking and mouse automation tool optimized for responsiveness and stealth.
 
@@ -7,12 +7,18 @@ A high-performance, modular color tracking and mouse automation tool optimized f
 - **Zero-Copy Memory Architecture**: Direct hardware buffer access via `np.frombuffer` views.
 - **High-Resolution Telemetry**: Custom microsecond-level tracing of hot paths (`start_probe`/`stop_probe`) for performance auditing.
 - **Lockless Telemetry**: Single-writer/snapshot-reader pattern for zero-contention performance monitoring.
-- **Config Versioning**: Observer pattern with O(1) version checks to eliminate redundant hot-path logic. 
-- **Optimized Orchestration**: Method reference caching and config hot-reload throttling for peak loop throughput.
+- **Chebyshev Velocity Gating**: Max(dx, dy) speed estimation to eliminate vertical prediction deadzone.
+- **Predictive Stability Logic**: Deceleration dampening and direction-flip suppression to prevent high-scale overshooting.
+- **Adaptive Clamping**: Proximity-based damping in motion engine to prevent overshooting near targets.
+- **Thread-Local MSS Isolation**: Lock-free concurrency via `threading.local()` for screen capture.
+- **DLL Caching**: Cached Windows API function pointers in hot-path for zero-latency input injection.
+- **Config Versioning**: Observer pattern with O(1) version checks to eliminate redundant hot-path logic.
+- **Optimized Orchestration**: Method reference caching and config hot-reload throttling for peak loop throughput (30-1000 FPS).
 - **Allocation-Free Input**: C-structure reuse and function pointer caching in `low_level_movement` ($O(0)$ allocation).
-- **Precision Hybrid Sync**: Fused `time.sleep` and micro-spin-wait for nanosecond timing accuracy without CPU pinning.
+- **Smart Sleep (Hybrid Sync)**: Fused `time.sleep` and micro-spin-wait for nanosecond timing accuracy without CPU pinning.
 - **Self-Healing State Management**: Atomic JSON config persistence with automatic corruption recovery and type-repair.
-- **Professional HUD**: GPU-accelerated Dear PyGui interface with real-time 1% low analytics and visual overlays.
+- **Professional HUD**: GPU-accelerated Dear PyGui interface with real-time 1% low analytics and visual overlays (FOV: 5-500px).
+- **Precision Lens Magnifier**: Circular viewport with crosshair overlay and dynamic data pill for pixel-perfect color picking with real-time HEX/RGB/XY telemetry.
 ## 🏛 Architectural Archetypes
 This project follows a strict structural duality to maintain clinical precision:
 - **Archetype A: The Sage (Logic/Data)**: The `core/` and `utils/` layers. Focused on type-safety, O(1) memory allocation, and deterministic execution.
@@ -35,10 +41,11 @@ This project follows a strict structural duality to maintain clinical precision:
 
 ## 🎮 Usage
 1. Run `python main.py`.
-2. Select your **Target Color** in the Detection tab.
-3. Configure **Motion Engine** settings (min_cutoff/beta) in the Aim tab.
+2. Select your **Target Color** in the VISION tab.
+3. Configure **Motion Engine** settings (min_cutoff/beta) in the COMBAT tab.
 4. Use **PageUp** to **Start Tracking** and **PageDown** to **Stop Tracking**.
 5. Press **F12** to toggle the debug console (requires `debug_mode` enabled).
+
 
 ## 📁 Project Structure
 - `core/`:

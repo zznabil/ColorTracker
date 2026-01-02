@@ -7,7 +7,7 @@ OPTIMIZATIONS (V3.3.0 ULTRATHINK):
 - Utilizes `__slots__` for minimal memory overhead and fast attribute access.
 - Pre-calculated Math Constants to reduce FLOPs.
 - Syscall Avoidance: Reuses time deltas to skip redundant `perf_counter` calls.
-- Velocity Gate Logic: Uses Chebyshev distance (max(dx, dy)) for O(1) speed estimation.
+- Velocity Gate Logic: Uses Chebyshev distance (max(dx, dy)) for O(1) velocity magnitude estimation.
 """
 
 import math
@@ -82,6 +82,8 @@ class MotionEngine:
     _prediction_scale: float = 1.0
     _screen_width: float = 1920.0
     _screen_height: float = 1080.0
+    _fov_x: float = 50.0
+    _fov_y: float = 50.0
 
     def __init__(self, config: Any) -> None:
         self.config = config
@@ -90,6 +92,8 @@ class MotionEngine:
         self.x_filter: OneEuroFilter | None = None
         self.y_filter: OneEuroFilter | None = None
         self._internal_time: float = 0.0
+        self._prev_dx: float = 0.0
+        self._prev_dy: float = 0.0
 
         # Initialize configuration
         self.update_config()
@@ -111,6 +115,8 @@ class MotionEngine:
         self._prediction_scale = self._get_config_float("prediction_scale", 1.0)
         self._screen_width = self._get_config_float("screen_width", 1920.0)
         self._screen_height = self._get_config_float("screen_height", 1080.0)
+        self._fov_x = self._get_config_float("fov_x", 50.0)
+        self._fov_y = self._get_config_float("fov_y", 50.0)
 
         # Ensure parameters are valid
         if not math.isfinite(self._min_cutoff):
@@ -165,6 +171,15 @@ class MotionEngine:
         dx: float = self.x_filter.deriv_prev
         dy: float = self.y_filter.deriv_prev
 
+        # Calculate acceleration (change in derivative over dt)
+        # dt is usually ~0.004 to 0.016. We use the internal time diff.
+        ddx: float = (dx - self._prev_dx) / max(dt, 0.001)
+        ddy: float = (dy - self._prev_dy) / max(dt, 0.001)
+
+        # Update previous derivatives for next frame
+        self._prev_dx = dx
+        self._prev_dy = dy
+
         # Prediction lookahead.
         # We use a 100ms base lookahead (0.1) scaled by prediction_scale.
         # This provides significant projection to overcome filter lag in 'test_prediction_logic'.
@@ -173,17 +188,61 @@ class MotionEngine:
         # Velocity gate: if moving very slowly, reduce prediction to favor smoothing lag.
         vel_scale: float = 1.0
 
-        # ULTRATHINK OPTIMIZATION: Use Chebyshev distance (max) for speed check instead of just dx
+        # ULTRATHINK OPTIMIZATION: Use Chebyshev distance (max) for velocity magnitude check instead of just dx
         # This fixes the bug where vertical-only movement had 0 prediction.
-        speed: float = max(abs(dx), abs(dy))
+        current_velocity: float = max(abs(dx), abs(dy))
 
-        if speed < 100.0:  # If moving < 100 px/sec
+        if current_velocity < 100.0:  # If moving < 100 px/sec
             # OPTIMIZATION: Replaced division with multiplication
-            vel_scale = max(0.0, speed * 0.01)
+            vel_scale = max(0.0, current_velocity * 0.01)
 
         lookahead: float = 0.1 * self._prediction_scale * vel_scale
-        pred_x: float = smoothed_x + (dx * lookahead)
-        pred_y: float = smoothed_y + (dy * lookahead)
+
+        # --- LONG TERM IMPROVEMENTS: Adaptive Prediction & Clamping ---
+
+        # 1. Deceleration Dampening: If we are slowing down (accel opposite to velocity),
+        # reduce prediction lookahead to prevent overshooting the stop.
+        if dx * ddx < 0:
+            lookahead *= 0.5
+        if dy * ddy < 0:
+            lookahead *= 0.5
+
+        # 2. Direction Flip Suppression: If velocity direction just flipped,
+        # zero out prediction to avoid massive spatial jumps.
+        if (dx * self._prev_dx < 0) or (dy * self._prev_dy < 0):
+            lookahead = 0.0
+
+        # 3. Prediction Offset Calculation
+        # --- ADAPTIVE CLAMPING & DAMPING (V3.4.2) ---
+        center_x = self._screen_width * 0.5
+        center_y = self._screen_height * 0.5
+        dist_x = x - center_x
+        dist_y = y - center_y
+        dist = math.sqrt(dist_x * dist_x + dist_y * dist_y)
+
+        # A. Damping Factor: Reduce prediction as target approaches center
+        # prevents overshoot when user is already tracking well.
+        damping_radius = 40.0
+        damping = min(1.0, dist / damping_radius) if dist > 0 else 0.0
+        lookahead *= damping
+
+        off_x = dx * lookahead
+        off_y = dy * lookahead
+
+        # B. Dynamic Adaptive Clamping:
+        # Instead of 150px, use a dynamic limit based on FOV and screen percentage.
+        # Limit prediction to 10% of FOV or 5% of screen, whichever is more appropriate.
+        max_offset = max(10.0, min(self._fov_x * 1.5, self._screen_width * 0.08))
+
+        # Vector-based clamping (preserves direction better than per-axis)
+        offset_mag = math.sqrt(off_x * off_x + off_y * off_y)
+        if offset_mag > max_offset:
+            scale = max_offset / offset_mag
+            off_x *= scale
+            off_y *= scale
+
+        pred_x: float = smoothed_x + off_x
+        pred_y: float = smoothed_y + off_y
 
         # 3. Safety Clamping & Validation
         if not math.isfinite(pred_x):
@@ -202,3 +261,5 @@ class MotionEngine:
         self.x_filter = None
         self.y_filter = None
         self._internal_time = 0.0
+        self._prev_dx = 0.0
+        self._prev_dy = 0.0

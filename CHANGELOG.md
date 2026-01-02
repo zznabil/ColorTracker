@@ -2,11 +2,36 @@
 
 All notable changes to this project will be documented in this file.
 
-## [3.4.1] - 2025-12-30
+## [3.5.0] - 2026-01-02
+### Added (Precision Lens UI Overhaul)
+- **Precision Lens Magnifier**: Redesigned magnifier as a circular viewport with crosshair overlay and dynamic data pill displaying real-time telemetry (HEX, RGB, XY coordinates).
+- **Adaptive Clamping**: Implemented proximity-based damping in `MotionEngine` to prevent overshooting near targets.
+- **Velocity Standardization**: Renamed all "speed" references to "velocity" for consistency across the codebase.
+
+### Refactored (Architecture)
+- **Systems First Initialization**: Refactored `main.py` to initialize core systems (detection, motion, input) before GUI launch for improved startup performance and error handling.
+
+## [3.4.1] - 2026-01-02
+### Added (Precision Picker)
+- **Global Magnifier**: Implemented viewport transformation logic to allow the color picker to track pixels outside the main window boundaries (Desktop, Taskbar, etc.).
+- **Pixel-Perfect Navigation**: Added Arrow Key support (Up/Down/Left/Right) for precise 1px cursor movement during picking mode.
+- **Enhanced Visuals**: 
+  - Integrated manual Nearest-Neighbor upscaling via NumPy for crisp 14x14 pixel blocks.
+  - Added high-contrast center highlight and pixel grid overlay.
+- **Real-Time Telemetry**: Magnifier now displays live HEX, RGB, and XY coordinates.
+- **Color Accuracy**: Refactored `_update_picking_logic` to use NumPy for mathematically correct BGR->RGB conversion, eliminating channel swapping bugs.
+
 ### Added (Harmony Merge)
+- **Predictive Stability Enhancements**: Implemented **Deceleration Dampening**, **Direction-Flip Logic**, and **Distance Clamping** (150px) in `MotionEngine` to eliminate high-scale prediction overshooting.
 - **Chebyshev Velocity Gating**: Injected `max(abs(dx), abs(dy))` speed estimation in `MotionEngine` to fix the vertical prediction deadzone bug.
 - **Scaling Optimization**: Replaced division with pre-calculated multiplication (`_x_scale` / `_y_scale`) in the 1000Hz `move_mouse_absolute` loop.
+- **Zero-Copy Buffer Management**: Direct `np.frombuffer` access to BGRA memory in `DetectionSystem` for allocation-free capture.
+- **Thread-Local MSS Isolation**: Implemented `threading.local()` for MSS instances to ensure lock-free concurrency.
+- **DLL Caching**: Cached Windows API function pointers in `LowLevelMovementSystem` to eliminate repeated DLL lookups.
+- **Smart Sleep Orchestrator**: Hybrid timing loop with `time.sleep` and micro-spin-wait for nanosecond frame pacing.
+- **Telemetry Probes**: High-resolution microsecond tracing (`start_probe`/`stop_probe`) for performance auditing.
 - **Verification Suites**: Harmonized `test_vertical_prediction.py` and `test_low_level_movement_optimization.py` into the main test gate.
+- **Documentation Overhaul**: Updated all .md files (README, User Guide, UI Plan) to reflect V3.4.1 state and actual GUI structure.
 
 ## [3.4.0] - 2025-12-29
 ### Added (Observability)
