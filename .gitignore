@@ -19,3 +19,4 @@ ruff_*.txt
 pyright_*.txt
 test_results.txt
 robustness_results.txt
+vectors.db*
