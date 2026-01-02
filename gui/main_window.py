@@ -290,7 +290,7 @@ def setup_gui(app):
                 # SECTION: OFFSETS (Micro-Adjustments)
                 # Grouped with targeting because they directly affect WHERE we aim
                 with dpg.collapsing_header(label="Precision Offsets", default_open=True):
-                    _create_styled_slider_int(
+                    app.head_offset_slider = _create_styled_slider_int(
                         "Head Offset (px)",
                         app.config.head_offset,
                         0,
@@ -298,7 +298,7 @@ def setup_gui(app):
                         lambda s, a: app.config.update("head_offset", a),
                         "Vertical adjustment when aiming at HEAD.",
                     )
-                    _create_styled_slider_int(
+                    app.leg_offset_slider = _create_styled_slider_int(
                         "Leg Offset (px)",
                         app.config.leg_offset,
                         0,
@@ -375,6 +375,19 @@ def setup_gui(app):
                 # SECTION: COLOR SENSE
                 dpg.add_text("COLOR SPECTRUM", color=(201, 0, 141))
 
+                # Pick Screen Color Button
+                btn_pick = dpg.add_button(
+                    label="  [ ⌖ PICK SCREEN COLOR ]",
+                    tag="btn_pick_color",
+                    callback=lambda: app.start_picking_mode(),
+                    width=-1,
+                    height=30,
+                )
+                with dpg.tooltip(btn_pick):
+                    dpg.add_text("Enter Eyedropper mode. Click anywhere on screen to pick a color. Press ESC to cancel.")
+
+                dpg.add_spacer(height=5)
+
                 # Hex Color handling
                 hex_color = app.config.target_color
                 init_r, init_g, init_b = (hex_color >> 16) & 0xFF, (hex_color >> 8) & 0xFF, hex_color & 0xFF
@@ -391,6 +404,10 @@ def setup_gui(app):
                     # Update Display
                     if dpg.does_item_exist("theme_color_preview_val"):
                         dpg.configure_item("theme_color_preview_val", value=[r, g, b, 255])
+                    if dpg.does_item_exist("theme_color_preview_hover"):
+                        dpg.configure_item("theme_color_preview_hover", value=[r, g, b, 255])
+                    if dpg.does_item_exist("theme_color_preview_active"):
+                        dpg.configure_item("theme_color_preview_active", value=[r, g, b, 255])
                     app.update_tolerance_preview()  # Sync preview
 
                 with dpg.group(horizontal=True):
@@ -416,14 +433,18 @@ def setup_gui(app):
                     dpg.add_spacer(width=10)
                     with dpg.group():
                         dpg.add_text("Preview")
-                        app.color_display_item = dpg.add_button(label="", width=60, height=60)
+                        app.color_display_item = dpg.add_button(label="", width=80, height=80)
                         with dpg.theme() as theme_color_preview:
                             with dpg.theme_component(dpg.mvAll):
                                 dpg.add_theme_color(
                                     dpg.mvThemeCol_Button, (init_r, init_g, init_b), tag="theme_color_preview_val"
                                 )
-                                dpg.add_theme_color(dpg.mvThemeCol_ButtonHovered, (init_r, init_g, init_b))
-                                dpg.add_theme_color(dpg.mvThemeCol_ButtonActive, (init_r, init_g, init_b))
+                                dpg.add_theme_color(
+                                    dpg.mvThemeCol_ButtonHovered, (init_r, init_g, init_b), tag="theme_color_preview_hover"
+                                )
+                                dpg.add_theme_color(
+                                    dpg.mvThemeCol_ButtonActive, (init_r, init_g, init_b), tag="theme_color_preview_active"
+                                )
                         dpg.bind_item_theme(app.color_display_item, theme_color_preview)
                         with dpg.tooltip(app.color_display_item):
                             dpg.add_text("Current target color preview.")
@@ -526,7 +547,7 @@ def setup_gui(app):
 
                 dpg.add_text("PERFORMANCE", color=(201, 0, 141))
 
-                _create_styled_slider_int(
+                app.fps_slider = _create_styled_slider_int(
                     "Target FPS Loop",
                     app.config.target_fps,
                     30,
@@ -575,22 +596,23 @@ def setup_gui(app):
                 def refresh_ui_from_config():
                     """Update all UI elements to match current config"""
                     ui_elements = [
-                        (app.head_offset_slider, app.config.head_offset),
-                        (app.leg_offset_slider, app.config.leg_offset),
-                        (app.tolerance_slider, app.config.color_tolerance),
-                        (app.fov_x_slider, app.config.fov_x),
-                        (app.fov_y_slider, app.config.fov_y),
-                        # (app.fps_slider, app.config.target_fps), # FPS slider callback might loop, safe to set?
-                        (app.min_cutoff_slider, app.config.motion_min_cutoff),
-                        (app.beta_slider, app.config.motion_beta),
-                        (app.prediction_scale_slider, app.config.prediction_scale),
+                        ("head_offset_slider", app.config.head_offset),
+                        ("leg_offset_slider", app.config.leg_offset),
+                        ("tolerance_slider", app.config.color_tolerance),
+                        ("fov_x_slider", app.config.fov_x),
+                        ("fov_y_slider", app.config.fov_y),
+                        ("min_cutoff_slider", app.config.motion_min_cutoff),
+                        ("beta_slider", app.config.motion_beta),
+                        ("prediction_scale_slider", app.config.prediction_scale),
                     ]
 
-                    for item, value in ui_elements:
-                        if hasattr(app, "head_offset_slider") and dpg.does_item_exist(item):
-                            dpg.set_value(item, value)
+                    for attr_name, value in ui_elements:
+                        if hasattr(app, attr_name):
+                            item = getattr(app, attr_name)
+                            if dpg.does_item_exist(item):
+                                dpg.set_value(item, value)
 
-                    if dpg.does_item_exist(app.fps_slider):
+                    if hasattr(app, "fps_slider") and dpg.does_item_exist(app.fps_slider):
                         dpg.set_value(app.fps_slider, app.config.target_fps)
 
                     if hasattr(app, "aim_point_radio") and dpg.does_item_exist(app.aim_point_radio):
@@ -606,6 +628,10 @@ def setup_gui(app):
                         dpg.set_value(app.color_b, b)
                         if hasattr(app, "color_display_item") and dpg.does_item_exist("theme_color_preview_val"):
                             dpg.configure_item("theme_color_preview_val", value=[r, g, b, 255])
+                            if dpg.does_item_exist("theme_color_preview_hover"):
+                                dpg.configure_item("theme_color_preview_hover", value=[r, g, b, 255])
+                            if dpg.does_item_exist("theme_color_preview_active"):
+                                dpg.configure_item("theme_color_preview_active", value=[r, g, b, 255])
 
                     app.update_tolerance_preview()
 

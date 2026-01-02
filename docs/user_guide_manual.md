@@ -1,16 +1,18 @@
-# Color Tracking Algo for Single Player Games in Development - V3.4.1 User Guide
+# Color Tracking Algo for Single Player Games in Development - V3.5.0 User Guide
 
 ## Introduction
-The **Color Tracking Algo for Single Player Games in Development** (V3.4.1) is a professional-grade computer vision utility optimized for high-performance coordinate tracking and automated input research.
+The **Color Tracking Algo for Single Player Games in Development** (V3.5.0) is a professional-grade computer vision utility optimized for high-performance coordinate tracking and automated input research.
 
 ## Features
 - **Extreme Speed Detection**: GPU-accelerated frame processing with cached FOV geometry and `mss` capture.
+- **Predictive Stability Logic**: Deceleration dampening and direction-flip suppression to prevent high-scale overshooting.
+- **Chebyshev Velocity Gating**: Max(dx, dy) speed estimation to resolve vertical prediction deadzones.
 - **Observability Probes**: High-resolution microsecond-level tracing for hot paths (`start_probe`/`stop_probe`).
 - **Titanium Class Optimizations**: Lockless telemetry snapshots $O(0 \text{ contention})$ and version-based config propagation.
-- **Orchestration Gems**: Loop-level method caching and config hot-reload throttling for peak 960 FPS throughput.
+- **Orchestration Gems**: Loop-level method caching and config hot-reload throttling for peak throughput (30-1000 FPS).
 - **Zero-Copy Buffer Management**: Direct `np.frombuffer` access to screen memory avoids O(N) allocation overhead.
 - **Allocation-Free Interaction**: Reuses `ctypes` input structures and caches function pointers to prevent memory allocation churn.
-- **Hybrid Precision Sync**: Fused `time.sleep` and micro-spin-wait for nanosecond timing accuracy via `_smart_sleep`.
+- **Smart Sleep (Hybrid Precision Sync)**: Fused `time.sleep` and micro-spin-wait for nanosecond timing accuracy via `_smart_sleep`.
 - **Adaptive Predictive Tracking**: Real-time velocity-based projection to eliminate smoothing-induced lag.
 
 ## Installation
@@ -29,61 +31,60 @@ The **Color Tracking Algo for Single Player Games in Development** (V3.4.1) is a
 
 ## Configuration (GUI)
 
-### Home Tab
-- **Toggle Tracking**: Main switch to Start/Stop the algo thread.
-- **Master Enable**: Safety switch. Must be **CHECKED** for hotkeys and tracking to function.
-- **Hotkeys**: Displays current keybinds (Default: PageUp to Start, PageDown to Stop).
+### Header Section
+- **Status**: Displays current tracking state (Idle, Scanning, Target Locked).
+- **FPS**: Real-time loop frequency.
+- **ACTIVATE TRACKING**: Main switch to Start/Stop the algo thread.
 
-### Aim Tab
-- **Targeting Settings**:
+### COMBAT Tab
+- **TARGET PRIORITY**:
     *   **Aim At**: Select target region (Head, Body, Legs).
-- **Motion Engine (1 Euro Filter)**:
-    *   **min_cutoff**: Controls smoothness. Lower values (e.g., 0.01) reduce jitter but increase lag.
-    *   **beta**: Controls responsiveness. Higher values (e.g., 0.05) reduce lag during fast movement.
-    *   **Prediction Scale**: Velocity lookahead multiplier. Set to **0.0** to disable prediction.
-- **Micro-Adjustments (Spatial Correction)**:
-    *   **Head Offset**: Distance (pixels) to aim **ABOVE** the detected center. Internally processed as a negative subtraction.
-    *   **Legs Offset**: Distance (pixels) to aim **BELOW** the detected center. Internally processed as a positive addition.
+- **Precision Offsets**:
+    *   **Head Offset**: Vertical adjustment when aiming at HEAD.
+    *   **Leg Offset**: Vertical adjustment when aiming at LEGS.
+- **MOTION PHYSICS (1 Euro Filter)**:
+    *   **Stabilization (Min Cutoff)**: Lower (0.1) = Heavy/Smooth. High (25.0) = Raw/Responsive.
+    *   **Reflex Speed (Beta)**: Higher = Faster reaction to sudden direction changes.
+    *   **Velocity Prediction**: Velocity lookahead multiplier. Set to **0.0** to disable prediction.
+    *   **Adaptive Clamping**: Proximity-based damping prevents overshooting when approaching targets.
 
-### Detection Tab
-- **Color Sensing**:
-    *   **Target Color**: Click the color picker to select the specific outline or center color.
-    *   **Tolerance**: How strict the match is (0-255). Snaps to 5-unit increments. Uses a 2.5x gain factor for detection stability.
-- **Search Area (FOV)**:
-    *   **Width/Height**: Detection area size. Smaller areas yield higher FPS. Snaps to 5px increments. Lower limit 5px.
-    *   **Show Visual Search Box**: Toggles the green FOV overlay.
+### VISION Tab
+- **COLOR SPECTRUM**:
+    *   **PICK SCREEN COLOR**: Enter Precision Lens magnifier mode. Use the circular viewport with crosshair to precisely select colors, with real-time HEX/RGB/XY telemetry in the dynamic data pill. Press ESC to cancel.
+    *   **RGB Sliders**: Manual fine-tuning of target color.
+    *   **Preview Box**: Shows current selected target color.
+- **Tolerance (Match Width)**:
+    *   **Slider**: How 'strict' the color match is. Lower = Stricter.
+    *   **Tolerance Visualizer**: Shows the allowed color range based on tolerance.
+- **FIELD OF VIEW (FOV)**:
+    *   **W/H**: Detection area size. Smaller areas yield higher FPS.
+    *   **Show Overlay (Green Box)**: Toggles the green FOV visualizer on screen.
 
-### System Tab
-- **Performance**:
-    *   **Target FPS**: Loop speed (120-960 FPS). Snaps to 120fps increments. Higher FPS requires more CPU/GPU.
-- **Reset**:
-    *   **Reset All Settings**: Reverts `config.json` to factory defaults immediately.
+### SYSTEM Tab
+- **INPUT BINDINGS**: Displays current PageUp/PageDown hotkeys.
+- **PERFORMANCE**:
+    *   **Target FPS Loop**: Max cycles per second for the core thread (30-1000).
+- **DEBUGGING**:
+    *   **Enable Debug Console**: Toggles the F12 clinical logs console.
+- **RESET**:
+    *   **RESET ALL SETTINGS**: Reverts `config.json` to factory defaults immediately.
 
-## Stats & Analytics
-### Stats Tab
-- **Real-Time Analytics**:
-    *   **FPS/Latency**: Shows current loop speed and processing delay (ms).
-    *   **1% Lows**: Detects micro-stutters and frame-drops.
-    *   **Missed Frames**: Count of frames failing to meet the target time interval.
-
-### Debug Console (F12)
-Accessible if `debug_mode` is enabled. Provides clinical logs for detection events, movement injection, and system errors.
+### STATS Tab
+- **Real-Time Analytics**: Current FPS, Avg Latency, 1% Lows, and Missed Frames.
+- **History Graphs**: 1000-frame history for FPS and Latency/Detection times.
 
 ## 🧠 Advanced Physics Tuning (`config.json`)
-The **1 Euro Filter** manages the tradeoff between jitter and lag using two main parameters:
-- **`motion_min_cutoff` ($f_{c_{min}}$)**: The minimum cutoff frequency. A lower value (0.01-0.1) creates a "heavy" feel with zero jitter at rest.
-- **`motion_beta` ($\beta$)**: The velocity relationship. A higher value (0.05-0.5) allows the cutoff frequency to increase rapidly with speed, eliminating lag during fast tracking.
-- **`ultra_responsive_mode`**: Prioritizes raw throughput for high-refresh monitors.
-- **`zero_latency_mode`**: Surgical bypass of non-essential smoothing buffers.
+The **1 Euro Filter** manages the tradeoff between jitter and lag:
+- **`motion_min_cutoff`**: Minimum cutoff frequency. Low (0.01-0.1) for zero jitter at rest.
+- **`motion_beta`**: Velocity relationship. High (0.05-0.3) to eliminate lag during fast tracking.
 
 ### Orchestration & Loop Timing
-V3.2.3 introduces a **Hybrid Precision Timing Loop**:
-1. **Coarse Sleep**: For frame intervals >1ms, the system uses `time.sleep(90%)` to yield CPU cycles.
-2. **Nanosecond Spin-Wait**: For the final micro-intervals, the system enters a tight `while` loop to ensure frame release within $\pm 0.05$ms precision.
-3. **Internal Caching**: All high-frequency attribute lookups (e.g., `self.detection.find_target`) are pre-cached as local variables before entering the loop.
+V3.4.1 uses a **Hybrid Precision Timing Loop**:
+1. **Coarse Sleep**: For frame intervals >3ms, the system uses `time.sleep()`.
+2. **Nanosecond Spin-Wait**: For the final micro-intervals, the system busy-waits for $\pm 0.05$ms precision.
 
-## 👮 The Policeman (Verification Loop)
-To ensure the algo is running at peak performance and adheres to the architectural standards, execute the following from the project root:
+## 👮 Verification Loop
+Execute from project root:
 1. **Linting**: `python -m ruff check .`
 2. **Type Safety**: `python -m pyright .`
 3. **Logic Integrity**: `python -m pytest`
@@ -94,9 +95,9 @@ To ensure the algo is running at peak performance and adheres to the architectur
 - **F12**: Toggle Debug Console (If enabled)
 
 ## Troubleshooting
-- **No Movement?** Verify "Master Enable" is checked and "Target Color" is accurately picked. Borderless Window mode is required for most games.
+- **No Movement?** Verify "ACTIVATE TRACKING" is pressed. Borderless Window mode is required.
 - **Jitter?** Decrease `min_cutoff` or increase `Tolerance`.
 - **Lag?** Increase `beta` or reduce the FOV size.
 
 ## Disclaimer
-This software is for educational, research, and development purposes only. Use in commercial or online environments may violate third-party Terms of Service.
+Educational and research use only. Adhere to all third-party Terms of Service.
