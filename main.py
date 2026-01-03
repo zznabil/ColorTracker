@@ -77,17 +77,6 @@ class ColorTrackerAlgo:
         # 1. Initialize DearPyGUI context first
         dpg.create_context()
 
-        # Optimize Windows Timer Resolution (High Precision Mode)
-        # This is CRITICAL for _smart_sleep to work correctly with millisecond accuracy.
-        # Without this, time.sleep() has a resolution of ~15.6ms (64 FPS cap).
-        try:
-            self._winmm = ctypes.windll.winmm
-            self._winmm.timeBeginPeriod(1)
-            self.logger.debug("Windows timer resolution set to 1ms")
-        except Exception:
-            self._winmm = None
-            self.logger.warning("Failed to set Windows timer resolution")
-
         # 2. Load configuration early so other systems can use it
         self.config = Config()
         self.config.load()
@@ -136,6 +125,17 @@ class ColorTrackerAlgo:
                     return False
 
             self.logger = MockLogger()
+
+        # Optimize Windows Timer Resolution (High Precision Mode)
+        # This is CRITICAL for _smart_sleep to work correctly with millisecond accuracy.
+        # Without this, time.sleep() has a resolution of ~15.6ms (64 FPS cap).
+        try:
+            self._winmm = ctypes.windll.winmm
+            self._winmm.timeBeginPeriod(1)
+            self.logger.debug("Windows timer resolution set to 1ms")
+        except Exception:
+            self._winmm = None
+            self.logger.warning("Failed to set Windows timer resolution")
 
         # 4. Get screen information and log system details
         screen_width, screen_height = ScreenInfo.get_screen_size()
