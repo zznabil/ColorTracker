@@ -4,29 +4,47 @@ import random
 import sys
 import threading
 import time
-
+import math
+import random
+import threading
 import dearpygui.dearpygui as dpg
+import sys
+import os
+import ctypes
 
 # Add project root to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.detection import DetectionSystem
-from core.motion_engine import MotionEngine
 from utils.config import Config
 from utils.performance_monitor import PerformanceMonitor
+from core.detection import DetectionSystem
+from core.motion_engine import MotionEngine
+
+
+def get_screen_size():
+    user32 = ctypes.windll.user32
+    user32.SetProcessDPIAware()
+    w = user32.GetSystemMetrics(0)
+    h = user32.GetSystemMetrics(1)
+    return w, h
 
 
 class RobustnessBenchmark:
     def __init__(self):
+        self.screen_w, self.screen_h = get_screen_size()
+        print(f"[-] Detected Screen Size: {self.screen_w}x{self.screen_h}")
+
         self.config = Config()
         self.config.load()
         self.perf_monitor = PerformanceMonitor()
 
         # Override config for benchmark
         self.config.target_fps = 1000
+        self.config.screen_width = self.screen_w
+        self.config.screen_height = self.screen_h
         # Increase FOV to ensure target stays in view during large movements
-        self.config.fov_x = 600
-        self.config.fov_y = 600
+        self.config.fov_x = self.screen_w // 2
+        self.config.fov_y = self.screen_h // 2
         self.config.capture_method = "bettercam"  # Use ultra-speed if available
         self.config.target_color = 0x00FF00  # Green
         self.config.color_tolerance = 20
@@ -44,8 +62,6 @@ class RobustnessBenchmark:
         self.motion = MotionEngine(self.config)
 
         self.running = False
-        self.screen_w = 1920
-        self.screen_h = 1080
         self.center_x = self.screen_w // 2
         self.center_y = self.screen_h // 2
 
@@ -55,8 +71,9 @@ class RobustnessBenchmark:
         # Simulation parameters
         self.noise_intensity = 8.0  # High noise
         self.target_speed = 1.5
-        self.loop_scale_x = 400
-        self.loop_scale_y = 200
+        # Scale loop based on screen size (keeps it visible)
+        self.loop_scale_x = self.screen_w * 0.25
+        self.loop_scale_y = self.screen_h * 0.25
 
         # Metrics
         self.history_dist = []
@@ -136,20 +153,27 @@ class RobustnessBenchmark:
 
     def run_gui(self):
         dpg.create_context()
-        dpg.create_viewport(title="Tracking Robustness Benchmark (Phase 6)", width=1920, height=1080)
+        # Use full screen resolution for viewport
+        dpg.create_viewport(
+            title="Tracking Robustness Benchmark (Phase 6)", width=self.screen_w, height=self.screen_h, decorated=False
+        )
         dpg.setup_dearpygui()
-        # dpg.toggle_viewport_fullscreen()
 
-        # Use explicit tag for the window
+        # Maximize and remove border for "True Fullscreen" feel
+        dpg.toggle_viewport_fullscreen()
+
+        # Use explicit tag for the window and ensure it covers full screen
         with dpg.window(
             label="Overlay",
             tag="benchmark_window",
-            width=1920,
-            height=1080,
+            width=self.screen_w,
+            height=self.screen_h,
+            pos=(0, 0),
             no_title_bar=True,
             no_move=True,
             no_resize=True,
             no_background=True,
+            no_bring_to_front_on_focus=True,
         ):
             dpg.add_draw_layer(tag="overlay_layer")
 
@@ -159,12 +183,16 @@ class RobustnessBenchmark:
 
         dpg.show_viewport()
         dpg.set_primary_window("benchmark_window", True)
+        # Force window to top
+        # dpg.set_viewport_always_top(True) # Optional, can interfere with interaction
 
         # Run for 10 seconds then exit (User requirement)
         start_time = time.time()
+        print(f"[-] GUI Running. Benchmark duration: 10s. Screen: {self.screen_w}x{self.screen_h}")
 
         while dpg.is_dearpygui_running():
             if time.time() - start_time > 10.0:
+                print("[-] Benchmark complete. Closing...")
                 break
 
             dpg.delete_item("overlay_layer", children_only=True)
