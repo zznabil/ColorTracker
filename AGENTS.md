@@ -32,6 +32,7 @@ python main.py
 
 ### Python & Types
 - **Version**: Python 3.12+ with strict type hints required
+- **Configuration**: Managed via `pyproject.toml`
 - **Line length**: 120 characters (enforced by Ruff)
 - **Indentation**: 4 spaces
 - **Quotes**: Double quotes for strings
@@ -212,4 +213,12 @@ main.py        # Entry point with Hybrid Sync
 
 ---
 
-**Version**: V3.5.0 | **Python**: 3.12+
+### V3.5.1 Hardening & QoL
+- **Policeman Protocol**: Full resource safety audit. Implemented `try...finally` for GDI DC and hardened Clipboard API with `GlobalLock`/`GlobalUnlock`/`GlobalFree`.
+- **Thread-Safety**: Implemented `threading.Lock` across all shared state: `running` flag, `Logger` frequency dicts, `PerformanceMonitor` telemetry, and `KeyboardListener` callbacks.
+- **Numerical Stability**: Fixed `MotionEngine` 1-Euro filter direction-flip suppression and high-FPS stability (>1000 FPS).
+- **UX/QoL**: Dynamic hotkey rebinding (restart-free), pulsing "ACTIVE" indicator, Stealth Mode (WDA), and FOV persistence.
+
+---
+
+**Version**: V3.5.1 | **Python**: 3.12+

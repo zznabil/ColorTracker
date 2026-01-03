@@ -6,6 +6,7 @@ Keyboard Listener Utility
 Handles keyboard input for hotkeys and rebinding.
 """
 
+import threading
 from collections.abc import Callable
 
 from pynput import keyboard
@@ -22,6 +23,7 @@ class KeyboardListener:
             config: Configuration object with hotkey settings
         """
         self.config = config
+        self._lock = threading.Lock()
 
         # Callback functions
         self.callbacks = {}
@@ -38,20 +40,22 @@ class KeyboardListener:
         """
         Start the keyboard listener
         """
-        if not self.running:
-            self.running = True
-            self.listener = keyboard.Listener(on_press=self._on_key_press, on_release=self._on_key_release)
-            self.listener.daemon = True
-            self.listener.start()
+        with self._lock:
+            if not self.running:
+                self.running = True
+                self.listener = keyboard.Listener(on_press=self._on_key_press, on_release=self._on_key_release)
+                self.listener.daemon = True
+                self.listener.start()
 
     def stop(self):
         """
         Stop the keyboard listener
         """
-        if self.running and self.listener:
-            self.running = False
-            self.listener.stop()
-            self.listener = None
+        with self._lock:
+            if self.running and self.listener:
+                self.running = False
+                self.listener.stop()
+                self.listener = None
 
     def register_callback(self, key_name: str, callback: Callable, on_press: bool = True):
         """
@@ -64,10 +68,11 @@ class KeyboardListener:
         """
         event_type = "press" if on_press else "release"
         key_name = key_name.lower()
-        if key_name not in self.callbacks:
-            self.callbacks[key_name] = {}
+        with self._lock:
+            if key_name not in self.callbacks:
+                self.callbacks[key_name] = {}
 
-        self.callbacks[key_name][event_type] = callback
+            self.callbacks[key_name][event_type] = callback
 
     def remove_callback(self, key_name: str, on_press: bool = True):
         """
@@ -79,11 +84,12 @@ class KeyboardListener:
         """
         event_type = "press" if on_press else "release"
         key_name = key_name.lower()
-        if key_name in self.callbacks and event_type in self.callbacks[key_name]:
-            del self.callbacks[key_name][event_type]
-            # Clean up empty dicts
-            if not self.callbacks[key_name]:
-                del self.callbacks[key_name]
+        with self._lock:
+            if key_name in self.callbacks and event_type in self.callbacks[key_name]:
+                del self.callbacks[key_name][event_type]
+                # Clean up empty dicts
+                if not self.callbacks[key_name]:
+                    del self.callbacks[key_name]
 
     def listen_for_single_key(self, callback: Callable[[str], None]):
         """
@@ -105,25 +111,26 @@ class KeyboardListener:
         """
         key_name = self._get_key_name(key)
 
-        # Handle binding mode
-        if self._bind_mode:
-            if self._bind_callback:
-                # Call the binding callback
+        with self._lock:
+            # Handle binding mode
+            if self._bind_mode:
+                if self._bind_callback:
+                    # Call the binding callback
+                    try:
+                        self._bind_callback(key_name)
+                    except Exception as e:
+                        print(f"Error in binding callback: {e}")
+
+                # Reset binding mode
+                self._bind_mode = False
+                self._bind_callback = None
+                return
+
+            if key_name in self.callbacks and "press" in self.callbacks[key_name]:
                 try:
-                    self._bind_callback(key_name)
+                    self.callbacks[key_name]["press"]()
                 except Exception as e:
-                    print(f"Error in binding callback: {e}")
-
-            # Reset binding mode
-            self._bind_mode = False
-            self._bind_callback = None
-            return
-
-        if key_name in self.callbacks and "press" in self.callbacks[key_name]:
-            try:
-                self.callbacks[key_name]["press"]()
-            except Exception as e:
-                print(f"Error in hotkey callback (press): {e}")
+                    print(f"Error in hotkey callback (press): {e}")
 
     def _on_key_release(self, key):
         """
@@ -133,16 +140,18 @@ class KeyboardListener:
             key: The key that was released
         """
         # Ignore release events in binding mode
-        if self._bind_mode:
-            return
+        with self._lock:
+            if self._bind_mode:
+                return
 
         key_name = self._get_key_name(key)
 
-        if key_name in self.callbacks and "release" in self.callbacks[key_name]:
-            try:
-                self.callbacks[key_name]["release"]()
-            except Exception as e:
-                print(f"Error in hotkey callback (release): {e}")
+        with self._lock:
+            if key_name in self.callbacks and "release" in self.callbacks[key_name]:
+                try:
+                    self.callbacks[key_name]["release"]()
+                except Exception as e:
+                    print(f"Error in hotkey callback (release): {e}")
 
     def _get_key_name(self, key):
         """

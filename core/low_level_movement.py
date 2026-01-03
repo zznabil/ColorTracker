@@ -188,6 +188,10 @@ class LowLevelMovementSystem:
         """
         Move mouse by relative offset using SendInput (low-level)
         """
+        # Safety: Clamp to 32-bit signed LONG range to prevent ctypes overflow
+        dx = max(-2147483648, min(2147483647, int(dx)))
+        dy = max(-2147483648, min(2147483647, int(dy)))
+
         self.perf_monitor.start_probe("movement_input")
         try:
             # Use cached function pointer if available

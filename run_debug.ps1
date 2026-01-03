@@ -56,7 +56,7 @@ try {
     # NEW: Attempt to download and install Python (enhanced feature)
     try {
         Write-Host "Downloading Python installer..." -ForegroundColor Yellow
-        Invoke-WebRequest -Uri "https://www.python.org/ftp/python/3.11.0/python-3.11.0-amd64.exe" -OutFile "python_installer.exe"
+        Invoke-WebRequest -Uri "https://www.python.org/ftp/python/3.12.1/python-3.12.1-amd64.exe" -OutFile "python_installer.exe"
         Write-Host "Installing Python (this may take a few minutes)..." -ForegroundColor Yellow
         Start-Process -FilePath ".\python_installer.exe" -ArgumentList "/quiet InstallAllUsers=1 PrependPath=1" -Wait
         Remove-Item "python_installer.exe" -Force

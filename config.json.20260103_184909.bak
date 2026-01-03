@@ -1,0 +1,22 @@
+{
+    "aim_point": 1,
+    "color_history": [],
+    "color_tolerance": 10,
+    "debug_mode": false,
+    "enabled": false,
+    "fov_overlay_enabled": false,
+    "fov_x": 50,
+    "fov_y": 50,
+    "head_offset": 20,
+    "leg_offset": 30,
+    "motion_beta": 0.005,
+    "motion_min_cutoff": 0.5,
+    "prediction_scale": 1.0,
+    "preset_name": "default",
+    "screen_height": 1080,
+    "screen_width": 1920,
+    "start_key": "page_up",
+    "stop_key": "page_down",
+    "target_color": 13172877,
+    "target_fps": 240
+}

@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.5.1] - 2026-01-03
+### Added (Hardening & QoL)
+- **Stealth Mode**: Implemented `SetWindowDisplayAffinity` (WDA_EXCLUDEFROMCAPTURE) to hide the GUI from screen capture software (OBS, Discord).
+- **Dynamic Hotkey Rebinding**: Enabled instant hotkey updates without application restart by refactoring the `KeyboardListener` registry.
+- **Pulsing Status Indicator**: Added dynamic alpha-modulated pulsing for the "ACTIVE" status indicator to provide better visual feedback.
+- **DPI Awareness Logging**: Integrated system DPI scale factor reporting during initialization for improved coordinate troubleshooting.
+
+### Fixed (Stability & Resources)
+- **GDI Resource Safety**: Fixed a critical Device Context (DC) leak in the color picker by wrapping GDI calls in `try...finally` blocks.
+- **Clipboard Hardening**: Refactored clipboard interaction with robust Win32 memory management (`GlobalLock`/`GlobalFree`) and error handling.
+- **Threading Safety**: Eliminated race conditions by implementing `threading.Lock` across `running` state, `Logger` buffers, `PerformanceMonitor` telemetry, and `KeyboardListener` callbacks.
+- **Motion Stability**: Resolved numerical "spikes" at extreme frame rates (>1000 FPS) and fixed a logic bug in direction-flip suppression.
+- **GUI Crash**: Fixed a `SystemError` caused by an unsupported `width` parameter in `dpg.add_text`.
+- **FOV Persistence**: Resolved a state-sync issue where FOV overlay visibility would reset to default on launch.
+
+### Quality
+- **Packaging**: Modernized project structure with `pyproject.toml` and updated `requirements.txt` to current library versions (DearPyGui 2.1.1, MSS 10.1.0).
+- **Documentation**: Updated badges, version references, and setup scripts to align with Python 3.12+ requirements.
+- Cleaned up `ruff` linting violations and optimized hot-path logging using `hash()` instead of `md5`.
+- Removed ghost `nul` file and identified dead code in `gui/color_picker.py`.
+
 ## [3.5.0] - 2026-01-02
 ### Added (Precision Lens UI Overhaul)
 - **Precision Lens Magnifier**: Redesigned magnifier as a circular viewport with crosshair overlay and dynamic data pill displaying real-time telemetry (HEX, RGB, XY coordinates).

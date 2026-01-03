@@ -141,9 +141,20 @@ class MotionEngine:
         # Determine current time using dt if provided, otherwise real time.
         # This ensures deterministic behavior in tests that pass dt=0.016.
         if dt > 1e-6:
+            # ULTRATHINK: Avoid accumulation drift by syncing with perf_counter periodically
+            # or simply using perf_counter if accuracy is needed over determinism.
+            # For tests, we use the internal_time but clamp it to actual time if drift is high.
             if self._internal_time == 0.0:
                 self._internal_time = time.perf_counter()
+
+            # Record actual counter for drift compensation
+            actual_now = time.perf_counter()
             self._internal_time += dt
+
+            # If drift exceeds 50ms, re-sync to avoid runaway desync
+            if abs(self._internal_time - actual_now) > 0.05:
+                self._internal_time = actual_now
+
             current_time = self._internal_time
         else:
             current_time = time.perf_counter()
@@ -172,13 +183,14 @@ class MotionEngine:
         dy: float = self.y_filter.deriv_prev
 
         # Calculate acceleration (change in derivative over dt)
-        # dt is usually ~0.004 to 0.016. We use the internal time diff.
-        ddx: float = (dx - self._prev_dx) / max(dt, 0.001)
-        ddy: float = (dy - self._prev_dy) / max(dt, 0.001)
+        # ULTRATHINK: Use a smaller epsilon (1e-6) to avoid massive spikes at high FPS (>1000)
+        dt_stable = max(dt, 1e-6)
+        ddx: float = (dx - self._prev_dx) / dt_stable
+        ddy: float = (dy - self._prev_dy) / dt_stable
 
-        # Update previous derivatives for next frame
-        self._prev_dx = dx
-        self._prev_dy = dy
+        # Update previous derivatives for next frame (MOVED AFTER DIRECTION FLIP CHECK)
+        # self._prev_dx = dx
+        # self._prev_dy = dy
 
         # Prediction lookahead.
         # We use a 100ms base lookahead (0.1) scaled by prediction_scale.
@@ -211,6 +223,10 @@ class MotionEngine:
         # zero out prediction to avoid massive spatial jumps.
         if (dx * self._prev_dx < 0) or (dy * self._prev_dy < 0):
             lookahead = 0.0
+
+        # Update previous derivatives for next frame
+        self._prev_dx = dx
+        self._prev_dy = dy
 
         # 3. Prediction Offset Calculation
         # --- ADAPTIVE CLAMPING & DAMPING (V3.4.2) ---

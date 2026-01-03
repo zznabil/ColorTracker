@@ -74,6 +74,18 @@ class DetectionSystem:
         # Optimization: Pre-allocate capture area dictionaries to avoid per-frame allocation
         self._capture_area = {"left": 0, "top": 0, "width": 0, "height": 0}
 
+    def close(self) -> None:
+        """
+        Cleanup resources for the current thread.
+        Should be called when the thread using this system is terminating.
+        """
+        if hasattr(self._local, "sct"):
+            try:
+                self._local.sct.close()
+            except Exception:
+                pass
+            del self._local.sct
+
     def _get_sct(self) -> Any:
         """
         Get thread-local MSS instance
@@ -112,7 +124,6 @@ class DetectionSystem:
             self._upper_bound = np.array([upper_bgr[0], upper_bgr[1], upper_bgr[2], 255], dtype=np.uint8)
 
         # Cache update complete
-
 
     def _update_fov_cache(self) -> None:
         """
@@ -191,6 +202,13 @@ class DetectionSystem:
 
             return True, img_bgra
         except Exception:
+            # Robustness: Close and recreate MSS instance on next call if grab fails
+            if hasattr(self._local, "sct"):
+                try:
+                    self._local.sct.close()
+                except Exception:
+                    pass
+                del self._local.sct
             return False, None
         finally:
             self.perf_monitor.stop_probe("detection_capture")

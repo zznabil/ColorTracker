@@ -1,19 +1,19 @@
-# Color Tracking Algo for Single Player Games in Development - V3.5.0 User Guide
+# Color Tracking Algo for Single Player Games in Development - V3.5.1 User Guide
 
 ## Introduction
-The **Color Tracking Algo for Single Player Games in Development** (V3.5.0) is a professional-grade computer vision utility optimized for high-performance coordinate tracking and automated input research.
+The **Color Tracking Algo for Single Player Games in Development** (V3.5.1) is a hardened, professional-grade computer vision utility optimized for high-performance coordinate tracking and automated input research.
 
 ## Features
-- **Extreme Speed Detection**: GPU-accelerated frame processing with cached FOV geometry and `mss` capture.
-- **Predictive Stability Logic**: Deceleration dampening and direction-flip suppression to prevent high-scale overshooting.
-- **Chebyshev Velocity Gating**: Max(dx, dy) speed estimation to resolve vertical prediction deadzones.
-- **Observability Probes**: High-resolution microsecond-level tracing for hot paths (`start_probe`/`stop_probe`).
-- **Titanium Class Optimizations**: Lockless telemetry snapshots $O(0 \text{ contention})$ and version-based config propagation.
-- **Orchestration Gems**: Loop-level method caching and config hot-reload throttling for peak throughput (30-1000 FPS).
-- **Zero-Copy Buffer Management**: Direct `np.frombuffer` access to screen memory avoids O(N) allocation overhead.
-- **Allocation-Free Interaction**: Reuses `ctypes` input structures and caches function pointers to prevent memory allocation churn.
-- **Smart Sleep (Hybrid Precision Sync)**: Fused `time.sleep` and micro-spin-wait for nanosecond timing accuracy via `_smart_sleep`.
-- **Adaptive Predictive Tracking**: Real-time velocity-based projection to eliminate smoothing-induced lag.
+- **Stealth Mode**: Hide the GUI from OBS, Discord, and other capture tools using `SetWindowDisplayAffinity`.
+- **Dynamic Hotkeys**: Rebind your start/stop keys instantly without restarting the app.
+- **Hardened Core**: Thread-safe state management and leak-proof resource handling (GDI/Clipboard).
+- **Extreme Speed Detection**: <2.5ms frame processing with cached FOV geometry and `mss` capture.
+- **Predictive Stability**: Improved 1-Euro Filter with numerical stability fixes for high-FPS monitors.
+- **Observability Probes**: High-resolution microsecond-level tracing for hot paths.
+- **Titanium Class Optimizations**: Lock-based thread safety with transactional snapshot-reading.
+- **Zero-Copy Buffer Management**: Direct `np.frombuffer` access to screen memory.
+- **Smart Sleep**: Fused `time.sleep` and micro-spin-wait for nanosecond timing accuracy.
+
 
 ## Installation
 1.  **Prerequisites**:
@@ -47,6 +47,8 @@ The **Color Tracking Algo for Single Player Games in Development** (V3.5.0) is a
     *   **Reflex Speed (Beta)**: Higher = Faster reaction to sudden direction changes.
     *   **Velocity Prediction**: Velocity lookahead multiplier. Set to **0.0** to disable prediction.
     *   **Adaptive Clamping**: Proximity-based damping prevents overshooting when approaching targets.
+- **RESET**:
+    *   **RESET MOTION SETTINGS**: Reverts only the Combat/Motion settings to defaults.
 
 ### VISION Tab
 - **COLOR SPECTRUM**:
@@ -59,9 +61,16 @@ The **Color Tracking Algo for Single Player Games in Development** (V3.5.0) is a
 - **FIELD OF VIEW (FOV)**:
     *   **W/H**: Detection area size. Smaller areas yield higher FPS.
     *   **Show Overlay (Green Box)**: Toggles the green FOV visualizer on screen.
+- **RESET**:
+    *   **RESET VISION SETTINGS**: Reverts only the Vision/Color settings to defaults.
 
 ### SYSTEM Tab
-- **INPUT BINDINGS**: Displays current PageUp/PageDown hotkeys.
+- **INPUT BINDINGS**: Displays current PageUp/PageDown hotkeys. Automatically checks for conflicts.
+- **LOGS & BACKUP**:
+    *   **OPEN LOGS FOLDER**: Opens the directory containing application logs for troubleshooting.
+    *   **QUICK BACKUP**: Creates a timestamped copy of your configuration (`config.json.BAK`).
+- **PRESETS**: Select from pre-tuned configurations (Default, Aggressive, Precise, High FPS). Selection is remembered across restarts.
+- **STEALTH MODE**: Enable to hide the GUI from screen capture software (requires SYSTEM tab access).
 - **PERFORMANCE**:
     *   **Target FPS Loop**: Max cycles per second for the core thread (30-1000).
 - **DEBUGGING**:

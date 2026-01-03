@@ -10,15 +10,17 @@ from main import ColorTrackerAlgo  # noqa: E402
 
 
 def run_benchmark():
-    print("Starting benchmark (10s for test run)...") # 10s for quick verification, spec says 60s. I'll do 10s for "implementation" validation.
+    print(
+        "Starting benchmark (10s for test run)..."
+    )  # 10s for quick verification, spec says 60s. I'll do 10s for "implementation" validation.
 
     # Create app
     app = ColorTrackerAlgo()
-    app.config.enabled = True # Enable tracking
+    app.config.enabled = True  # Enable tracking
     app.running = True
 
     # Start the loop in a separate thread
-    t = threading.Thread(target=app.algo_loop, daemon=True)
+    t = threading.Thread(target=app._algo_loop_internal, daemon=True)
     t.start()
 
     # Let it run
@@ -60,6 +62,7 @@ def run_benchmark():
             print(f"  Max:   {p_stats['max_ms']:.4f} ms")
         else:
             print(f"[{name}] No data recorded.")
+
 
 if __name__ == "__main__":
     run_benchmark()

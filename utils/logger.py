@@ -6,9 +6,9 @@ Logger Utility
 Provides logging functionality for the application with rate limiting and spam prevention.
 """
 
-import hashlib
 import logging
 import os
+import threading
 import time
 from collections import defaultdict, deque
 from datetime import datetime
@@ -31,6 +31,7 @@ class Logger:
             backup_count: Number of backup log files to keep (default: 5)
         """
         # Rate limiting and spam prevention
+        self._lock = threading.Lock()
         self.message_counts = defaultdict(int)  # Track message frequency
         self.last_message_time = defaultdict(float)  # Track last occurrence time
         self.suppressed_messages = defaultdict(int)  # Track suppressed message counts
@@ -111,39 +112,37 @@ class Logger:
         Returns:
             bool: True if message should be logged, False if suppressed
         """
-        # Create a hash of the message for tracking
-        message_hash = hashlib.md5(message.encode()).hexdigest()
+        # Fast path: use Python's built-in hash for session-local identity
+        # Much faster than hashlib.md5 for high-frequency logs
+        message_hash = hash(message)
         current_time = time.time()
 
-        # Check if this is a spam message (too frequent)
-        if message_hash in self.last_message_time:
-            time_diff = current_time - self.last_message_time[message_hash]
-            if time_diff < (1.0 / self.spam_threshold):  # Less than spam threshold interval
-                self.suppressed_messages[message_hash] += 1
-                return False
+        with self._lock:
+            # Check if this is a spam message (too frequent)
+            if message_hash in self.last_message_time:
+                time_diff = current_time - self.last_message_time[message_hash]
+                if time_diff < (1.0 / self.spam_threshold):  # Less than spam threshold interval
+                    self.suppressed_messages[message_hash] += 1
+                    return False
 
-        # Update tracking
-        if message_hash not in self.last_message_time:
-            self.last_spam_report[message_hash] = current_time
+            # Update tracking
+            if message_hash not in self.last_message_time:
+                self.last_spam_report[message_hash] = current_time
 
-        self.last_message_time[message_hash] = current_time
-        self.message_counts[message_hash] += 1
+            self.last_message_time[message_hash] = current_time
+            self.message_counts[message_hash] += 1
 
-        # Clean up old entries (older than rate limit window)
-        cleanup_time = current_time - self.rate_limit_window
-        keys_to_remove = []
-        for key, last_time in self.last_message_time.items():
-            if last_time < cleanup_time:
-                keys_to_remove.append(key)
+            # Periodically clean up old entries (older than rate limit window)
+            # Only do this occasionally to save CPU
+            if len(self.last_message_time) > 100 and current_time % 10 < 0.1:
+                cleanup_time = current_time - self.rate_limit_window
+                keys_to_remove = [k for k, v in self.last_message_time.items() if v < cleanup_time]
+                for key in keys_to_remove:
+                    del self.last_message_time[key]
+                    self.message_counts.pop(key, None)
+                    self.suppressed_messages.pop(key, None)
 
-        for key in keys_to_remove:
-            del self.last_message_time[key]
-            if key in self.message_counts:
-                del self.message_counts[key]
-            if key in self.suppressed_messages:
-                del self.suppressed_messages[key]
-
-        return True
+            return True
 
     def _setup_debug_console(self):
         """
@@ -184,8 +183,14 @@ class Logger:
         Save current debug log buffer to file
         """
         try:
+            from utils.paths import get_app_dir
+
+            logs_dir = os.path.join(get_app_dir(), "logs")
+            if not os.path.exists(logs_dir):
+                os.makedirs(logs_dir)
+
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"debug_log_{timestamp}.txt"
+            filename = os.path.join(logs_dir, f"debug_log_{timestamp}.txt")
 
             with open(filename, "w") as f:
                 f.write("Color Tracking Algo Debug Log\n")
@@ -257,11 +262,12 @@ class Logger:
         Log a summary of suppressed messages periodically
         """
         current_time = time.time()
-        for message_hash, count in self.suppressed_messages.items():
-            if count > 0 and (current_time - self.last_spam_report[message_hash]) > 30:  # Report every 30 seconds
-                self.logger.info(f"Suppressed {count} duplicate log messages (hash: {message_hash[:8]}...)")
-                self.suppressed_messages[message_hash] = 0
-                self.last_spam_report[message_hash] = current_time
+        with self._lock:
+            for message_hash, count in list(self.suppressed_messages.items()):
+                if count > 0 and (current_time - self.last_spam_report[message_hash]) > 30:  # Report every 30 seconds
+                    self.logger.info(f"Suppressed {count} duplicate log messages (hash: {message_hash})")
+                    self.suppressed_messages[message_hash] = 0
+                    self.last_spam_report[message_hash] = current_time
 
     def debug(self, message):
         """
@@ -280,31 +286,26 @@ class Logger:
         ]
 
         # Check if this is a spam message
-        is_spam = any(spam_phrase in message.lower() for spam_phrase in spam_patterns)
-
-        if is_spam:
-            # Create a simplified hash for the spam pattern (not the full message)
-            for pattern in spam_patterns:
-                if pattern in message.lower():
-                    pattern_hash = hashlib.md5(pattern.encode()).hexdigest()
+        message_lower = message.lower()
+        for pattern in spam_patterns:
+            if pattern in message_lower:
+                pattern_hash = hash(pattern)
+                with self._lock:
                     self.message_counts[pattern_hash] += 1
+                    count = self.message_counts[pattern_hash]
 
-                    # Only log every 500th occurrence for "no target found" and similar
-                    if pattern in [
-                        "no target found",
-                        "color tracking algo for single player games in development enabled - starting target detection",
-                    ]:
-                        if self.message_counts[pattern_hash] % 500 == 1:
-                            self.logger.debug(
-                                f"{message} [Suppressed {self.message_counts[pattern_hash] - 1} similar messages]"
-                            )
-                    # Only log every 1000th occurrence for loop messages
-                    elif "loop #" in pattern or "gui" in pattern:
-                        if self.message_counts[pattern_hash] % 1000 == 1:
-                            self.logger.debug(
-                                f"{message} [Suppressed {self.message_counts[pattern_hash] - 1} similar messages]"
-                            )
-                    return
+                # Only log every 500th occurrence for "no target found" and similar
+                if pattern in [
+                    "no target found",
+                    "color tracking algo for single player games in development enabled - starting target detection",
+                ]:
+                    if count % 500 == 1:
+                        self.logger.debug(f"{message} [Suppressed {count - 1} similar messages]")
+                # Only log every 1000th occurrence for loop messages
+                elif "loop #" in pattern or "gui" in pattern:
+                    if count % 1000 == 1:
+                        self.logger.debug(f"{message} [Suppressed {count - 1} similar messages]")
+                return
 
         # For non-spam messages, use normal rate limiting
         if self._should_log_message(message, logging.DEBUG):
@@ -403,15 +404,17 @@ class Logger:
         if any(
             error_type in message for error_type in ["ScreenShotError", "gdi32.GetDIBits() failed", "Detection error"]
         ):
-            message_hash = hashlib.md5(message.encode()).hexdigest()
-            self.message_counts[message_hash] += 1
+            message_hash = hash(message)
+            with self._lock:
+                self.message_counts[message_hash] += 1
+                count = self.message_counts[message_hash]
 
             # Log first occurrence, then every 10th occurrence
-            if self.message_counts[message_hash] == 1 or self.message_counts[message_hash] % 10 == 0:
-                log_msg = f"{message} (occurrence #{self.message_counts[message_hash]})"
+            if count == 1 or count % 10 == 0:
+                log_msg = f"{message} (occurrence #{count})"
                 self.logger.error(log_msg)
                 self._update_debug_console(log_msg, "error")
-                if self.message_counts[message_hash] > 1:
+                if count > 1:
                     info_msg = "Additional occurrences of this error will be logged every 10th time"
                     self.logger.info(info_msg)
                     self._update_debug_console(info_msg, "info")

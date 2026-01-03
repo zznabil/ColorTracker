@@ -1,5 +1,6 @@
 # 🎨 ColorTracker UI/UX Improvement Implementation Plan
-## Version 3.4.1 - Enhanced Window Size & Organization
+## Version 3.5.1 - Final Hardening & QoL
+
 
 **Created:** 2025-12-28  
 **Status:** **COMPLETED** (Verified Jan 2, 2026)  
@@ -15,7 +16,7 @@ This plan implements a comprehensive UI/UX overhaul for ColorTracker application
 - ✅ Window size: 380×520 → 480×730 (+26% width, +40% height)
 - ✅ Tab consolidation: 6 tabs → 5 tabs (COMBAT, VISION, SYSTEM, STATS, DEBUG)
 - ✅ Master Toggle Switch at the top
-- ✅ Horizontal color picker with real-time preview
+- ✅ Precision Picker with Global Magnifier, Pixel-Perfect Navigation, and Precision Lens visuals
 - ✅ Larger graphs for analytics
 - ✅ FOV Visualization (Green Box)
 - ✅ Preset configurations in config.py (default, aggressive, precise, high_fps)

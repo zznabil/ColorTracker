@@ -26,4 +26,5 @@ The `setup_and_run.ps1` script is the definitive orchestration path for installi
 To perform a "Force Reinstall", simply delete the `.venv/` and `dist/` folders and run the script again. It will rebuild everything from source with O(N) efficiency.
 
 ---
-*Setup Guide Verified for V3.4.1 (Precision Picker Update)*
+*Setup Guide Verified for V3.5.1 (Policeman & QoL Overhaul)*
+

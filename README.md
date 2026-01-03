@@ -1,24 +1,26 @@
-# Color Tracking Algo for Single Player Games in Development - V3.5.0
+# Color Tracking Algo for Single Player Games in Development - V3.5.1
 
-A high-performance, modular color tracking and mouse automation tool optimized for responsiveness and stealth.
+![Version](https://img.shields.io/badge/version-3.5.1-blue.svg)
+![Python](https://img.shields.io/badge/python-3.12%2B-blue.svg)
+![License](https://img.shields.io/badge/license-MIT-green.svg)
+![Platform](https://img.shields.io/badge/platform-windows-lightgrey.svg)
+
+A high-performance, hardened, modular color tracking and mouse automation tool optimized for responsiveness, stealth, and stability.
 
 ## 🚀 Key Features
 - **Extreme Low-Latency Detection**: <2.5ms processing latency via cached FOV geometry and O(1) `cv2.minMaxLoc`.
-- **Zero-Copy Memory Architecture**: Direct hardware buffer access via `np.frombuffer` views.
-- **High-Resolution Telemetry**: Custom microsecond-level tracing of hot paths (`start_probe`/`stop_probe`) for performance auditing.
-- **Lockless Telemetry**: Single-writer/snapshot-reader pattern for zero-contention performance monitoring.
+- **Hardened Resource Safety**: Leak-proof GDI and Clipboard management via strict "Policeman Protocol" compliance.
+- **Stealth Mode (WDA)**: Integrated `SetWindowDisplayAffinity` to evade screen capture (OBS, Discord, etc.).
+- **Dynamic Keybinding**: Instant hotkey updates without restart via thread-safe listener registry.
+- **Thread-Safe Telemetry**: Atomic performance monitoring and logging for zero-contention diagnostics.
 - **Chebyshev Velocity Gating**: Max(dx, dy) speed estimation to eliminate vertical prediction deadzone.
-- **Predictive Stability Logic**: Deceleration dampening and direction-flip suppression to prevent high-scale overshooting.
-- **Adaptive Clamping**: Proximity-based damping in motion engine to prevent overshooting near targets.
-- **Thread-Local MSS Isolation**: Lock-free concurrency via `threading.local()` for screen capture.
-- **DLL Caching**: Cached Windows API function pointers in hot-path for zero-latency input injection.
-- **Config Versioning**: Observer pattern with O(1) version checks to eliminate redundant hot-path logic.
-- **Optimized Orchestration**: Method reference caching and config hot-reload throttling for peak loop throughput (30-1000 FPS).
-- **Allocation-Free Input**: C-structure reuse and function pointer caching in `low_level_movement` ($O(0)$ allocation).
-- **Smart Sleep (Hybrid Sync)**: Fused `time.sleep` and micro-spin-wait for nanosecond timing accuracy without CPU pinning.
-- **Self-Healing State Management**: Atomic JSON config persistence with automatic corruption recovery and type-repair.
-- **Professional HUD**: GPU-accelerated Dear PyGui interface with real-time 1% low analytics and visual overlays (FOV: 5-500px).
-- **Precision Lens Magnifier**: Circular viewport with crosshair overlay and dynamic data pill for pixel-perfect color picking with real-time HEX/RGB/XY telemetry.
+- **Predictive Stability Logic**: Deceleration dampening and direction-flip suppression for precise tracking.
+- **Adaptive Clamping**: Proximity-based damping to prevent overshooting near targets.
+- **Smart Sleep (Hybrid Sync)**: Fused `time.sleep` and micro-spin-wait for nanosecond timing accuracy.
+- **Self-Healing State Management**: Atomic JSON config persistence with automatic corruption recovery.
+- **Professional HUD**: GPU-accelerated Dear PyGui interface with pulsing status and 1% low analytics.
+
+- **Precision Picker System**: Advanced color selection featuring Global Magnifier for desktop-wide pixel access, Pixel-Perfect Navigation with arrow key controls, and Precision Lens visuals with circular viewport, crosshair overlay, and real-time HEX/RGB/XY telemetry.
 ## 🏛 Architectural Archetypes
 This project follows a strict structural duality to maintain clinical precision:
 - **Archetype A: The Sage (Logic/Data)**: The `core/` and `utils/` layers. Focused on type-safety, O(1) memory allocation, and deterministic execution.

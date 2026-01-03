@@ -1,4 +1,14 @@
-# Deep Architectural Blueprint - V3.4.1
+# Deep Architectural Blueprint - V3.5.1
+
+## V3.5.1 Hardening & QoL Overhaul
+- **Policeman Protocol**: Implemented strict resource management. Fixed GDI DC leaks in pixel picking and hardened Win32 Clipboard memory management (GlobalAlloc/Lock/Unlock/Free). Added 32-bit signed LONG clamping for mouse movement.
+- **Concurrency**: Introduced `threading.Lock` for all shared state: `running` flag, `Logger` frequency maps, `PerformanceMonitor` telemetry deques, and `KeyboardListener` callbacks. Fixed "lockless" race conditions.
+- **Logic Refinement**: Patched `MotionEngine` 1-Euro filter for numerical stability at >1000 FPS and corrected direction-flip suppression logic.
+- **User Experience**: 
+    - **Dynamic Rebinding**: Hotkeys now update instantly without app restart.
+    - **Pulsing UI**: "ACTIVE" status indicator now pulses using alpha modulation.
+    - **Stealth Mode**: Integrated `SetWindowDisplayAffinity` to evade screen capture tools.
+    - **FOV Persistence**: Synchronized FOV overlay state with config on startup.
 
 ## Project Overview
 **SAI Color Tracking Algorithm V3** is a modular Python-based real-time computer vision application for color detection and automated mouse movement. It is optimized for responsiveness, precision, and stealth, utilizing low-level Windows API for input.
@@ -58,7 +68,7 @@
     - **Edge Cases**: `test_ultra_edge_cases.py`, `test_detection_mocked.py`, `test_detection_noise.py`, `test_keyboard_listener_rebinding.py`, `test_paths.py`.
 
 ## Verification Log
-- **Last Verified**: 2026-01-02 (V3.4.1 Documentation Update)
+- **Last Verified**: 2026-01-03 (V3.5.1 Documentation & Packaging Update)
 - **Protocol**: ULTRATHINK "Harmony Baseline"
 - **Status**: ✅ PASSED (Production Grade V3.4.1)
 - **New Archetypes**:

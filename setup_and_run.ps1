@@ -63,14 +63,14 @@ try {
 } catch {
     Write-Host "   Python not found. Initiating automated installation..." -ForegroundColor Magenta
     
-    $installerUrl = "https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe"
+    $installerUrl = "https://www.python.org/ftp/python/3.12.1/python-3.12.1-amd64.exe"
     $installerPath = "$env:TEMP\python_installer.exe"
     
     try {
-        Print-Step "Downloading Python 3.11..."
+        Print-Step "Downloading Python 3.12..."
         Invoke-WebRequest -Uri $installerUrl -OutFile $installerPath
         
-        Print-Step "Installing Python 3.11 (Silent)..."
+        Print-Step "Installing Python 3.12 (Silent)..."
         Start-Process -FilePath $installerPath -ArgumentList "/quiet InstallAllUsers=1 PrependPath=1 Include_test=0" -Wait
         
         # Refresh PATH for the current session
@@ -81,7 +81,7 @@ try {
         
         Remove-Item $installerPath -Force -ErrorAction SilentlyContinue
     } catch {
-        Print-Error "Failed to install Python automatically. Please install Python 3.11 manually."
+        Print-Error "Failed to install Python automatically. Please install Python 3.12 manually."
         Write-Host "   Error: $_" -ForegroundColor Red
         Read-Host "Press Enter to exit"
         exit 1

@@ -44,6 +44,8 @@ class Config:
     target_fps: int
     enabled: bool
     debug_mode: bool
+    color_history: list[int]
+    fov_overlay_enabled: bool
     config_file: str
     # Default configuration schema for validation and self-healing
     DEFAULT_CONFIG = {
@@ -65,6 +67,9 @@ class Config:
         "target_fps": {"type": int, "default": 240, "min": 30, "max": 1000},
         "enabled": {"type": bool, "default": False},
         "debug_mode": {"type": bool, "default": False},
+        "color_history": {"type": list, "default": []},
+        "fov_overlay_enabled": {"type": bool, "default": False},
+        "preset_name": {"type": str, "default": "default"},
     }
 
     def __init__(self):
@@ -212,9 +217,10 @@ class Config:
         """
         Save current configuration to file using robust ATOMIC JSON serialization
         """
-        if self._save_timer:
-            self._save_timer.cancel()
-            self._save_timer = None
+        with self._lock:
+            if self._save_timer:
+                self._save_timer.cancel()
+                self._save_timer = None
 
         try:
             with self._lock:
@@ -241,6 +247,122 @@ class Config:
                     os.remove(temp_file)
                 except Exception:
                     pass
+
+    def add_color_to_history(self, color: int) -> None:
+        """
+        Add a color to the history list.
+
+        Args:
+            color: The color value (hex integer) to add.
+
+        - Prepends color to color_history.
+        - Removes duplicates (keeping the newest).
+        - Limits list to 8 items.
+        - Saves configuration.
+        """
+        # Get current history or initialize empty list
+        history: list[int] = getattr(self, "color_history", [])
+        if not isinstance(history, list):
+            history = []
+
+        # Remove duplicates (keep newest by removing old occurrences)
+        history = [c for c in history if c != color]
+
+        # Prepend new color
+        history.insert(0, color)
+
+        # Limit to 8 items
+        history = history[:8]
+
+        # Update and save
+        self.color_history = history
+        self.save()
+
+    def export_to_file(self, filepath: str) -> bool:
+        """
+        Export current configuration to a specific JSON file.
+
+        Args:
+            filepath: The path to export the configuration to.
+
+        Returns:
+            True if export was successful, False otherwise.
+        """
+        try:
+            config_data = {}
+            for key in self.DEFAULT_CONFIG.keys():
+                if hasattr(self, key):
+                    config_data[key] = getattr(self, key)
+
+            # ATOMIC SAVE: Write to temp file then rename
+            temp_file = f"{filepath}.tmp"
+            with open(temp_file, "w", encoding="utf-8") as f:
+                json.dump(config_data, f, indent=4, sort_keys=True)
+
+            # Close file before replace (Windows requirement)
+            os.replace(temp_file, filepath)
+
+            print(f"Configuration exported to {filepath}")
+            return True
+        except Exception as e:
+            print(f"Error exporting configuration: {e}")
+            # Try to cleanup temp file if it exists
+            temp_file = f"{filepath}.tmp"
+            if os.path.exists(temp_file):
+                try:
+                    os.remove(temp_file)
+                except Exception:
+                    pass
+            return False
+
+    def import_from_file(self, filepath: str) -> bool:
+        """
+        Import configuration from a specific JSON file, validate it, and update self attributes.
+
+        Args:
+            filepath: The path to import the configuration from.
+
+        Returns:
+            True if import was successful, False otherwise.
+        """
+        if not os.path.exists(filepath):
+            print(f"Import Error: {filepath} not found.")
+            return False
+
+        try:
+            with open(filepath, encoding="utf-8") as f:
+                content = f.read()
+
+            if not content.strip():
+                raise ValueError("Empty configuration file")
+
+            # Strip comments
+            import re
+
+            content = re.sub(r"//.*", "", content)
+            content = re.sub(r"/\*.*?\*/", "", content, flags=re.DOTALL)
+
+            config_data = json.loads(content)
+
+            # Validate and apply each key from DEFAULT_SCHEMA
+            updated_count = 0
+            for key in self.DEFAULT_CONFIG.keys():
+                if key in config_data:
+                    value = config_data[key]
+                    # Special handling for enum maps
+                    if key == "aim_point" and isinstance(value, str):
+                        aim_point_map = {"Head": 0, "Body": 1, "Legs": 2, "Chest": 1, "Center": 1}
+                        value = aim_point_map.get(value, 1)
+
+                    validated_value = self.validate(key, value)
+                    setattr(self, key, validated_value)
+                    updated_count += 1
+
+            print(f"Configuration imported from {filepath} ({updated_count} keys applied).")
+            return True
+        except Exception as e:
+            print(f"Error importing configuration from {filepath}: {e}")
+            return False
 
     def update(self, key: str, value: Any):
         """
@@ -271,14 +393,15 @@ class Config:
 
     def _schedule_save(self):
         """Schedule a delayed save operation with debouncing"""
-        # Cancel any existing timer just in case
-        if self._save_timer:
-            self._save_timer.cancel()
+        with self._lock:
+            # Cancel any existing timer
+            if self._save_timer:
+                self._save_timer.cancel()
 
-        # Schedule save after debounce interval
-        self._save_timer = threading.Timer(self._save_debounce_ms / 1000.0, self.save)
-        self._save_timer.daemon = True  # Don't prevent app exit
-        self._save_timer.start()
+            # Schedule save after debounce interval
+            self._save_timer = threading.Timer(self._save_debounce_ms / 1000.0, self.save)
+            self._save_timer.daemon = True  # Don't prevent app exit
+            self._save_timer.start()
 
     def get_all(self) -> dict[str, Any]:
         """
@@ -369,9 +492,56 @@ class Config:
 
         print(f"Applying preset: {preset_name}")
         for key, value in preset.items():
-            self.update(key, value)
+            # Update values without triggering save for every single item
+            # We'll save once at the end
+            if hasattr(self, key):
+                # Validate and set directly to avoid multiple save triggers
+                validated = self.validate(key, value)
+                setattr(self, key, validated)
+
+        # Update preset name
+        self.preset_name = preset_name
+        print(f"Preset '{preset_name}' applied and set as active.")
+
+        # Single atomic save
+        self.save()
 
         return True
+
+    def reset_to_defaults(self) -> None:
+        """
+        Reset all configuration settings to their default values.
+        """
+        print("Resetting all settings to defaults...")
+        for key, schema in self.DEFAULT_CONFIG.items():
+            # Skip read-only or special fields if any (none currently)
+            setattr(self, key, schema["default"])
+
+        # Reset internal tracking if needed
+        self.color_history = []
+
+        self.save()
+        print("All settings reset.")
+
+    def reset_section(self, keys: list[str]) -> None:
+        """
+        Reset a specific set of keys to their defaults.
+        """
+        for key in keys:
+            if key in self.DEFAULT_CONFIG:
+                setattr(self, key, self.DEFAULT_CONFIG[key]["default"])
+        self.save()
+        print(f"Reset section keys: {keys}")
+
+    def reset_motion_settings(self) -> None:
+        """Reset motion-related settings."""
+        keys = ["motion_min_cutoff", "motion_beta", "prediction_scale", "aim_point", "head_offset", "leg_offset"]
+        self.reset_section(keys)
+
+    def reset_vision_settings(self) -> None:
+        """Reset vision-related settings."""
+        keys = ["target_color", "color_tolerance", "fov_x", "fov_y", "fov_overlay_enabled"]
+        self.reset_section(keys)
 
     def get_available_presets(self) -> list[str]:
         """
@@ -381,3 +551,26 @@ class Config:
             List of preset names
         """
         return list(self.PRESETS.keys())
+
+    def create_backup(self) -> str:
+        """
+        Create a timestamped backup of the current configuration.
+
+        Returns:
+            Path to the backup file.
+        """
+        import shutil
+        from datetime import datetime
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_path = f"{self.config_file}.{timestamp}.bak"
+
+        try:
+            # Ensure current state is saved first
+            self.save()
+            shutil.copy2(self.config_file, backup_path)
+            print(f"Backup created at: {backup_path}")
+            return backup_path
+        except Exception as e:
+            print(f"Backup failed: {e}")
+            return ""
