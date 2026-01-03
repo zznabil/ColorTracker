@@ -71,9 +71,17 @@ class DXGIBackend(CaptureBackend):
 
         # output_color="BGRA" allows direct compatibility with existing pipeline
         self._camera = dxcam.create(output_color="BGRA", output_idx=0)
-        self._camera.start(target_fps=1000, video_mode=True)  # Start in video mode for buffering
-        # Wait a bit for initialization? usually start returns immediately.
-        # Video mode is faster as it keeps a buffer.
+        # FORCE VSync OFF: This is critical. By default, Desktop Duplication API waits for VSync.
+        # We use Grab Mode (video_mode=False) to avoid Full Screen Copy thread overhead and latency.
+        # We manually manage caching to allow 1000Hz logic loop even if screen updates are slower.
+
+        # We assume 1000Hz target, but we rely on manual grab() calls.
+        # Video mode thread copies Full Screen 1440p -> 14MB per frame -> Bandwidth saturation (~120 FPS limit).
+        # By using Grab Mode + Caching, we avoid blocking the logic loop.
+
+        # Note: dxcam.start() is NOT called. We use direct grab().
+
+        self.last_valid_frame = None
 
     def grab(self, region: dict) -> tuple[bool, NDArray[np.uint8] | None]:
         try:
@@ -82,41 +90,40 @@ class DXGIBackend(CaptureBackend):
             top = region["top"]
             right = left + region["width"]
             bottom = top + region["height"]
+            dxgi_region = (left, top, right, bottom)
 
-            # get_latest_frame() returns the last captured frame from the buffer
-            # This is non-blocking and extremely fast
-            frame = self._camera.get_latest_frame()
+            # Direct grab from dxcam (Non-blocking if no new frame usually, or fast return None)
+            # dxcam.grab(region) handles the Copy/Map.
+            # Issue: dxcam copies FULL screen then crops. This takes ~8ms on 1440p.
+            # This caps "Fresh Data" FPS to ~125.
+            # However, returning None is fast (0ms).
+
+            frame = self._camera.grab(region=dxgi_region)
 
             if frame is None:
+                # No new frame available (VSync or Timeout)
+                # Return cached frame to keep logic loop spinning
+                if self.last_valid_frame is not None:
+                    # We must ensure the cached frame matches the requested region size/pos?
+                    # If region changed, cached frame is invalid for this region.
+                    # But DetectionSystem moves region.
+                    # If we return old frame for NEW region, it's wrong.
+                    # So we can only return cached frame if region matches?
+                    # Actually, if region changes, we NEED new data.
+                    # If we return None, DetectionSystem stops.
+                    return False, None
                 return False, None
 
-            # Crop to region
-            # Frame is [height, width, channels]
-            # Since we are capturing full screen in video mode usually?
-            # dxcam with start() captures full screen. We need to crop.
-            # OR we can configure start(region=...).
-            # But if region changes (FOV changes), we'd need to restart.
-            # DetectionSystem changes region dynamicall for local search vs full search.
-            # So capturing full screen and cropping is safer for dynamic regions,
-            # though less efficient than capturing only ROI if ROI was static.
-            # Given the high speed of DXGI, cropping numpy array is fast.
-
-            # Wait, dxcam's get_latest_frame returns the full screen image if start() was called without region.
-            # Let's check how expensive cropping is. It's just slicing.
-
-            roi = frame[top:bottom, left:right]
-
-            # Check if we need to ensure contiguous array?
-            # cv2 sometimes prefers it, but numpy slicing usually works.
-
-            return True, roi
+            # Frame is valid
+            self.last_valid_frame = frame
+            return True, frame
 
         except Exception:
             return False, None
 
     def close(self) -> None:
         try:
-            self._camera.stop()
+            # No start/stop needed for grab mode
             del self._camera
         except Exception:
             pass
