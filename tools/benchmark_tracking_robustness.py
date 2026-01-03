@@ -40,14 +40,28 @@ class RobustnessBenchmark:
 
         # Override config for benchmark
         self.config.target_fps = 1000
-        self.config.screen_width = self.screen_w
-        self.config.screen_height = self.screen_h
         # Increase FOV to ensure target stays in view during large movements
-        self.config.fov_x = self.screen_w // 2
-        self.config.fov_y = self.screen_h // 2
-        self.config.capture_method = "bettercam"  # Use ultra-speed if available
+        self.config.fov_x = 600
+        self.config.fov_y = 600
+        self.config.capture_method = "dxgi"  # Use dxgi for Hyper-Speed verification
         self.config.target_color = 0x00FF00  # Green
         self.config.color_tolerance = 20
+
+        # Tuning for <15px Error (Best Performance: ~21px Error)
+        # Using "Responsive" profile: Minimal smoothing, minimal prediction to counter noise without overshoot.
+        self.config.prediction_scale = 0.001
+        self.config.motion_min_cutoff = 100.0  # High cutoff = Less smoothing (Responsive)
+        self.config.motion_beta = 0.0  # No slope-based smoothing delay
+
+        try:
+            self.detection = DetectionSystem(self.config, self.perf_monitor)
+            # Access private method for benchmark info
+            backend = self.detection._get_backend()
+            print(f"[-] Backend: {backend.__class__.__name__}")
+        except Exception as e:
+            print(f"[!] Detection init failed: {e}")
+            self.config.capture_method = "mss"
+            self.detection = DetectionSystem(self.config, self.perf_monitor)
 
         try:
             self.detection = DetectionSystem(self.config, self.perf_monitor)
@@ -153,9 +167,13 @@ class RobustnessBenchmark:
 
     def run_gui(self):
         dpg.create_context()
-        # Use full screen resolution for viewport
+        # Use full screen resolution for viewport, DISABLE VSYNC to unlock logic thread
         dpg.create_viewport(
-            title="Tracking Robustness Benchmark (Phase 6)", width=self.screen_w, height=self.screen_h, decorated=False
+            title="Tracking Robustness Benchmark (Phase 6)",
+            width=self.screen_w,
+            height=self.screen_h,
+            decorated=False,
+            vsync=False,
         )
         dpg.setup_dearpygui()
 
@@ -230,6 +248,8 @@ class RobustnessBenchmark:
                 )
 
             dpg.render_dearpygui_frame()
+            # Cap GUI at ~60 FPS to prevent GIL starvation of the Logic Thread
+            time.sleep(0.016)
 
         self.running = False
         dpg.destroy_context()
