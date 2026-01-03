@@ -1095,6 +1095,40 @@ def setup_gui(app):
 
                 dpg.add_text("PERFORMANCE", color=(201, 0, 141))
 
+                # Capture Method (Phase 4: Hyper-Speed)
+                capture_options = ["mss", "dxgi"]
+                current_capture = getattr(app.config, "capture_method", "mss")
+                if current_capture not in capture_options:
+                    current_capture = "mss"
+
+                def _on_capture_change(sender, app_data):
+                    app.config.update("capture_method", app_data)
+                    if hasattr(app, "show_success_toast"):
+                        app.show_success_toast("Capture method updated!")
+                    # Since switching backends is complex at runtime, suggest restart or rely on auto-reload if implemented
+                    # For now, config update persists it for next launch or re-init logic if handled
+                    # Ideally, DetectionSystem should handle hot-swap, but "Restart Required" is safer for DXGI/MSS switch
+                    if hasattr(app, "show_error_toast"):
+                        app.show_error_toast("Restart required to apply!")
+
+                with dpg.group(horizontal=True):
+                    dpg.add_text("Capture Backend:")
+                    app.capture_combo = dpg.add_combo(
+                        items=capture_options,
+                        default_value=current_capture,
+                        callback=_on_capture_change,
+                        width=120,
+                    )
+                    with dpg.tooltip(app.capture_combo):
+                        dpg.add_text(
+                            "Screen Capture Technology.\n"
+                            "• mss: CPU-based, compatible, ~90-170 FPS limit\n"
+                            "• dxgi: GPU-accelerated, extreme performance (300+ FPS)\n"
+                            "NOTE: Restart required to switch."
+                        )
+
+                dpg.add_spacer(height=5)
+
                 app.fps_slider = _create_styled_slider_int(
                     "Target FPS Loop",
                     app.config.target_fps,
