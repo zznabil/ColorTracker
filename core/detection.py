@@ -16,9 +16,10 @@ import threading
 from typing import Any
 
 import cv2
-import mss
 import numpy as np
 from numpy.typing import NDArray
+
+from core.capture import CaptureBackend, DXGIBackend, MSSBackend
 
 
 class DetectionSystem:
@@ -33,6 +34,7 @@ class DetectionSystem:
     _upper_bound: NDArray[np.uint8] | None
     _last_target_color: int | None
     _last_color_tolerance: int | None
+    _backend: CaptureBackend | None
 
     def __init__(self, config: Any, perf_monitor: Any) -> None:
         """
@@ -48,6 +50,10 @@ class DetectionSystem:
         # Initialize thread-local storage for MSS instances
         # This prevents threading issues with screen capture
         self._local = threading.local()
+
+        # Shared backend storage (for DXGI)
+        self._backend = None
+        self._current_capture_method = None
 
         # Target position tracking
         self.target_x = 0
@@ -79,26 +85,66 @@ class DetectionSystem:
         Cleanup resources for the current thread.
         Should be called when the thread using this system is terminating.
         """
-        if hasattr(self._local, "sct"):
+        # Cleanup thread-local backend
+        if hasattr(self._local, "backend"):
             try:
-                self._local.sct.close()
+                self._local.backend.close()
             except Exception:
                 pass
-            del self._local.sct
+            del self._local.backend
 
-    def _get_sct(self) -> Any:
-        """
-        Get thread-local MSS instance
-        Creates a new MSS instance for each thread to prevent threading conflicts
+        # Cleanup shared backend
+        if self._backend:
+            try:
+                self._backend.close()
+            except Exception:
+                pass
+            self._backend = None
 
-        Returns:
-            MSS instance for current thread
+    def _get_backend(self) -> CaptureBackend:
         """
-        if not hasattr(self._local, "sct"):
-            # Create new MSS instance for this thread
-            # Optimization: Disable cursor capture for better performance
-            self._local.sct = mss.mss(with_cursor=False)
-        return self._local.sct
+        Get the appropriate capture backend based on configuration.
+        Handles switching between backends and thread-local storage for MSS.
+        """
+        method = getattr(self.config, "capture_method", "mss")
+
+        # Handle method switch
+        if method != self._current_capture_method:
+            # Cleanup old backends
+            if self._backend:
+                try:
+                    self._backend.close()
+                except Exception:
+                    pass
+                self._backend = None
+
+            if hasattr(self._local, "backend"):
+                try:
+                    self._local.backend.close()
+                except Exception:
+                    pass
+                del self._local.backend
+
+            self._current_capture_method = method
+
+        if method == "dxgi":
+            if self._backend is None:
+                try:
+                    self._backend = DXGIBackend()
+                except Exception as e:
+                    # Fallback to MSS if DXGI fails (e.g. missing dll, admin rights)
+                    print(f"DXGI Backend init failed: {e}. Falling back to MSS.")
+                    self._current_capture_method = "mss"
+                    # Fall through to MSS block
+
+            # If backend initialization was successful, return it
+            if self._backend:
+                return self._backend
+
+        # MSS (Default or Fallback)
+        if not hasattr(self._local, "backend"):
+            self._local.backend = MSSBackend()
+        return self._local.backend
 
     def _update_color_bounds(self) -> None:
         """
@@ -182,7 +228,7 @@ class DetectionSystem:
 
     def _capture_and_process_frame(self, area: dict) -> tuple[bool, Any]:
         """
-        Capture a frame from the screen and convert it to a NumPy array.
+        Capture a frame from the screen using the configured backend.
 
         Args:
             area: Dictionary with 'left', 'top', 'width', 'height' keys.
@@ -192,23 +238,30 @@ class DetectionSystem:
         """
         self.perf_monitor.start_probe("detection_capture")
         try:
-            sct = self._get_sct()
-            sct_img = sct.grab(area)
-            # Use frombuffer to avoid memory copy
-            img_bgra = np.frombuffer(sct_img.bgra, dtype=np.uint8).reshape((sct_img.height, sct_img.width, 4))
+            backend = self._get_backend()
+            success, img_bgra = backend.grab(area)
 
-            if img_bgra.size == 0 or img_bgra.ndim != 3 or img_bgra.shape[2] != 4:
+            if not success or img_bgra is None:
                 return False, None
 
             return True, img_bgra
         except Exception:
-            # Robustness: Close and recreate MSS instance on next call if grab fails
-            if hasattr(self._local, "sct"):
+            # Robustness: Force cleanup on error
+            if hasattr(self._local, "backend"):
                 try:
-                    self._local.sct.close()
+                    self._local.backend.close()
                 except Exception:
                     pass
-                del self._local.sct
+                del self._local.backend
+
+            # Reset shared backend on failure
+            if self._backend:
+                try:
+                    self._backend.close()
+                except Exception:
+                    pass
+                self._backend = None
+
             return False, None
         finally:
             self.perf_monitor.stop_probe("detection_capture")

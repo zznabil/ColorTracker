@@ -65,6 +65,7 @@ class Config:
         "start_key": {"type": str, "default": "page_up"},
         "stop_key": {"type": str, "default": "page_down"},
         "target_fps": {"type": int, "default": 240, "min": 30, "max": 1000},
+        "capture_method": {"type": str, "default": "mss", "options": ["mss", "dxgi"]},
         "enabled": {"type": bool, "default": False},
         "debug_mode": {"type": bool, "default": False},
         "color_history": {"type": list, "default": []},
