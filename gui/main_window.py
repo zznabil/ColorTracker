@@ -1096,7 +1096,7 @@ def setup_gui(app):
                 dpg.add_text("PERFORMANCE", color=(201, 0, 141))
 
                 # Capture Method (Phase 4: Hyper-Speed)
-                capture_options = ["mss", "dxgi"]
+                capture_options = ["mss", "dxgi", "bettercam"]
                 current_capture = getattr(app.config, "capture_method", "mss")
                 if current_capture not in capture_options:
                     current_capture = "mss"
@@ -1123,7 +1123,8 @@ def setup_gui(app):
                         dpg.add_text(
                             "Screen Capture Technology.\n"
                             "• mss: CPU-based, compatible, ~90-170 FPS limit\n"
-                            "• dxgi: GPU-accelerated, extreme performance (300+ FPS)\n"
+                            "• dxgi: GPU-accelerated (dxcam), ~125 FPS visual, 1000+ Logic FPS\n"
+                            "• bettercam: GPU-accelerated (NvFBC), ~400 FPS visual, 1000+ Logic FPS\n"
                             "NOTE: Restart required to switch."
                         )
 

@@ -6,6 +6,7 @@ dearpygui>=2.1.1
 # Screen Capture
 mss>=10.1.0
 dxcam>=0.0.5
+bettercam>=0.0.1
 
 # Computer Vision
 opencv-python>=4.12.0.88
