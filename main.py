@@ -348,6 +348,7 @@ class ColorTrackerAlgo:
         # Ultra-precision timing setup
         self.start_time = time.perf_counter()
         self.last_fps_update = self.start_time
+        self.last_perf_log_time = self.start_time
 
         # Local references to methods to avoid self. lookup overhead
         find_target = self.detection.find_target
@@ -386,11 +387,16 @@ class ColorTrackerAlgo:
                     self.fps = stats["fps"]
                     self.last_fps_update = current_time
 
-                    # Log performance metrics periodically
-                    if loop_count % 3000 == 0 and hasattr(self, "logger"):
-                        # Every ~5 seconds at 600 FPS
+                    # Log performance metrics periodically (Time-based: Every 5 seconds)
+                    if current_time - self.last_perf_log_time >= 5.0 and hasattr(self, "logger"):
+                        self.last_perf_log_time = current_time
+
+                        # Calculate Avg FPS from Avg Frame Time (safe division)
+                        avg_fps = 1000.0 / stats["avg_frame_ms"] if stats["avg_frame_ms"] > 0 else 0.0
+
                         self.logger.debug(
-                            f"Performance: {stats['fps']:.1f} FPS | "
+                            f"Logic FPS: {stats['fps']:.1f} | "
+                            f"Avg FPS: {avg_fps:.1f} | "
                             f"Avg Frame: {stats['avg_frame_ms']:.2f}ms | "
                             f"Max Frame: {stats['worst_frame_ms']:.2f}ms | "
                             f"Missed: {int(stats['missed_frames'])}"
