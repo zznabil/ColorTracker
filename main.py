@@ -387,11 +387,12 @@ class ColorTrackerAlgo:
                     self.last_fps_update = current_time
 
                     # Log performance metrics periodically
-                    if loop_count % 600 == 0 and hasattr(self, "logger"):
+                    if loop_count % 3000 == 0 and hasattr(self, "logger"):
+                        # Every ~5 seconds at 600 FPS
                         self.logger.debug(
                             f"Performance: {stats['fps']:.1f} FPS | "
-                            f"Avg: {stats['avg_frame_ms']:.2f}ms | "
-                            f"Max: {stats['worst_frame_ms']:.2f}ms | "
+                            f"Avg Frame: {stats['avg_frame_ms']:.2f}ms | "
+                            f"Max Frame: {stats['worst_frame_ms']:.2f}ms | "
                             f"Missed: {int(stats['missed_frames'])}"
                         )
                         # Reset aggregate counters in monitor
