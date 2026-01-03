@@ -13,7 +13,10 @@ import math
 import threading
 import time
 from typing import Any
+import os
 
+import cv2
+import psutil
 import dearpygui.dearpygui as dpg
 
 from core.detection import DetectionSystem
@@ -73,6 +76,26 @@ class ColorTrackerAlgo:
 
         self.frame_count = 0
         self._target_status_cache = None
+
+        # Phase 6: Bare Metal Optimizations (Project MACH 1)
+        # 1. Elevate Process Priority to HIGH (Realtime is dangerous/unstable for Python)
+        try:
+            p = psutil.Process(os.getpid())
+            # Windows: HIGH_PRIORITY_CLASS (0x00000080)
+            # Linux: nice value < 0
+            if os.name == "nt":
+                p.nice(psutil.HIGH_PRIORITY_CLASS)
+            else:
+                p.nice(-10)  # Moderate priority boost
+        except Exception as e:
+            print(f"Failed to elevate process priority: {e}")
+
+        # 2. Enable OpenCV Optimizations (SSE/AVX)
+        try:
+            cv2.setUseOptimized(True)
+            cv2.setNumThreads(1)  # Reduce thread contention in hot loop
+        except Exception as e:
+            print(f"Failed to set OpenCV optimizations: {e}")
 
         # 1. Initialize DearPyGUI context first
         dpg.create_context()
