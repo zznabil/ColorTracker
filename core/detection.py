@@ -80,6 +80,10 @@ class DetectionSystem:
         # Optimization: Pre-allocate capture area dictionaries to avoid per-frame allocation
         self._capture_area = {"left": 0, "top": 0, "width": 0, "height": 0}
 
+        # Cache for frame identity to skip redundant CV2 processing
+        self._last_processed_frame_id = -1
+        self._last_result = (False, 0, 0)
+
     def close(self) -> None:
         """
         Cleanup resources for the current thread.
@@ -306,6 +310,19 @@ class DetectionSystem:
         if not success:
             return False, 0, 0
 
+        # OPTIMIZATION: Logic Decoupling (Phase 6)
+        # If the backend returns the EXACT SAME frame object (cached),
+        # skip heavy CV2 processing and return the previous result.
+        # This allows the logic loop to spin at 1000Hz+ while vision updates at monitor Hz.
+        if id(img_bgra) == self._last_processed_frame_id:
+            # We must ensure the previous result is still valid for the current state?
+            # Since we are in local_search, and we assume the frame is identical,
+            # the target position in the frame is identical.
+            # However, self.target_x/y might have been updated by prediction?
+            # No, target_x/y are detection results.
+            # So returning the last result is correct.
+            return self._last_result
+
         # Use cached bounds
         if self._lower_bound is None or self._upper_bound is None:
             self._update_color_bounds()
@@ -317,7 +334,11 @@ class DetectionSystem:
         finally:
             self.perf_monitor.stop_probe("detection_process")
 
+        # Update cache identity
+        self._last_processed_frame_id = id(img_bgra)
+
         if max_val <= 0:
+            self._last_result = (False, 0, 0)
             return False, 0, 0
 
         screen_x, screen_y = int(max_loc[0] + local_left), int(max_loc[1] + local_top)
@@ -326,10 +347,12 @@ class DetectionSystem:
         # Use cached values to avoid redundant calculations and attribute access
         if abs(screen_x - self._center_x) > self._fov_x or abs(screen_y - self._center_y) > self._fov_y:
             self.target_found_last_frame = False
+            self._last_result = (False, 0, 0)
             return False, 0, 0
 
         self.target_x, self.target_y = screen_x, screen_y
         self.target_found_last_frame = True
+        self._last_result = (True, screen_x, screen_y)
         return True, screen_x, screen_y
 
     def _full_search(self, left: int, top: int, right: int, bottom: int) -> tuple[bool, int, int]:
@@ -371,6 +394,12 @@ class DetectionSystem:
         if not success:
             return False, 0, 0
 
+        # OPTIMIZATION: Logic Decoupling (Phase 6)
+        if id(img_bgra) == self._last_processed_frame_id:
+            # Debug: Verify cache hit
+            # print("Cache Hit!", end="\r")
+            return self._last_result
+
         # OPTIMIZATION: Removed cv2.cvtColor(img_bgra, cv2.COLOR_BGRA2BGR)
         # We now perform color matching directly on BGRA data.
 
@@ -388,9 +417,13 @@ class DetectionSystem:
         finally:
             self.perf_monitor.stop_probe("detection_process")
 
+        # Update cache identity
+        self._last_processed_frame_id = id(img_bgra)
+
         if max_val <= 0:
             # No match found in full search
             self.target_found_last_frame = False
+            self._last_result = (False, 0, 0)
             return False, 0, 0
 
         match_x, match_y = max_loc
@@ -404,6 +437,7 @@ class DetectionSystem:
         self.target_y = screen_y
         self.target_found_last_frame = True
 
+        self._last_result = (True, screen_x, screen_y)
         return True, screen_x, screen_y
 
     def _hex_to_bgr(self, hex_color: int) -> tuple[int, int, int]:
