@@ -545,9 +545,13 @@ class ColorTrackerAlgo:
         self.last_fps_update = self.start_time
 
         # Main GUI Loop
+        target_gui_fps = 60.0
+        gui_frame_time = 1.0 / target_gui_fps
+
         while dpg.is_dearpygui_running():
+            gui_start_time = time.time()
             self.frame_count += 1
-            current_time = time.time()
+            current_time = gui_start_time
 
             # Pulse the status indicator if active (Phase 5 QoL)
             if current_time - self._last_ui_update >= self._ui_update_interval:
@@ -587,6 +591,11 @@ class ColorTrackerAlgo:
 
             # Render frame
             dpg.render_dearpygui_frame()
+
+            # Cap GUI FPS to ~60 to prevent CPU starvation of the algo thread
+            gui_elapsed = time.time() - gui_start_time
+            if gui_elapsed < gui_frame_time:
+                time.sleep(gui_frame_time - gui_elapsed)
 
         self.logger.info("GUI loop terminated. Shutting down systems...")
         self.stop_algo()
