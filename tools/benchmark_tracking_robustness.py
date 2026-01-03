@@ -5,7 +5,6 @@ import threading
 import dearpygui.dearpygui as dpg
 import sys
 import os
-import numpy as np
 
 # Add project root to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -24,15 +23,18 @@ class RobustnessBenchmark:
 
         # Override config for benchmark
         self.config.target_fps = 1000
-        self.config.fov_x = 400
-        self.config.fov_y = 400
+        # Increase FOV to ensure target stays in view during large movements
+        self.config.fov_x = 600
+        self.config.fov_y = 600
         self.config.capture_method = "bettercam"  # Use ultra-speed if available
         self.config.target_color = 0x00FF00  # Green
         self.config.color_tolerance = 20
 
         try:
             self.detection = DetectionSystem(self.config, self.perf_monitor)
-            print(f"[-] Backend: {self.detection.backend.__class__.__name__}")
+            # Access private method for benchmark info
+            backend = self.detection._get_backend()
+            print(f"[-] Backend: {backend.__class__.__name__}")
         except Exception as e:
             print(f"[!] Detection init failed: {e}")
             self.config.capture_method = "mss"
@@ -110,23 +112,10 @@ class RobustnessBenchmark:
                     pred_x, pred_y = self.motion.process(tx, ty, 0.001)
 
                     # Apply movement to cursor
-                    # In a real scenario, we use relative move.
-                    # Here, MotionEngine outputs absolute screen coordinates for the target.
-                    # Wait, MotionEngine.process returns PREDICTED TARGET POSITION (Absolute).
-                    # To move the cursor to it, we set cursor_pos = pred_x, pred_y.
-                    # But we want to simulate 'pulling'.
-                    # Let's verify MotionEngine output.
-                    # It returns (int, int) screen coordinates.
-
-                    # Update cursor towards predicted position
-                    # We simulate 'perfect' mouse control by snapping to prediction?
-                    # Or add smoothing? MotionEngine ALREADY adds smoothing.
-                    # So we should trust MotionEngine's output.
-
                     self.cursor_pos[0] = float(pred_x)
                     self.cursor_pos[1] = float(pred_y)
 
-            except Exception as e:
+            except Exception:
                 pass
 
             # 4. Calculate error (Euclidean distance)
@@ -170,11 +159,11 @@ class RobustnessBenchmark:
         dpg.show_viewport()
         dpg.set_primary_window("benchmark_window", True)
 
-        # Run for 15 seconds then exit
+        # Run for 10 seconds then exit (User requirement)
         start_time = time.time()
 
         while dpg.is_dearpygui_running():
-            if time.time() - start_time > 15.0:
+            if time.time() - start_time > 10.0:
                 break
 
             dpg.delete_item("overlay_layer", children_only=True)
