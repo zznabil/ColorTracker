@@ -1501,19 +1501,19 @@ def setup_gui(app):
         # Add FPS snap method to app
         def _snap_fps_value(value):
             """
-            Snap FPS value to 120fps increments starting from 120fps
+            Snap FPS value to 10fps increments for granular control.
 
             Args:
                 value: Raw slider value
 
             Returns:
-                Snapped FPS value at 120fps intervals (120, 240, 360, 480, 600, 720, 840, 960)
+                Snapped FPS value at 10fps intervals (30, 40, ..., 1000)
             """
-            # Calculate the snapped value by rounding to nearest 120fps increment
-            snapped = max(120, round(value / 120) * 120)
+            # Calculate the snapped value by rounding to nearest 10fps increment
+            snapped = max(30, round(value / 10) * 10)
 
-            # Ensure we stay within bounds (120-960)
-            return min(960, max(120, snapped))
+            # Ensure we stay within bounds (30-1000)
+            return min(1000, max(30, snapped))
 
         app._snap_fps_value = _snap_fps_value
 

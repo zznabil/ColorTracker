@@ -194,6 +194,7 @@ class ColorTrackerAlgo:
                 y_pos=self._viewport_original_pos[1],
                 decorated=self._viewport_original_decorated,
                 always_on_top=self._viewport_original_always_on_top,
+                vsync=False,  # Disable VSync to unlock FPS
             )
             dpg.setup_dearpygui()
 
