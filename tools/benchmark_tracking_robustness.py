@@ -1,18 +1,19 @@
-import time
 import math
-import random
-import threading
-import dearpygui.dearpygui as dpg
-import sys
 import os
+import random
+import sys
+import threading
+import time
+
+import dearpygui.dearpygui as dpg
 
 # Add project root to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from utils.config import Config
-from utils.performance_monitor import PerformanceMonitor
 from core.detection import DetectionSystem
 from core.motion_engine import MotionEngine
+from utils.config import Config
+from utils.performance_monitor import PerformanceMonitor
 
 
 class RobustnessBenchmark:
