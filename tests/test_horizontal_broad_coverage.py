@@ -106,11 +106,14 @@ class TestDetectionSystemBoundaryConditions:
 
         ds = DetectionSystem(config, MagicMock())
 
-        with patch.object(ds, "_get_sct") as mock_sct:
+        with patch.object(ds, "_get_backend") as mock_get_backend:
+            mock_backend = MagicMock()
+            mock_get_backend.return_value = mock_backend
+
             img = np.zeros((20, 20, 4), dtype=np.uint8)
             img[10, 10] = [0, 0, 255, 255]  # Target at center
 
-            mock_sct.return_value.grab.return_value = img
+            mock_backend.grab.return_value = (True, img)
 
             found, x, y = ds.find_target()
             # Should handle tiny FOV
@@ -129,11 +132,14 @@ class TestDetectionSystemBoundaryConditions:
 
         ds = DetectionSystem(config, MagicMock())
 
-        with patch.object(ds, "_get_sct") as mock_sct:
+        with patch.object(ds, "_get_backend") as mock_get_backend:
+            mock_backend = MagicMock()
+            mock_get_backend.return_value = mock_backend
+
             img = np.zeros((550, 550, 4), dtype=np.uint8)
             img[275, 275] = [0, 0, 255, 255]
 
-            mock_sct.return_value.grab.return_value = img
+            mock_backend.grab.return_value = (True, img)
 
             found, x, y = ds.find_target()
             assert found is True or found is False
@@ -151,11 +157,14 @@ class TestDetectionSystemBoundaryConditions:
 
         ds = DetectionSystem(config, MagicMock())
 
-        with patch.object(ds, "_get_sct") as mock_sct:
+        with patch.object(ds, "_get_backend") as mock_get_backend:
+            mock_backend = MagicMock()
+            mock_get_backend.return_value = mock_backend
+
             img = np.zeros((100, 100, 4), dtype=np.uint8)
             # All black already
 
-            mock_sct.return_value.grab.return_value = img
+            mock_backend.grab.return_value = (True, img)
 
             found, x, y = ds.find_target()
             # Should find black in black image
@@ -174,10 +183,13 @@ class TestDetectionSystemBoundaryConditions:
 
         ds = DetectionSystem(config, MagicMock())
 
-        with patch.object(ds, "_get_sct") as mock_sct:
+        with patch.object(ds, "_get_backend") as mock_get_backend:
+            mock_backend = MagicMock()
+            mock_get_backend.return_value = mock_backend
+
             img = np.ones((100, 100, 4), dtype=np.uint8) * 255
 
-            mock_sct.return_value.grab.return_value = img
+            mock_backend.grab.return_value = (True, img)
 
             found, x, y = ds.find_target()
             assert isinstance(found, bool)

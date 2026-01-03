@@ -238,6 +238,7 @@ class DetectionSystem:
         """
         self.perf_monitor.start_probe("detection_capture")
         try:
+            # Check if backend is valid/alive before usage
             backend = self._get_backend()
             success, img_bgra = backend.grab(area)
 

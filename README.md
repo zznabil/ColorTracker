@@ -56,7 +56,12 @@ This project follows a strict structural duality to maintain clinical precision:
   - `low_level_movement.py`: Direct Windows API input injection.
 - `gui/`: `DearPyGui` layout, theming, and real-time overlay logic.
 - `utils/`: Config persistence, thread-safe logging, and performance monitoring.
+- `plans/`: Project roadmaps and design documents.
 - `docs/`: In-depth manuals and user guides.
+
+## 🗺️ Roadmap
+- **Phase 1-3**: [QoL & UX Improvement](plans/qol_improvement_plan.md) (Completed)
+- **Phase 4**: [Hyper-Speed Capture (DXGI)](plans/project_roadmap.md) (Architecture Design)
 
 ## ⚖️ Disclaimer
 This software is intended for research and educational purposes only. Always use responsibly and adhere to the Terms of Service of any application you use this with.

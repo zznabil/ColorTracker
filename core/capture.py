@@ -1,8 +1,5 @@
-import threading
 from abc import ABC, abstractmethod
-from typing import Any, Tuple
 
-import cv2
 import mss
 import numpy as np
 from numpy.typing import NDArray
@@ -70,7 +67,7 @@ class DXGIBackend(CaptureBackend):
         try:
             import dxcam
         except ImportError:
-            raise ImportError("dxcam not installed")
+            raise ImportError("dxcam not installed") from None
 
         # output_color="BGRA" allows direct compatibility with existing pipeline
         self._camera = dxcam.create(output_color="BGRA", output_idx=0)

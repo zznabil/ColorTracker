@@ -29,7 +29,10 @@ class TestDetectionNoiseResilience:
         """Test detection with high-frequency pixel noise"""
         ds = DetectionSystem(base_config, MagicMock())
 
-        with patch.object(ds, "_get_sct") as mock_sct:
+        with patch.object(ds, "_get_backend") as mock_get_backend:
+            mock_backend = MagicMock()
+            mock_get_backend.return_value = mock_backend
+
             # Create image with target and noise
             img = np.zeros((100, 100, 4), dtype=np.uint8)
             # Target at 50, 50 (Red in BGRA is [0, 0, 255, 255])
@@ -40,7 +43,7 @@ class TestDetectionNoiseResilience:
             mask = np.random.random((100, 100)) < 0.1
             img[mask] = noise[mask]
 
-            mock_sct.return_value.grab.return_value = mock_screenshot_factory(img)
+            mock_backend.grab.return_value = (True, img)
 
             found, x, y = ds.find_target()
             # Should still find target if cluster is big enough or noise doesn't overwhelm
@@ -51,13 +54,16 @@ class TestDetectionNoiseResilience:
         """Test recovery when multiple similar color clusters are present"""
         ds = DetectionSystem(base_config, MagicMock())
 
-        with patch.object(ds, "_get_sct") as mock_sct:
+        with patch.object(ds, "_get_backend") as mock_get_backend:
+            mock_backend = MagicMock()
+            mock_get_backend.return_value = mock_backend
+
             img = np.zeros((100, 100, 4), dtype=np.uint8)
             # Two "Red" pixels
             img[20, 20] = [0, 0, 255, 255]
             img[80, 80] = [0, 0, 255, 255]
 
-            mock_sct.return_value.grab.return_value = mock_screenshot_factory(img)
+            mock_backend.grab.return_value = (True, img)
 
             found, x, y = ds.find_target()
             assert found is True
@@ -68,12 +74,15 @@ class TestDetectionNoiseResilience:
         """Test detection stability when target is clipped at FOV boundaries"""
         ds = DetectionSystem(base_config, MagicMock())
 
-        with patch.object(ds, "_get_sct") as mock_sct:
+        with patch.object(ds, "_get_backend") as mock_get_backend:
+            mock_backend = MagicMock()
+            mock_get_backend.return_value = mock_backend
+
             img = np.zeros((100, 100, 4), dtype=np.uint8)
             # Target at very bottom right edge
             img[99, 99] = [0, 0, 255, 255]
 
-            mock_sct.return_value.grab.return_value = mock_screenshot_factory(img)
+            mock_backend.grab.return_value = (True, img)
 
             found, x, y = ds.find_target()
             assert found is True
@@ -82,9 +91,12 @@ class TestDetectionNoiseResilience:
         """Verify no pixels matching color results in False found, not crash"""
         ds = DetectionSystem(base_config, MagicMock())
 
-        with patch.object(ds, "_get_sct") as mock_sct:
+        with patch.object(ds, "_get_backend") as mock_get_backend:
+            mock_backend = MagicMock()
+            mock_get_backend.return_value = mock_backend
+
             img = np.zeros((100, 100, 4), dtype=np.uint8)  # No red
-            mock_sct.return_value.grab.return_value = mock_screenshot_factory(img)
+            mock_backend.grab.return_value = (True, img)
 
             found, x, y = ds.find_target()
             assert found is False

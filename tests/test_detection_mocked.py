@@ -9,6 +9,7 @@ from utils.config import Config
 
 class MockScreenShot:
     """Mock for mss.screenshot.ScreenShot"""
+
     def __init__(self, arr):
         self.height, self.width, self.channels = arr.shape
         self.raw = arr.tobytes()
@@ -50,7 +51,12 @@ def test_find_target_success(mock_detection):
 
     with patch("mss.mss") as mock_mss:
         # Return the MockScreenShot instead of raw array
+        # This mocks mss inside MSSBackend
         mock_mss.return_value.grab.return_value = mock_screenshot
+
+        # We must NOT patch _get_backend if we want to test MSSBackend logic (which uses mss)
+        # However, DetectionSystem might have cached a backend or use _local
+        # Ensure we are using MSS backend
 
         found, x, y = mock_detection.find_target()
 

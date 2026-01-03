@@ -135,11 +135,11 @@ class TestDetectionDeepImageProcessing:
 
         ds = DetectionSystem(config, MagicMock())
 
-        with patch.object(ds, "_get_sct") as mock_sct:
+        with patch.object(ds, "_get_backend") as mock_backend_getter:
             # 2D image (grayscale)
             img = np.zeros((100, 100), dtype=np.uint8)
 
-            mock_sct.return_value.grab.return_value = img
+            mock_backend_getter.return_value.grab.return_value = (True, img)
 
             # Should handle gracefully
             try:
@@ -162,12 +162,12 @@ class TestDetectionDeepImageProcessing:
 
         ds = DetectionSystem(config, MagicMock())
 
-        with patch.object(ds, "_get_sct") as mock_sct:
+        with patch.object(ds, "_get_backend") as mock_backend_getter:
             # BGRA format (mss returns BGRA)
             img = np.zeros((100, 100, 4), dtype=np.uint8)
             img[50, 50] = [0, 0, 255, 255]  # Red in BGR
 
-            mock_sct.return_value.grab.return_value = img
+            mock_backend_getter.return_value.grab.return_value = (True, img)
 
             found, x, y = ds.find_target()
             # Should interpret correctly
@@ -183,6 +183,8 @@ class TestDetectionDeepImageProcessing:
         config.search_area = 50
         config.target_color = 0xFF0000
         config.color_tolerance = 10
+        # Mock capture_method to ensure we use MSS logic
+        config.capture_method = "mss"
 
         ds = DetectionSystem(config, MagicMock())
 
@@ -193,9 +195,10 @@ class TestDetectionDeepImageProcessing:
             try:
                 # Patch mss.mss inside the thread to avoid $DISPLAY errors
                 with patch("mss.mss"):
-                    sct = ds._get_sct()
-                    # Verify we got a valid SCT instance
-                    sct_results.append(sct is not None)
+                    # We need to verify _get_backend returns an MSSBackend and stores it in _local
+                    backend = ds._get_backend()
+                    # Verify we got a valid backend instance
+                    sct_results.append(backend is not None)
             except Exception as e:
                 errors.append(e)
 

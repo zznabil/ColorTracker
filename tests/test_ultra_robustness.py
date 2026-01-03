@@ -128,10 +128,13 @@ class TestUltraRobustness:
         ds = DetectionSystem(config, MagicMock())
 
         # 1. Simulate empty array (0x0)
-        with patch.object(ds, "_get_sct") as mock_sct:
-            grab_mock = MagicMock()
-            grab_mock.return_value = np.zeros((0, 0, 4), dtype=np.uint8)
-            mock_sct.return_value.grab = grab_mock
+        with patch.object(ds, "_get_backend") as mock_get_backend:
+            mock_backend = MagicMock()
+            mock_get_backend.return_value = mock_backend
+
+            # Backend returns (success, image)
+            # Empty image
+            mock_backend.grab.return_value = (True, np.zeros((0, 0, 4), dtype=np.uint8))
 
             # Should handle gracefully (return False or ignore)
             try:
@@ -142,10 +145,12 @@ class TestUltraRobustness:
                 pytest.fail(f"Crashed on empty image: {e}")
 
         # 2. Simulate malformed array (1D instead of 3D)
-        with patch.object(ds, "_get_sct") as mock_sct:
-            grab_mock = MagicMock()
-            grab_mock.return_value = np.zeros((1000), dtype=np.uint8)  # Wrong shape
-            mock_sct.return_value.grab = grab_mock
+        with patch.object(ds, "_get_backend") as mock_get_backend:
+            mock_backend = MagicMock()
+            mock_get_backend.return_value = mock_backend
+
+            # Malformed image
+            mock_backend.grab.return_value = (True, np.zeros((1000), dtype=np.uint8))
 
             try:
                 found, x, y = ds.find_target()

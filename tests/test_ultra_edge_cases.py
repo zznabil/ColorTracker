@@ -9,6 +9,7 @@ import os
 from unittest.mock import MagicMock, patch
 
 import numpy as np
+import pytest
 
 from core.low_level_movement import LowLevelMovementSystem
 from core.motion_engine import MotionEngine
@@ -82,54 +83,97 @@ def test_prediction_temporal_instability():
         px, py = ps.process(200, 200, 5.0)
         assert np.isfinite(px) and np.isfinite(py)
 
+    def test_detection_area_clipping_logic(mock_screenshot_factory):
+        """Test if detection area is always within screen bounds and FOV check works"""
+        from core.detection import DetectionSystem
 
-def test_detection_area_clipping_logic(mock_screenshot_factory):
-    """Test if detection area is always within screen bounds and FOV check works"""
-    from core.detection import DetectionSystem
+        config = MagicMock()
+        config.screen_width = 1920
+        config.screen_height = 1080
+        config.fov_x = 100
+        config.fov_y = 100
+        config.search_area = 500
+        config.target_color = 0xFFFFFF
+        config.color_tolerance = 10
 
-    config = MagicMock()
-    config.screen_width = 1920
-    config.screen_height = 1080
-    config.fov_x = 100
-    config.fov_y = 100
-    config.search_area = 500
-    config.target_color = 0xFFFFFF
-    config.color_tolerance = 10
+        ds = DetectionSystem(config, MagicMock())
+        ds._update_fov_cache()
 
-    ds = DetectionSystem(config, MagicMock())
-    ds._update_fov_cache()
+        with patch.object(ds, "_get_backend") as mock_get_backend:
+            mock_backend = MagicMock()
+            mock_get_backend.return_value = mock_backend
 
-    with patch.object(ds, "_get_sct") as mock_sct:
-        grab_mock = MagicMock()
-        # Ensure the mock returns an object with shape compatible with the logic
-        # 1x1 image for testing flow
-        grab_mock.return_value = mock_screenshot_factory(np.zeros((1, 1, 4), dtype=np.uint8))
-        mock_sct.return_value.grab = grab_mock
+            # 1. Simulate empty array (0x0)
+            mock_backend.grab.return_value = (True, np.zeros((0, 0, 4), dtype=np.uint8))
 
-        # 1. Target near edge of FOV (fov_x=100, center=960 -> right_edge=1060)
-        # target_x=1050 (valid). local_search=100 -> left=950.
-        # We find match at local +115 = 1065 (Outside FOV).
-        ds.target_x = 1050
-        ds.target_y = 540
-        ds.target_found_last_frame = True
+            # Should handle gracefully (return False or ignore)
+            try:
+                found, x, y = ds.find_target()
+                assert found is False
+            except Exception as e:
+                # If it crashes, it failed the test
+                pytest.fail(f"Crashed on empty image: {e}")
 
-        # patch minMaxLoc returns (minVal, maxVal, minLoc, maxLoc)
-        # We simulate finding a target at offset (115, 0) relative to local crop
-        with patch("cv2.minMaxLoc", return_value=(0, 255, (0, 0), (115, 0))):
-            # local_area: left = 1050-100 = 950.
-            # screen_x = 115 + 950 = 1065.
-            # abs(1065 - 960) = 105 > fov_x(100). Fails.
-            found, tx, ty = ds._local_search()
-            assert found is False
+            # 2. Simulate malformed array (1D instead of 3D)
+            # Backend should handle this, or detection system
+            # If backend returns it, detection might fail.
+            # But let's assume backend returns tuple (True, img)
+            mock_backend.grab.return_value = (True, np.zeros((1000), dtype=np.uint8))
 
-        # 2. Target exactly at center
-        ds.target_x = 960
-        ds.target_y = 540
-        ds.target_found_last_frame = True
-        # local_area: left = 960-100 = 860. top = 540-100 = 440.
-        # We want screen_x = 960. So match_x = 960 - 860 = 100.
-        with patch("cv2.minMaxLoc", return_value=(0, 255, (0, 0), (100, 100))):
-            found, tx, ty = ds._local_search()
-            assert found is True
-            assert tx == 960
-            assert ty == 540
+            try:
+                found, x, y = ds.find_target()
+                assert found is False
+            except Exception as e:
+                # We want robust code that doesn't crash app
+                pytest.fail(f"Crashed on malformed array: {e}")
+
+    def test_detection_area_clipping_logic_real(mock_screenshot_factory):
+        """Test actual clipping"""
+        from core.detection import DetectionSystem
+
+        config = MagicMock()
+        config.screen_width = 1920
+        config.screen_height = 1080
+        config.fov_x = 100
+        config.fov_y = 100
+        config.search_area = 500
+        config.target_color = 0xFFFFFF
+        config.color_tolerance = 10
+
+        ds = DetectionSystem(config, MagicMock())
+        ds._update_fov_cache()
+
+        with patch.object(ds, "_get_backend") as mock_get_backend:
+            mock_backend = MagicMock()
+            mock_get_backend.return_value = mock_backend
+
+            # Use a valid image
+            mock_backend.grab.return_value = (True, np.zeros((1, 1, 4), dtype=np.uint8))
+
+            # 1. Target near edge of FOV (fov_x=100, center=960 -> right_edge=1060)
+            # target_x=1050 (valid). local_search=100 -> left=950.
+            # We find match at local +115 = 1065 (Outside FOV).
+            ds.target_x = 1050
+            ds.target_y = 540
+            ds.target_found_last_frame = True
+
+            # patch minMaxLoc returns (minVal, maxVal, minLoc, maxLoc)
+            # We simulate finding a target at offset (115, 0) relative to local crop
+            with patch("cv2.minMaxLoc", return_value=(0, 255, (0, 0), (115, 0))):
+                # local_area: left = 1050-100 = 950.
+                # screen_x = 115 + 950 = 1065.
+                # abs(1065 - 960) = 105 > fov_x(100). Fails.
+                found, tx, ty = ds._local_search()
+                assert found is False
+
+            # 2. Target exactly at center
+            ds.target_x = 960
+            ds.target_y = 540
+            ds.target_found_last_frame = True
+            # local_area: left = 960-100 = 860. top = 540-100 = 440.
+            # We want screen_x = 960. So match_x = 960 - 860 = 100.
+            with patch("cv2.minMaxLoc", return_value=(0, 255, (0, 0), (100, 100))):
+                found, tx, ty = ds._local_search()
+                assert found is True
+                assert tx == 960
+                assert ty == 540
